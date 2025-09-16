@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Backstage",
-    "slug": "Backstage",
+    "name": "Rehearsal",
+    "slug": "Rehearsal",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "backstage",
+    "scheme": "rehearsal",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
