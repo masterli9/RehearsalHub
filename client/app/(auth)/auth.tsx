@@ -92,6 +92,12 @@ export default function Auth() {
                                         placeholderTextColor="#A1A1A1"
                                         className="w-full p-3 bg-white dark:bg-darkGray mb-6 text-white rounded-m border border-accent-light dark:border-accent-dark"
                                     />
+                                    <TextInput
+                                        secureTextEntry
+                                        placeholder="Confirm Password"
+                                        placeholderTextColor="#A1A1A1"
+                                        className="w-full p-3 bg-white dark:bg-darkGray mb-6 text-white rounded-m border border-accent-light dark:border-accent-dark"
+                                    />
                                     <Pressable
                                         className="bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95"
                                         onPress={() => {}}

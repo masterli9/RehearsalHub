@@ -18,7 +18,8 @@ export default function SwitchTabs({
             {tabs.map((tab, index) => (
                 <Pressable
                     key={index}
-                    className={`p-3 rounded-m w-1/2 shadow ${activeTab === tab ? "bg-boxBackground-light dark:bg-boxBackground-dark" : "bg-accent-light dark:bg-accent-dark"}`}
+                    className={`p-3 rounded-m ${activeTab === tab ? "shadow bg-boxBackground-light dark:bg-boxBackground-dark" : "bg-accent-light dark:bg-accent-dark"}`}
+                    style={{ flex: 1 }}
                     onPress={() => setActiveTab(tab)}
                 >
                     <Text
