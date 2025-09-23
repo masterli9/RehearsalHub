@@ -74,7 +74,10 @@ export default function Auth() {
                     enableAutomaticScroll={true}
                     showsVerticalScrollIndicator={false}
                 >
-                    <View className="flex-col items-center justify-center bg-darkWhite dark:bg-boxBackground-dark w-full p-4 rounded-2xl">
+                    <View
+                        key={activeTab}
+                        className="flex-col items-center justify-center bg-darkWhite dark:bg-boxBackground-dark w-full p-4 rounded-2xl"
+                    >
                         <Text className="text-2xl font-bold text-black dark:text-white mt-3">
                             Welcome to RehearsalHub!
                         </Text>
@@ -89,11 +92,14 @@ export default function Auth() {
                         />
                         {activeTab === "Login" ? (
                             <Formik
+                                key="login"
                                 initialValues={{ email: "", password: "" }}
                                 validationSchema={loginSchema}
                                 onSubmit={(values) => {
                                     console.log(values);
                                 }}
+                                validateOnBlur={false}
+                                validateOnChange={false}
                             >
                                 {({
                                     handleChange,
@@ -102,6 +108,7 @@ export default function Auth() {
                                     values,
                                     errors,
                                     touched,
+                                    submitCount,
                                 }) => (
                                     <>
                                         <TextInput
@@ -111,12 +118,15 @@ export default function Auth() {
                                             value={values.email}
                                             onChangeText={handleChange("email")}
                                             onBlur={handleBlur("email")}
+                                            keyboardType="email-address"
+                                            autoCapitalize="none"
                                         />
-                                        {touched.email && errors.email && (
-                                            <Text className="text-red-500 mb-3">
-                                                {errors.email}
-                                            </Text>
-                                        )}
+                                        {(touched.email || submitCount > 0) &&
+                                            errors.email && (
+                                                <Text className="text-red-500 mb-3">
+                                                    {errors.email}
+                                                </Text>
+                                            )}
                                         <TextInput
                                             secureTextEntry
                                             placeholder="Password"
@@ -127,8 +137,11 @@ export default function Auth() {
                                                 "password"
                                             )}
                                             onBlur={handleBlur("password")}
+                                            keyboardType="numbers-and-punctuation"
+                                            autoCapitalize="none"
                                         />
-                                        {touched.password &&
+                                        {(touched.password ||
+                                            submitCount > 0) &&
                                             errors.password && (
                                                 <Text className="text-red-500 mb-3">
                                                     {errors.password}
@@ -136,7 +149,7 @@ export default function Auth() {
                                             )}
                                         <Pressable
                                             className="bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95"
-                                            onPress={() => {}}
+                                            onPress={() => handleSubmit()}
                                         >
                                             <Text className="text-base font-bold text-white dark:text-black">
                                                 Log in
@@ -147,6 +160,7 @@ export default function Auth() {
                             </Formik>
                         ) : (
                             <Formik
+                                key="register"
                                 initialValues={{
                                     username: "",
                                     email: "",
@@ -157,6 +171,8 @@ export default function Auth() {
                                 onSubmit={(values) => {
                                     console.log(values);
                                 }}
+                                validateOnBlur={false}
+                                validateOnChange={false}
                             >
                                 {({
                                     handleChange,
@@ -165,6 +181,7 @@ export default function Auth() {
                                     values,
                                     errors,
                                     touched,
+                                    submitCount,
                                 }) => (
                                     <>
                                         <TextInput
@@ -177,7 +194,8 @@ export default function Auth() {
                                             )}
                                             onBlur={handleBlur("username")}
                                         />
-                                        {touched.username &&
+                                        {(touched.username ||
+                                            submitCount > 0) &&
                                             errors.username && (
                                                 <Text className="text-red-500 mb-3">
                                                     {errors.username}
@@ -190,12 +208,15 @@ export default function Auth() {
                                             value={values.email}
                                             onChangeText={handleChange("email")}
                                             onBlur={handleBlur("email")}
+                                            keyboardType="email-address"
+                                            autoCapitalize="none"
                                         />
-                                        {touched.email && errors.email && (
-                                            <Text className="text-red-500 mb-3">
-                                                {errors.email}
-                                            </Text>
-                                        )}
+                                        {(touched.email || submitCount > 0) &&
+                                            errors.email && (
+                                                <Text className="text-red-500 mb-3">
+                                                    {errors.email}
+                                                </Text>
+                                            )}
                                         <TextInput
                                             secureTextEntry
                                             placeholder="Password"
@@ -206,8 +227,11 @@ export default function Auth() {
                                                 "password"
                                             )}
                                             onBlur={handleBlur("password")}
+                                            keyboardType="numbers-and-punctuation"
+                                            autoCapitalize="none"
                                         />
-                                        {touched.password &&
+                                        {(touched.password ||
+                                            submitCount > 0) &&
                                             errors.password && (
                                                 <Text className="text-red-500 mb-3">
                                                     {errors.password}
@@ -225,8 +249,11 @@ export default function Auth() {
                                             onBlur={handleBlur(
                                                 "confirmPassword"
                                             )}
+                                            keyboardType="numbers-and-punctuation"
+                                            autoCapitalize="none"
                                         />
-                                        {touched.confirmPassword &&
+                                        {(touched.confirmPassword ||
+                                            submitCount > 0) &&
                                             errors.confirmPassword && (
                                                 <Text className="text-red-500 mb-3">
                                                     {errors.confirmPassword}
@@ -234,7 +261,9 @@ export default function Auth() {
                                             )}
                                         <Pressable
                                             className="bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95"
-                                            onPress={() => {}}
+                                            onPress={() => {
+                                                handleSubmit();
+                                            }}
                                         >
                                             <Text className="text-base font-bold text-white dark:text-black">
                                                 Register
