@@ -1,11 +1,12 @@
 {
     "expo": {
-        "name": "Rehearsal",
-        "slug": "Rehearsal",
+        "name": "RehearsalHub",
+        "slug": "rehearsalhub",
+        "owner": "sterli",
         "version": "1.0.0",
         "orientation": "portrait",
         "icon": "./assets/images/icon.png",
-        "scheme": "rehearsal",
+        "scheme": "rehearsalhub",
         "userInterfaceStyle": "automatic",
         "newArchEnabled": true,
         "ios": {
