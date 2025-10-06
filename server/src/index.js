@@ -1,5 +1,5 @@
 import express from "express";
-import pool from "./db/index.js";
+import pool from "./db/pool.js";
 import dotenv from "dotenv";
 
 import usersRouter from "./routes/users.js";

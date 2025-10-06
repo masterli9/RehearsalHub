@@ -6,8 +6,12 @@ import {
     updateProfile,
     signOut,
     User,
+    sendEmailVerification,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import apiUrl from "@/config";
+import { Alert } from "react-native";
+import { router } from "expo-router";
 
 type AuthContextType = {
     user: User | null;
@@ -51,21 +55,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email,
             password
         );
+        await sendEmailVerification(cred.user);
+        await auth.signOut();
         await updateProfile(cred.user, { displayName: username });
-        await fetch("http://localhost:3000/api/users", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                uid: cred.user.uid,
-                email: email,
-                username: username,
-            }),
-        });
+        try {
+            await fetch(apiUrl + "/api/users", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    uid: cred.user.uid,
+                    email: email,
+                    username: username,
+                }),
+            });
+        } catch (error) {
+            console.error("Failed to create user in backend: ", error);
+        }
     };
     const login = async (email: string, password: string) => {
-        await signInWithEmailAndPassword(auth, email, password);
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+
+        if (!cred.user.emailVerified) {
+            Alert.alert(
+                "Email not verified",
+                "Please verify your email before logging in."
+            );
+            await auth.signOut();
+            // router.replace("/(auth)/auth");
+            // TODO: redirect to login page after logging out (not verified)
+            return;
+        }
     };
 
     const logout = async () => {
@@ -74,8 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <AuthContext.Provider
-            value={{ user, loading, register, login, logout }}
-        >
+            value={{ user, loading, register, login, logout }}>
             {children}
         </AuthContext.Provider>
     );

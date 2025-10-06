@@ -1,4 +1,4 @@
-import pool from "../db/index.js";
+import pool from "../db/pool.js";
 
 export const registerUser = async (req, res) => {
     const { uid, email, username } = req.body;
@@ -11,7 +11,7 @@ export const registerUser = async (req, res) => {
 
     try {
         const existing = await pool.query(
-            "SELECT * FROM users WHERE uid = $1",
+            "SELECT * FROM users WHERE firebase_uid = $1",
             [uid]
         );
         if (existing.rows.length > 0) {
