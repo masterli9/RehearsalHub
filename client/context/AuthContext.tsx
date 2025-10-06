@@ -52,6 +52,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             password
         );
         await updateProfile(cred.user, { displayName: username });
+        await fetch("http://localhost:3000/api/users", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                uid: cred.user.uid,
+                email: email,
+                username: username,
+            }),
+        });
     };
     const login = async (email: string, password: string) => {
         await signInWithEmailAndPassword(auth, email, password);
@@ -63,7 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <AuthContext.Provider
-            value={{ user, loading, register, login, logout }}>
+            value={{ user, loading, register, login, logout }}
+        >
             {children}
         </AuthContext.Provider>
     );
