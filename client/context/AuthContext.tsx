@@ -38,7 +38,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+        const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+            // if (firebaseUser) {
+            //     await firebaseUser.reload();
+            //     if (!firebaseUser.emailVerified) {
+            //         router.replace("/(auth)/verifyEmail");
+            //     }
+            // }
             setUser(firebaseUser);
             setLoading(false);
         });

@@ -8,7 +8,7 @@ import { ThemedView } from "@/components/themed-view";
 import { Link } from "expo-router";
 
 export default function HomeScreen() {
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
 
     return (
         <ParallaxScrollView
@@ -20,7 +20,10 @@ export default function HomeScreen() {
                 />
             }>
             <ThemedView style={styles.titleContainer}>
-                <ThemedText type='title'>Welcome!</ThemedText>
+                <ThemedText type='title'>
+                    Welcome{" "}
+                    {user != null ? (user.email ?? "no user") : "no user"}!
+                </ThemedText>
                 <HelloWave />
             </ThemedView>
             <Pressable

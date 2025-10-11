@@ -8,7 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useEffect, useState } from "react";
+import { View, Text } from "react-native";
 import "../global.css";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 
@@ -18,15 +18,31 @@ export const unstable_settings = {
 
 function AuthGate() {
     const { user, loading } = useAuth();
-    if (loading) return null;
+    if (loading) {
+        return (
+            <View className='flex-1 items-center justify-center bg-black'>
+                <Text className='text-white text-lg'>
+                    Loading (waiting for firebase)...
+                </Text>
+            </View>
+        );
+    }
+
+    if (user && !user.emailVerified) {
+        return (
+            <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name='(auth)/verifyEmail' />
+            </Stack>
+        );
+    }
 
     return user ? (
         <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name='(tabs)' />
         </Stack>
     ) : (
         <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)/auth" />
+            <Stack.Screen name='(auth)/auth' />
         </Stack>
     );
 }
@@ -37,10 +53,9 @@ export default function RootLayout() {
     return (
         <AuthProvider>
             <ThemeProvider
-                value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-            >
+                value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
                 <AuthGate />
-                <StatusBar style="auto" />
+                <StatusBar style='auto' />
             </ThemeProvider>
         </AuthProvider>
     );
