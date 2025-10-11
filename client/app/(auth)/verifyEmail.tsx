@@ -10,6 +10,7 @@ export default function VerifyEmail() {
     const { user } = useAuth();
 
     const handleResend = async () => {
+        console.log("resending ");
         if (!user) return;
         try {
             await sendEmailVerification(user);
@@ -21,6 +22,7 @@ export default function VerifyEmail() {
     };
     const handleVerified = async () => {
         if (!user) return;
+        console.log("user ", user);
         await user.reload();
         if (user.emailVerified) {
             router.replace("/(tabs)/explore");
@@ -41,24 +43,27 @@ export default function VerifyEmail() {
             }
             start={{ x: 0, y: 1 }}
             end={{ x: 0, y: 0 }}
-            className='flex-1 items-center justify-center p-3'>
+            className="flex-1 items-center justify-center p-3"
+        >
             <SafeAreaView>
-                <View className='flex-col items-center justify-center p-3 bg-darkWhite dark:bg-boxBackground-dark gap-2 rounded-2xl'>
-                    <Text className='text-white text-center text-2xl font-regular my-3'>
+                <View className="flex-col items-center justify-center p-3 bg-darkWhite dark:bg-boxBackground-dark gap-2 rounded-2xl">
+                    <Text className="text-white text-center text-2xl font-regular my-3">
                         Check your inbox to verify your email.
                     </Text>
                     <Pressable
-                        className='bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 my-3'
-                        onPress={handleResend}>
-                        <Text className='text-base font-bold text-white dark:text-black'>
+                        className="bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 my-3"
+                        onPress={() => handleResend()}
+                    >
+                        <Text className="text-base font-bold text-white dark:text-black">
                             Resend email
                         </Text>
                     </Pressable>
                     {/* TODO: test and fix these two buttons */}
                     <Pressable
-                        className='bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 mb-3'
-                        onPress={handleVerified}>
-                        <Text className='text-base font-bold text-white dark:text-black'>
+                        className="bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 mb-3"
+                        onPress={() => handleVerified()}
+                    >
+                        <Text className="text-base font-bold text-white dark:text-black">
                             I've verified
                         </Text>
                     </Pressable>

@@ -56,7 +56,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             password
         );
         await sendEmailVerification(cred.user);
-        await auth.signOut();
         await updateProfile(cred.user, { displayName: username });
         try {
             await fetch(apiUrl + "/api/users", {
@@ -95,7 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <AuthContext.Provider
-            value={{ user, loading, register, login, logout }}>
+            value={{ user, loading, register, login, logout }}
+        >
             {children}
         </AuthContext.Provider>
     );
