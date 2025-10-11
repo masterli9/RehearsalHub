@@ -79,23 +79,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!cred.user.emailVerified) {
             Alert.alert(
                 "Email not verified",
-                "Please verify your email before logging in."
+                "Please verify your email before logging in.",
+                [
+                    {
+                        text: "OK",
+                        onPress: () => {
+                            router.replace("/(auth)/verifyEmail");
+                        },
+                    },
+                ]
             );
-            await auth.signOut();
-            // router.replace("/(auth)/auth");
-            // TODO: redirect to login page after logging out (not verified)
             return;
         }
     };
 
     const logout = async () => {
         await signOut(auth);
+        router.replace("/(auth)/auth");
     };
 
     return (
         <AuthContext.Provider
-            value={{ user, loading, register, login, logout }}
-        >
+            value={{ user, loading, register, login, logout }}>
             {children}
         </AuthContext.Provider>
     );
