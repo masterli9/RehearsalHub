@@ -29,3 +29,21 @@ export const registerUser = async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 };
+
+export const getBandsForUser = async (req, res) => {
+    const { uid } = req.params;
+
+    if (!uid) return res.status(400).json({ error: "Missing required fields" });
+
+    try {
+        const result = await pool.query(
+            `SELECT b.id, b.name, b.invite_code FROM bands b JOIN band_members bm ON b.id = bm.band_id WHERE bm.user_id = $1`,
+            [uid]
+        );
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Error while loading bands: ", error);
+        res.status(500).json({ error: "Server error" });
+    }
+};

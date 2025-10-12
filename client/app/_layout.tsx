@@ -11,6 +11,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { View, Text } from "react-native";
 import "../global.css";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { BandProvider, useBand } from "@/context/BandContext";
 
 export const unstable_settings = {
     anchor: "(tabs)",
@@ -31,7 +32,7 @@ function AuthGate() {
     if (user && !user.emailVerified) {
         return (
             <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name='(auth)/verifyEmail' />
+                <Stack.Screen name='(auth)/auth' />
             </Stack>
         );
     }
@@ -52,11 +53,13 @@ export default function RootLayout() {
 
     return (
         <AuthProvider>
-            <ThemeProvider
-                value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-                <AuthGate />
-                <StatusBar style='auto' />
-            </ThemeProvider>
+            <BandProvider>
+                <ThemeProvider
+                    value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+                    <AuthGate />
+                    <StatusBar style='auto' />
+                </ThemeProvider>
+            </BandProvider>
         </AuthProvider>
     );
 }

@@ -2,7 +2,8 @@ import express from "express";
 import pool from "./db/pool.js";
 import dotenv from "dotenv";
 
-import usersRouter from "./routes/users.js";
+import usersRoutes from "./routes/users.js";
+import bandsRoutes from "./routes/bands.js";
 
 dotenv.config();
 
@@ -11,7 +12,8 @@ const port = 3000;
 
 app.use(express.json());
 
-app.use("/api/users", usersRouter);
+app.use("/api/users", usersRoutes);
+app.use("/api/bands", bandsRoutes);
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
