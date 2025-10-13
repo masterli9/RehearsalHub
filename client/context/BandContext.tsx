@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import apiUrl from "@/config";
+import { useAuth } from "./AuthContext";
 
 type Band = {
     id: string;
@@ -22,6 +23,8 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
     const [bands, setBands] = useState<Band[]>([]);
     const [activeBand, setActiveBand] = useState<Band | null>(null);
 
+    const { user } = useAuth();
+
     useEffect(() => {
         const mockBands = [
             { id: "1", name: "My First Band", inviteCode: "ABC123" },
@@ -40,17 +43,37 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
         try {
             const res = await fetch(`${apiUrl}/api/users/${uid}/bands`);
             const data = await res.json();
-            setBands(data);
-            setActiveBand(data[0] || null);
-        } catch (error) {
-            console.error("Error while loading bands (fe): ", error);
+
+            console.log("fetchUserBands response:", {
+                status: res.status,
+                ok: res.ok,
+                data,
+            });
+
+            if (!res.ok) {
+                console.warn("API error while loading bands: ", data);
+                setBands([]);
+                setActiveBand(null);
+                return;
+            }
+
+            const safe = Array.isArray(data)
+                ? data
+                : data?.rows && Array.isArray(data.rows)
+                  ? data.rows
+                  : [];
+            setBands(safe);
+            setActiveBand(safe[0] || null);
+        } catch (err) {
+            console.error("Error in fetchUserBands:", err);
+            setBands([]);
+            setActiveBand(null);
         }
     };
 
     const createBand = async (name: string) => {
         try {
-            // TODO: nahraď userId aktuálním Firebase UID
-            const userId = "demo_user";
+            const userId = user?.uid || "demo_user";
 
             const res = await fetch(`${apiUrl}/api/bands`, {
                 method: "POST",
@@ -70,7 +93,7 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
 
     const joinBandByCode = async (code: string) => {
         try {
-            const userId = "demo_user";
+            const userId = user?.uid || "demo_user";
 
             const res = await fetch(`${apiUrl}/api/bands/join`, {
                 method: "POST",
@@ -100,7 +123,8 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 createBand,
                 joinBandByCode,
                 fetchUserBands,
-            }}>
+            }}
+        >
             {children}
         </BandContext.Provider>
     );

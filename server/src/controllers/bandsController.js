@@ -1,4 +1,5 @@
-import pool from "../db/pool";
+import pool from "../db/pool.js";
+import { getUserIdByFirebaseUid } from "../utils/getUserId.js";
 
 export const createBand = async (req, res) => {
     const { name, creator_id } = req.body;
@@ -10,15 +11,17 @@ export const createBand = async (req, res) => {
     const inviteCode = crypto.randomBytes(3).toString("hex").toUpperCase();
 
     try {
+        const convertedUserId = getUserIdByFirebaseUid(creator_id);
+
         const bandResult = await pool.query(
-            "INSERT INTO bands (name, invite_code) VALUES ($1, $2) RETURNING id, name, invite_code",
+            "INSERT INTO bands (name, invite_code) VALUES ($1, $2) RETURNING band_id, name, invite_code",
             [name, inviteCode]
         );
         const band = bandResult.rows[0];
 
         await pool.query(
             "INSERT INTO band_members (band_id, user_id, role) VALUES ($1, $2, 'leader')",
-            [band.id, creator_id]
+            [band.id, convertedUserId]
         );
 
         res.status(201).json(band);
@@ -36,6 +39,8 @@ export const joinBand = async (req, res) => {
     }
 
     try {
+        const convertedUserId = getUserIdByFirebaseUid(user_id);
+
         const bandResult = await pool.query(
             "SELECT id, name, invite_code FROM bands WHERE invite_code = $1",
             [invite_code]
@@ -51,7 +56,7 @@ export const joinBand = async (req, res) => {
 
         const checkMember = await pool.query(
             "SELECT * FROM band_members WHERE band_id = $1 AND user_id = $2",
-            [band.id, user_id]
+            [band.id, convertedUserId]
         );
 
         if (checkMember.rows.length > 0) {
@@ -62,7 +67,7 @@ export const joinBand = async (req, res) => {
 
         await pool.query(
             "INSERT INTO band_members (band_id, user_id, role) VALUES ($1, $2, 'member')",
-            [band.id, user_id] // TODO: role should be chosen by user
+            [band.id, convertedUserId] // TODO: role should be chosen by user
         );
 
         res.status(200).json(band);

@@ -37,7 +37,11 @@ export const getBandsForUser = async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT b.id, b.name, b.invite_code FROM bands b JOIN band_members bm ON b.id = bm.band_id WHERE bm.user_id = $1`,
+            `SELECT b.band_id, b.name, b.invite_code
+             FROM bands b
+             JOIN band_members bm ON b.band_id = bm.band_id
+             JOIN users u ON u.user_id = bm.user_id
+             WHERE u.firebase_uid = $1`,
             [uid]
         );
 
