@@ -1,14 +1,17 @@
-import { Text, TextInput, useColorScheme, View } from "react-native";
+import { Text, TextInput, useColorScheme, View, Modal } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useBand } from "../../context/BandContext";
 import { useAuth } from "../../context/AuthContext";
 import { useEffect } from "react";
 import StyledButton from "@/components/StyledButton";
+import { useState } from "react";
 
 export default function Band() {
     const systemScheme = useColorScheme();
     const { user } = useAuth();
+
+    const [showCreateModal, setShowCreateModal] = useState(false);
 
     const {
         bands,
@@ -23,7 +26,9 @@ export default function Band() {
         fetchUserBands(user?.uid || "demo_user");
     }, []);
 
-    const handleCreateBand = () => {};
+    const handleCreateBand = () => {
+        setShowCreateModal(true);
+    };
 
     const handleJoinBandByCode = () => {};
 
@@ -40,7 +45,7 @@ export default function Band() {
             <SafeAreaView>
                 {bands.length === 0 ? (
                     <>
-                        <View className='flex-col items-center justify-center bg-darkWhite dark:bg-boxBackground-dark p-4 rounded-2xl'>
+                        <View className='flex-col items-center justify-center bg-darkWhite dark:bg-boxBackground-dark p-5 rounded-2xl'>
                             <Text className='text-3xl font-bold text-black dark:text-white my-2'>
                                 You don't have a band yet!
                             </Text>
@@ -50,13 +55,50 @@ export default function Band() {
                             <View className='flex-row gap-4 w-full justify-center items-center my-3'>
                                 <StyledButton
                                     title='Create a band'
-                                    onPress={() => handleCreateBand}
+                                    onPress={() => handleCreateBand()}
                                 />
                                 <StyledButton
                                     title='Join a band'
-                                    onPress={() => handleJoinBandByCode}
+                                    onPress={() => handleJoinBandByCode()}
                                 />
                             </View>
+                            <Modal
+                                visible={showCreateModal}
+                                animationType='slide'
+                                transparent
+                                onRequestClose={() =>
+                                    setShowCreateModal(false)
+                                }>
+                                <View className='bg-darkWhite dark:bg-boxBackground-dark p-5 flex-col justify-center items-center'>
+                                    <Text className='text-3xl font-bold text-black dark:text-white my-2'>
+                                        Create a band
+                                    </Text>
+                                    <TextInput
+                                        placeholder='Band name'
+                                        placeholderTextColor='#A1A1A1'
+                                        className='w-full p-3 bg-white dark:bg-darkGray my-4 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                        // value={values.email}
+                                        // onChangeText={handleChange("email")}
+                                        // onBlur={handleBlur("email")}
+                                        keyboardType='email-address'
+                                        autoCapitalize='none'
+                                    />
+                                    <TextInput
+                                        placeholder='Band name'
+                                        placeholderTextColor='#A1A1A1'
+                                        className='w-full p-3 bg-white dark:bg-darkGray my-4 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                        // value={values.email}
+                                        // onChangeText={handleChange("email")}
+                                        // onBlur={handleBlur("email")}
+                                        keyboardType='email-address'
+                                        autoCapitalize='none'
+                                    />
+                                </View>
+                                <StyledButton
+                                    onPress={() => setShowCreateModal(false)}
+                                    title='Cancel'
+                                />
+                            </Modal>
                         </View>
                     </>
                 ) : (
