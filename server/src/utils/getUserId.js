@@ -1,4 +1,4 @@
-import pool from "../db.js";
+import pool from "../db/pool.js";
 
 export const getUserIdByFirebaseUid = async (firebaseUid) => {
     try {

@@ -44,12 +44,6 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
             const res = await fetch(`${apiUrl}/api/users/${uid}/bands`);
             const data = await res.json();
 
-            console.log("fetchUserBands response:", {
-                status: res.status,
-                ok: res.ok,
-                data,
-            });
-
             if (!res.ok) {
                 console.warn("API error while loading bands: ", data);
                 setBands([]);
@@ -123,8 +117,7 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 createBand,
                 joinBandByCode,
                 fetchUserBands,
-            }}
-        >
+            }}>
             {children}
         </BandContext.Provider>
     );

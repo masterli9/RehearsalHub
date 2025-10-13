@@ -1,4 +1,4 @@
-import { Pressable, Text, TextInput, useColorScheme, View } from "react-native";
+import { Text, TextInput, useColorScheme, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -9,6 +9,7 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import { useAuth } from "@/context/AuthContext";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
+import StyledButton from "@/components/StyledButton";
 
 export default function Auth() {
     const systemScheme = useColorScheme();
@@ -163,13 +164,10 @@ export default function Auth() {
                                                     {errors.password}
                                                 </Text>
                                             )}
-                                        <Pressable
-                                            className='bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95'
-                                            onPress={() => handleSubmit()}>
-                                            <Text className='text-base font-bold text-white dark:text-black'>
-                                                Log in
-                                            </Text>
-                                        </Pressable>
+                                        <StyledButton
+                                            title='Log in'
+                                            onPress={() => handleSubmit()}
+                                        />
                                     </>
                                 )}
                             </Formik>
@@ -290,15 +288,12 @@ export default function Auth() {
                                                     {errors.confirmPassword}
                                                 </Text>
                                             )}
-                                        <Pressable
-                                            className='bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95'
+                                        <StyledButton
+                                            title='Register'
                                             onPress={() => {
                                                 handleSubmit();
-                                            }}>
-                                            <Text className='text-base font-bold text-white dark:text-black'>
-                                                Register
-                                            </Text>
-                                        </Pressable>
+                                            }}
+                                        />
                                     </>
                                 )}
                             </Formik>

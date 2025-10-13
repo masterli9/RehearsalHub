@@ -1,11 +1,12 @@
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Pressable, Text, useColorScheme, View, Alert } from "react-native";
+import { Text, useColorScheme, View, Alert } from "react-native";
 import { useState } from "react";
 import { sendEmailVerification } from "firebase/auth";
 import { useAuth } from "@/context/AuthContext";
 import { router } from "expo-router";
 import { useEffect } from "react";
+import StyledButton from "@/components/StyledButton";
 
 export default function VerifyEmail() {
     const systemScheme = useColorScheme();
@@ -81,21 +82,15 @@ export default function VerifyEmail() {
                     <Text className='text-dark dark:text-white text-center text-2xl font-regular my-3'>
                         Check your inbox to verify your email.
                     </Text>
-                    <Pressable
-                        className={`bg-black dark:bg-white rounded-m p-2 my-3 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 ${isDisabled ? "bg-black/70 dark:bg-white/80" : ""}`}
-                        onPress={() => handleResend()}
-                        disabled={isDisabled}>
-                        <Text className='text-base font-bold text-white dark:text-black'>
-                            Resend email
-                        </Text>
-                    </Pressable>
-                    <Pressable
-                        className='bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 mb-3'
-                        onPress={() => handleVerified()}>
-                        <Text className='text-base font-bold text-white dark:text-black'>
-                            I've verified
-                        </Text>
-                    </Pressable>
+                    <StyledButton
+                        title='Resend email'
+                        onPress={handleResend}
+                        disabled={isDisabled}
+                    />
+                    <StyledButton
+                        title="I've verified"
+                        onPress={handleVerified}
+                    />
                 </View>
             </SafeAreaView>
         </LinearGradient>
