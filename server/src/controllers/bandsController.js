@@ -4,24 +4,52 @@ import { getUserIdByFirebaseUid } from "../utils/getUserId.js";
 export const createBand = async (req, res) => {
     const { name, creator_id } = req.body;
 
-    if (!name || !invite_code) {
+    if (!name) {
         return res.status(400).json({ error: "Missing required fields" });
     }
-
-    const inviteCode = crypto.randomBytes(3).toString("hex").toUpperCase();
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
     try {
-        const convertedUserId = getUserIdByFirebaseUid(creator_id);
+        // getUserIdByFirebaseUid is likely async/promise-based
+        const convertedUserId = await getUserIdByFirebaseUid(creator_id);
+        console.log("Creator ID: ", creator_id);
+        console.log("Converted User ID: ", convertedUserId);
 
+        // Insert into bands, return band_id, name, invite_code (schema: band_id, name, invite_code, created_at)
         const bandResult = await pool.query(
             "INSERT INTO bands (name, invite_code) VALUES ($1, $2) RETURNING band_id, name, invite_code",
             [name, inviteCode]
         );
         const band = bandResult.rows[0];
 
+        // First, insert the band member and get their band_member_id (PK)
+        const bandMemberResult = await pool.query(
+            "INSERT INTO band_members (band_id, user_id) VALUES ($1, $2) RETURNING band_member_id",
+            [band.band_id, convertedUserId]
+        );
+        const bandMemberId = bandMemberResult.rows[0].band_member_id;
+
+        // Get the role_id for the "leader" role (create if not exists)
+        let roleResult = await pool.query(
+            "SELECT role_id FROM roles WHERE title = $1",
+            ["leader"]
+        );
+        let roleId;
+        if (roleResult.rows.length === 0) {
+            // Create "leader" role if it doesn't exist
+            const insertRole = await pool.query(
+                "INSERT INTO roles (title) VALUES ($1) RETURNING role_id",
+                ["leader"]
+            );
+            roleId = insertRole.rows[0].role_id;
+        } else {
+            roleId = roleResult.rows[0].role_id;
+        }
+
+        // Insert membership into member_roles with leader role
         await pool.query(
-            "INSERT INTO band_members (band_id, user_id, role) VALUES ($1, $2, 'leader')",
-            [band.id, convertedUserId]
+            "INSERT INTO member_roles (band_member_id, role_id) VALUES ($1, $2)",
+            [bandMemberId, roleId]
         );
 
         res.status(201).json(band);
