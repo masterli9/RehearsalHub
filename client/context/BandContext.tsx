@@ -7,13 +7,17 @@ type Band = {
     name: string;
     inviteCode: string;
 };
+export type BandRole = {
+    role_id: number;
+    title: string;
+};
 
 type BandContextType = {
     bands: Band[];
     activeBand: Band | null;
     switchBand: (id: string) => void;
     createBand: (name: string) => Promise<void>;
-    joinBandByCode: (code: string) => Promise<void>;
+    joinBandByCode: (code: string, role: BandRole[]) => Promise<void>;
     fetchUserBands: (uid: string) => Promise<void>;
 };
 
@@ -85,14 +89,18 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    const joinBandByCode = async (code: string) => {
+    const joinBandByCode = async (code: string, roles: BandRole[]) => {
         try {
             const userId = user?.uid || "demo_user";
 
             const res = await fetch(`${apiUrl}/api/bands/join`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ invite_code: code, user_id: userId }),
+                body: JSON.stringify({
+                    invite_code: code,
+                    user_id: userId,
+                    roles: roles,
+                }),
             });
 
             const data = await res.json();
@@ -117,7 +125,8 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 createBand,
                 joinBandByCode,
                 fetchUserBands,
-            }}>
+            }}
+        >
             {children}
         </BandContext.Provider>
     );

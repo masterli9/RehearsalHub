@@ -60,17 +60,19 @@ export const createBand = async (req, res) => {
 };
 
 export const joinBand = async (req, res) => {
-    const { invite_code, user_id } = req.body;
+    const { invite_code, user_id, roles } = req.body;
 
     if (!invite_code || !user_id) {
         return res.status(400).json({ error: "Missing required fields." });
     }
 
+    const roleTitles = Array.isArray(roles) ? roles.map((r) => r.title) : [];
+
     try {
-        const convertedUserId = getUserIdByFirebaseUid(user_id);
+        const convertedUserId = await getUserIdByFirebaseUid(user_id);
 
         const bandResult = await pool.query(
-            "SELECT id, name, invite_code FROM bands WHERE invite_code = $1",
+            "SELECT band_id, name, invite_code FROM bands WHERE invite_code = $1",
             [invite_code]
         );
 
@@ -80,11 +82,11 @@ export const joinBand = async (req, res) => {
                 .json({ error: "Band with this invite code does not exist" });
         }
 
-        const band = bandResult.rows[0];
+        const bandId = bandResult.rows[0].band_id;
 
         const checkMember = await pool.query(
             "SELECT * FROM band_members WHERE band_id = $1 AND user_id = $2",
-            [band.id, convertedUserId]
+            [bandId, convertedUserId]
         );
 
         if (checkMember.rows.length > 0) {
@@ -93,14 +95,42 @@ export const joinBand = async (req, res) => {
                 .json({ error: "User is already a member of this band" });
         }
 
-        await pool.query(
-            "INSERT INTO band_members (band_id, user_id, role) VALUES ($1, $2, 'member')",
-            [band.id, convertedUserId] // TODO: role should be chosen by user
+        const memberResult = await pool.query(
+            "INSERT INTO band_members (band_id, user_id) VALUES ($1, $2) RETURNING band_member_id",
+            [bandId, convertedUserId]
+        );
+        const memberId = memberResult.rows[0].band_member_id;
+
+        await pool.query("DELETE FROM member_roles WHERE band_member_id = $1", [
+            memberId,
+        ]);
+
+        const roleResult = await pool.query(
+            "SELECT role_id, title FROM roles WHERE title = ANY($1)",
+            [roleTitles]
         );
 
-        res.status(200).json(band);
+        for (const role of roleResult.rows) {
+            await pool.query(
+                "INSERT INTO member_roles (band_member_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+                [memberId, role.role_id]
+            );
+        }
+
+        res.status(200).json({ message: "Successfully joined band" });
     } catch (error) {
         console.error("Error while joining band: ", error);
         res.status(500).json({ error: "Server error" });
+    }
+};
+export const getAllRoles = async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT role_id, title FROM roles ORDER BY title ASC"
+        );
+        res.status(200).json(result.rows);
+    } catch (err) {
+        console.error("Error fetching roles:", err);
+        res.status(500).json({ error: "Server error while fetching roles" });
     }
 };
