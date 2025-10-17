@@ -60,8 +60,15 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 : data?.rows && Array.isArray(data.rows)
                   ? data.rows
                   : [];
-            setBands(safe);
-            setActiveBand(safe[0] || null);
+
+            const mapped = safe.map((b: any) => ({
+                id: b.band_id || b.id,
+                name: b.name,
+                inviteCode: b.invite_code || b.inviteCode,
+            }));
+
+            setBands(mapped);
+            setActiveBand(mapped[0] || null);
         } catch (err) {
             console.error("Error in fetchUserBands:", err);
             setBands([]);
@@ -81,7 +88,14 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
 
             if (!res.ok) throw new Error("Error creating band (fe)");
 
-            const newBand = await res.json();
+            const data = await res.json();
+
+            const newBand = {
+                id: data.band_id || data.id,
+                name: data.name,
+                inviteCode: data.invite_code || data.inviteCode,
+            };
+
             setBands((prev) => [...prev, newBand]);
             setActiveBand(newBand);
         } catch (err) {
@@ -109,8 +123,14 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 return;
             }
 
-            setBands((prev) => [...prev, data]);
-            setActiveBand(data);
+            const joined = {
+                id: data.band_id || data.id,
+                name: data.name,
+                inviteCode: data.invite_code || data.inviteCode,
+            };
+
+            setBands((prev) => [...prev, joined]);
+            setActiveBand(joined);
         } catch (err) {
             console.error("joinBandByCode error:", err);
         }

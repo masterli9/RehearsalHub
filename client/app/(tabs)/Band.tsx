@@ -5,7 +5,6 @@ import {
     View,
     Modal,
     Pressable,
-    Role,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,6 +18,8 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import apiUrl from "@/config";
 import { BandRole } from "../../context/BandContext";
+import * as Clipboard from "expo-clipboard";
+import Toast from "react-native-root-toast";
 
 export default function Band() {
     const systemScheme = useColorScheme();
@@ -84,9 +85,9 @@ export default function Band() {
             }
             start={{ x: 0, y: 1 }}
             end={{ x: 0, y: 0 }}
-            className="flex-1 items-center justify-center p-3 w-full"
+            className="flex-1 items-center justify-center w-full"
         >
-            <SafeAreaView>
+            <SafeAreaView className="flex-1 w-full items-center justify-start">
                 {bands.length === 0 ? (
                     <>
                         <View className="flex-col items-center justify-center bg-darkWhite dark:bg-boxBackground-dark p-5 rounded-2xl">
@@ -387,40 +388,55 @@ export default function Band() {
                         </View>
                     </>
                 ) : (
-                    <></>
-                )}
-
-                {/* <View className='flex-1 items-center justify-center'>
-                    <Text className='text-lg font-bold mb-4'>
-                        Active band: {activeBand?.name || "None"}
-                    </Text>
-
-                    {bands.map((b) => (
-                        <Pressable
-                            key={b.id}
-                            onPress={() => switchBand(b.id)}
-                            className='bg-black dark:bg-white rounded-m p-2 my-2 w-56 active:bg-accent-dark dark:active:bg-accent-light active:scale-95'>
-                            <Text className='text-base font-bold text-white dark:text-black text-center'>
-                                {b.name}
+                    <>
+                        <View className="flex-col justify-center items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2">
+                            <Text className="text-black dark:text-white text-2xl font-bold my-1">
+                                {activeBand?.name}
                             </Text>
-                        </Pressable>
-                    ))}
+                            <Text className="text-silverText">4 members</Text>
+                            {/* TODO: Make a fetch for COUNT of members */}
+                        </View>
+                        <View className="flex-row items-center justify-center px-3 w-full">
+                            <View className="bg-boxBackground-light dark:bg-boxBackground-dark w-full p-5 rounded-2xl flex-row items-center justify-between border border-accent-light dark:border-accent-dark">
+                                <View className="flex-col items-start justify-center w-2/3">
+                                    <Text className="text-black dark:text-white text-xl font-bold my-1">
+                                        Invite Code
+                                    </Text>
+                                    <Text className="text-silverText text-base">
+                                        Share this invite code with your members
+                                    </Text>
+                                </View>
+                                <Pressable
+                                    className="border border-silverText rounded-lg p-1 active:scale-90"
+                                    onPress={async () => {
+                                        const code =
+                                            activeBand?.inviteCode || "";
 
-                    <Pressable
-                        onPress={() => createBand("Nová kapela")}
-                        className='bg-black dark:bg-white rounded-m p-2 my-2 w-56 active:bg-accent-dark dark:active:bg-accent-light active:scale-95'>
-                        <Text className='text-base font-bold text-white dark:text-black text-center'>
-                            Vytvořit kapelu
-                        </Text>
-                    </Pressable>
-                    <Pressable
-                        onPress={() => joinBandByCode("ABC123")}
-                        className='bg-black dark:bg-white rounded-m p-2 my-2 w-56 active:bg-accent-dark dark:active:bg-accent-light active:scale-95'>
-                        <Text className='text-base font-bold text-white dark:text-black text-center'>
-                            Připojit se pomocí kódu
-                        </Text>
-                    </Pressable>
-                </View> */}
+                                        if (!code) return;
+
+                                        await Clipboard.setStringAsync(code);
+
+                                        Toast.show("Invite code copied!", {
+                                            duration: Toast.durations.SHORT,
+                                            position: Toast.positions.TOP,
+                                            shadow: true,
+                                            animation: true,
+                                            backgroundColor: "#333",
+                                            textColor: "#fff",
+                                            opacity: 0.9,
+                                            hideOnPress: true,
+                                        });
+                                    }}
+                                    // TODO: Fix toast
+                                >
+                                    <Text className="text-black dark:text-white">
+                                        {activeBand?.inviteCode}
+                                    </Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </>
+                )}
             </SafeAreaView>
         </LinearGradient>
     );
