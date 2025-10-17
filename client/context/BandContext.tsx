@@ -19,6 +19,7 @@ type BandContextType = {
     createBand: (name: string) => Promise<void>;
     joinBandByCode: (code: string, role: BandRole[]) => Promise<void>;
     fetchUserBands: (uid: string) => Promise<void>;
+    fetchBandMembers: (bandId: string) => Promise<any[]>;
 };
 
 const BandContext = createContext<BandContextType | undefined>(undefined);
@@ -135,6 +136,20 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
             console.error("joinBandByCode error:", err);
         }
     };
+    const fetchBandMembers = async (bandId: string) => {
+        try {
+            const res = await fetch(`${apiUrl}/api/bands/${bandId}/members`, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Error loading members");
+            return data; // array of members, member count
+        } catch (err) {
+            console.error("fetchBandMembers error:", err);
+            return [];
+        }
+    };
 
     return (
         <BandContext.Provider
@@ -145,6 +160,7 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 createBand,
                 joinBandByCode,
                 fetchUserBands,
+                fetchBandMembers,
             }}
         >
             {children}

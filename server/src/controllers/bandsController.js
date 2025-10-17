@@ -134,3 +134,30 @@ export const getAllRoles = async (req, res) => {
         res.status(500).json({ error: "Server error while fetching roles" });
     }
 };
+export const getBandMembers = async (req, res) => {
+    const { band_id } = req.params;
+
+    try {
+        const result = await pool.query(
+            `
+        SELECT 
+          u.firebase_uid,
+          u.username,
+          u.email,
+          json_agg(r.title) AS roles
+        FROM band_members bm
+        JOIN users u ON bm.user_id = u.user_id
+        LEFT JOIN member_roles mr ON bm.band_member_id = mr.band_member_id
+        LEFT JOIN roles r ON mr.role_id = r.role_id
+        WHERE bm.band_id = $1
+        GROUP BY u.firebase_uid, u.username, u.email
+        `,
+            [band_id]
+        );
+
+        res.json(result.rows);
+    } catch (err) {
+        console.error("Error fetching band members:", err);
+        res.status(500).json({ error: "Failed to load band members" });
+    }
+};

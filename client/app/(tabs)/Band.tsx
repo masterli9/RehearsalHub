@@ -5,6 +5,7 @@ import {
     View,
     Modal,
     Pressable,
+    ScrollView,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -27,6 +28,8 @@ export default function Band() {
 
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showJoinModal, setShowJoinModal] = useState(false);
+    const [bandMembers, setBandMembers] = useState<any[]>([]);
+    const [memberCount, setMemberCount] = useState(0);
 
     const [roles, setRoles] = useState([]);
     const fetchRoles = async () => {
@@ -52,12 +55,20 @@ export default function Band() {
         createBand,
         joinBandByCode,
         fetchUserBands,
+        fetchBandMembers,
     } = useBand();
 
     useEffect(() => {
         fetchUserBands(user?.uid || "demo_user");
         fetchRoles();
     }, []);
+    useEffect(() => {
+        const data = fetchBandMembers(activeBand?.id || "");
+        data.then((members) => {
+            setBandMembers(members);
+            setMemberCount(members.length || 0);
+        });
+    }, [activeBand]);
 
     const createBandSchema = Yup.object().shape({
         bandName: Yup.string()
@@ -393,11 +404,19 @@ export default function Band() {
                             <Text className="text-black dark:text-white text-2xl font-bold my-1">
                                 {activeBand?.name}
                             </Text>
-                            <Text className="text-silverText">4 members</Text>
+                            <Text className="text-silverText">
+                                {memberCount} members
+                            </Text>
                             {/* TODO: Make a fetch for COUNT of members */}
                         </View>
-                        <View className="flex-row items-center justify-center px-3 w-full">
-                            <View className="bg-boxBackground-light dark:bg-boxBackground-dark w-full p-5 rounded-2xl flex-row items-center justify-between border border-accent-light dark:border-accent-dark">
+                        <ScrollView
+                            className="flex-col px-3 w-full"
+                            contentContainerStyle={{
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            <View className="bg-darkWhite dark:bg-darkGray w-full p-5 rounded-2xl flex-row items-center justify-between border border-accent-light dark:border-accent-dark mb-5">
                                 <View className="flex-col items-start justify-center w-2/3">
                                     <Text className="text-black dark:text-white text-xl font-bold my-1">
                                         Invite Code
@@ -434,7 +453,56 @@ export default function Band() {
                                     </Text>
                                 </Pressable>
                             </View>
-                        </View>
+                            {bandMembers.map((member, idx) => (
+                                <View
+                                    key={
+                                        member.firebase_uid ||
+                                        member.id ||
+                                        member.email ||
+                                        idx
+                                    }
+                                    className="bg-boxBackground-light dark:bg-boxBackground-dark w-full p-5 rounded-2xl flex-row items-center justify-between border border-accent-light dark:border-accent-dark my-1"
+                                >
+                                    <View className="flex-col items-start justify-center">
+                                        <View className="flex-row">
+                                            <Text className="text-black dark:text-white text-xl font-bold my-1">
+                                                {member.username}
+                                            </Text>
+                                            {(Array.isArray(member.roles)
+                                                ? member.roles.slice(0, 2)
+                                                : []
+                                            ).map((r: any, i: number) => (
+                                                <Text
+                                                    key={
+                                                        typeof r === "string"
+                                                            ? r
+                                                            : r.role_id ||
+                                                              r.title ||
+                                                              i
+                                                    }
+                                                    className="text-black dark:text-white text-base my-1 bg-accent-light dark:bg-accent-dark px-3 py-1 rounded-xl ml-2"
+                                                >
+                                                    {typeof r === "string"
+                                                        ? r
+                                                        : r.title}
+                                                </Text>
+                                            ))}
+                                            {Array.isArray(member.roles) &&
+                                                member.roles.length > 2 && (
+                                                    <Text className="text-black dark:text-white text-base my-1 bg-accent-light dark:bg-accent-dark px-3 py-1 rounded-xl ml-2">
+                                                        +
+                                                        {member.roles.length -
+                                                            2}
+                                                    </Text>
+                                                )}
+                                        </View>
+                                        <Text className="text-silverText text-base">
+                                            {member.email}
+                                        </Text>
+                                    </View>
+                                </View>
+                            ))}
+                        </ScrollView>
                     </>
                 )}
             </SafeAreaView>
