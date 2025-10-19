@@ -10,12 +10,22 @@ export const registerUser = async (req, res) => {
     }
 
     try {
-        const existing = await pool.query(
+        // Check if firebase_uid already exists
+        const existingUid = await pool.query(
             "SELECT * FROM users WHERE firebase_uid = $1",
             [uid]
         );
-        if (existing.rows.length > 0) {
+        if (existingUid.rows.length > 0) {
             return res.status(400).json({ error: "User already exists" });
+        }
+
+        // Check if username already exists (case-insensitive)
+        const existingUsername = await pool.query(
+            "SELECT * FROM users WHERE LOWER(username) = LOWER($1)",
+            [username]
+        );
+        if (existingUsername.rows.length > 0) {
+            return res.status(400).json({ error: "Username is already taken" });
         }
 
         const result = await pool.query(

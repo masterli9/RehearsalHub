@@ -59,7 +59,7 @@ export default function Auth() {
     });
 
     return (
-        <SafeAreaView className='flex-1'>
+        <SafeAreaView className="flex-1">
             <LinearGradient
                 colors={
                     systemScheme === "dark"
@@ -68,34 +68,37 @@ export default function Auth() {
                 }
                 start={{ x: 0, y: 1 }}
                 end={{ x: 0, y: 0 }}
-                className='flex-1 items-center justify-center p-3'>
+                className="flex-1 items-center justify-center p-3"
+            >
                 <KeyboardAwareScrollView
                     style={{ flex: 1 }}
                     contentContainerStyle={{ flexGrow: 1 }}
-                    contentContainerClassName='items-center justify-center'
-                    keyboardShouldPersistTaps='handled'
+                    contentContainerClassName="items-center justify-center"
+                    keyboardShouldPersistTaps="handled"
                     extraScrollHeight={100}
                     enableOnAndroid={true}
                     enableAutomaticScroll={true}
-                    showsVerticalScrollIndicator={false}>
+                    showsVerticalScrollIndicator={false}
+                >
                     <View
                         key={activeTab}
-                        className='flex-col items-center justify-center bg-darkWhite dark:bg-boxBackground-dark w-full p-4 rounded-2xl'>
-                        <Text className='text-2xl font-bold text-black dark:text-white mt-3'>
+                        className="flex-col items-center justify-center bg-darkWhite dark:bg-boxBackground-dark w-full p-4 rounded-2xl"
+                    >
+                        <Text className="text-2xl font-bold text-black dark:text-white mt-3">
                             Welcome to RehearsalHub!
                         </Text>
-                        <Text className='text-silverText font-regular text-base mb-4'>
+                        <Text className="text-silverText font-regular text-base mb-4">
                             Log in to your account or create a new one.
                         </Text>
                         <SwitchTabs
                             tabs={["Login", "Register"]}
                             activeTab={activeTab}
                             setActiveTab={setActiveTab}
-                            className='mb-4'
+                            className="mb-4"
                         />
                         {activeTab === "Login" ? (
                             <Formik
-                                key='login'
+                                key="login"
                                 initialValues={{ email: "", password: "" }}
                                 validationSchema={loginSchema}
                                 onSubmit={async (
@@ -117,7 +120,8 @@ export default function Auth() {
                                     }
                                 }}
                                 validateOnBlur={false}
-                                validateOnChange={false}>
+                                validateOnChange={false}
+                            >
                                 {({
                                     handleChange,
                                     handleBlur,
@@ -129,43 +133,43 @@ export default function Auth() {
                                 }) => (
                                     <>
                                         <TextInput
-                                            placeholder='Email'
-                                            placeholderTextColor='#A1A1A1'
-                                            className='w-full p-3 bg-white dark:bg-darkGray my-4 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                            placeholder="Email"
+                                            placeholderTextColor="#A1A1A1"
+                                            className="w-full p-3 bg-white dark:bg-darkGray my-4 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark"
                                             value={values.email}
                                             onChangeText={handleChange("email")}
                                             onBlur={handleBlur("email")}
-                                            keyboardType='email-address'
-                                            autoCapitalize='none'
+                                            keyboardType="email-address"
+                                            autoCapitalize="none"
                                         />
                                         {(touched.email || submitCount > 0) &&
                                             errors.email && (
-                                                <Text className='text-red-500 mb-3'>
+                                                <Text className="text-red-500 mb-3">
                                                     {errors.email}
                                                 </Text>
                                             )}
                                         <TextInput
                                             secureTextEntry
-                                            placeholder='Password'
-                                            placeholderTextColor='#A1A1A1'
-                                            className='w-full p-3 bg-white dark:bg-darkGray mb-6 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                            placeholder="Password"
+                                            placeholderTextColor="#A1A1A1"
+                                            className="w-full p-3 bg-white dark:bg-darkGray mb-6 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark"
                                             value={values.password}
                                             onChangeText={handleChange(
                                                 "password"
                                             )}
                                             onBlur={handleBlur("password")}
-                                            keyboardType='numbers-and-punctuation'
-                                            autoCapitalize='none'
+                                            keyboardType="numbers-and-punctuation"
+                                            autoCapitalize="none"
                                         />
                                         {(touched.password ||
                                             submitCount > 0) &&
                                             errors.password && (
-                                                <Text className='text-red-500 mb-3'>
+                                                <Text className="text-red-500 mb-3">
                                                     {errors.password}
                                                 </Text>
                                             )}
                                         <StyledButton
-                                            title='Log in'
+                                            title="Log in"
                                             onPress={() => handleSubmit()}
                                         />
                                     </>
@@ -173,7 +177,7 @@ export default function Auth() {
                             </Formik>
                         ) : (
                             <Formik
-                                key='register'
+                                key="register"
                                 initialValues={{
                                     username: "",
                                     email: "",
@@ -194,15 +198,33 @@ export default function Auth() {
 
                                         router.replace("/(auth)/verifyEmail");
                                     } catch (err) {
-                                        setErrors({
-                                            email: "Registration failed. Try a different email.",
-                                        });
+                                        if (
+                                            (err as { message: string })
+                                                .message === "USERNAME_TAKEN"
+                                        ) {
+                                            setErrors({
+                                                username:
+                                                    "This username is already taken",
+                                            });
+                                        } else if (
+                                            (err as { message: string })
+                                                .message === "USER_EXISTS"
+                                        ) {
+                                            setErrors({
+                                                email: "Registration failed. Try a different email.",
+                                            });
+                                        } else {
+                                            setErrors({
+                                                email: "Registration failed. Try a different email.",
+                                            });
+                                        }
                                     } finally {
                                         setSubmitting(false);
                                     }
                                 }}
                                 validateOnBlur={false}
-                                validateOnChange={false}>
+                                validateOnChange={false}
+                            >
                                 {({
                                     handleChange,
                                     handleBlur,
@@ -214,9 +236,9 @@ export default function Auth() {
                                 }) => (
                                     <>
                                         <TextInput
-                                            placeholder='Username'
-                                            placeholderTextColor='#A1A1A1'
-                                            className='w-full p-3 my-4 bg-white dark:bg-darkGray text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                            placeholder="Username"
+                                            placeholderTextColor="#A1A1A1"
+                                            className="w-full p-3 my-4 bg-white dark:bg-darkGray text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark"
                                             value={values.username}
                                             onChangeText={handleChange(
                                                 "username"
@@ -226,51 +248,51 @@ export default function Auth() {
                                         {(touched.username ||
                                             submitCount > 0) &&
                                             errors.username && (
-                                                <Text className='text-red-500 mb-3'>
+                                                <Text className="text-red-500 mb-3">
                                                     {errors.username}
                                                 </Text>
                                             )}
                                         <TextInput
-                                            placeholder='Email'
-                                            placeholderTextColor='#A1A1A1'
-                                            className='w-full p-3 bg-white dark:bg-darkGray mb-4 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                            placeholder="Email"
+                                            placeholderTextColor="#A1A1A1"
+                                            className="w-full p-3 bg-white dark:bg-darkGray mb-4 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark"
                                             value={values.email}
                                             onChangeText={handleChange("email")}
                                             onBlur={handleBlur("email")}
-                                            keyboardType='email-address'
-                                            autoCapitalize='none'
+                                            keyboardType="email-address"
+                                            autoCapitalize="none"
                                         />
                                         {(touched.email || submitCount > 0) &&
                                             errors.email && (
-                                                <Text className='text-red-500 mb-3'>
+                                                <Text className="text-red-500 mb-3">
                                                     {errors.email}
                                                 </Text>
                                             )}
                                         <TextInput
                                             secureTextEntry
-                                            placeholder='Password'
-                                            placeholderTextColor='#A1A1A1'
-                                            className='w-full p-3 bg-white dark:bg-darkGray mb-4 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                            placeholder="Password"
+                                            placeholderTextColor="#A1A1A1"
+                                            className="w-full p-3 bg-white dark:bg-darkGray mb-4 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark"
                                             value={values.password}
                                             onChangeText={handleChange(
                                                 "password"
                                             )}
                                             onBlur={handleBlur("password")}
-                                            keyboardType='numbers-and-punctuation'
-                                            autoCapitalize='none'
+                                            keyboardType="numbers-and-punctuation"
+                                            autoCapitalize="none"
                                         />
                                         {(touched.password ||
                                             submitCount > 0) &&
                                             errors.password && (
-                                                <Text className='text-red-500 mb-3'>
+                                                <Text className="text-red-500 mb-3">
                                                     {errors.password}
                                                 </Text>
                                             )}
                                         <TextInput
                                             secureTextEntry
-                                            placeholder='Confirm Password'
-                                            placeholderTextColor='#A1A1A1'
-                                            className='w-full p-3 bg-white dark:bg-darkGray mb-6 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                            placeholder="Confirm Password"
+                                            placeholderTextColor="#A1A1A1"
+                                            className="w-full p-3 bg-white dark:bg-darkGray mb-6 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark"
                                             value={values.confirmPassword}
                                             onChangeText={handleChange(
                                                 "confirmPassword"
@@ -278,18 +300,18 @@ export default function Auth() {
                                             onBlur={handleBlur(
                                                 "confirmPassword"
                                             )}
-                                            keyboardType='numbers-and-punctuation'
-                                            autoCapitalize='none'
+                                            keyboardType="numbers-and-punctuation"
+                                            autoCapitalize="none"
                                         />
                                         {(touched.confirmPassword ||
                                             submitCount > 0) &&
                                             errors.confirmPassword && (
-                                                <Text className='text-red-500 mb-3'>
+                                                <Text className="text-red-500 mb-3">
                                                     {errors.confirmPassword}
                                                 </Text>
                                             )}
                                         <StyledButton
-                                            title='Register'
+                                            title="Register"
                                             onPress={() => {
                                                 handleSubmit();
                                             }}
@@ -298,8 +320,8 @@ export default function Auth() {
                                 )}
                             </Formik>
                         )}
-                        <View className='border-b border-accent-light dark:border-accent-dark my-4 w-full'></View>
-                        <GoogleSignInButton className='bg-darkGray w-full flex-row justify-center items-center p-3 rounded-m active:bg-accent-dark' />
+                        <View className="border-b border-accent-light dark:border-accent-dark my-4 w-full"></View>
+                        <GoogleSignInButton className="bg-darkGray w-full flex-row justify-center items-center p-3 rounded-m active:bg-accent-dark" />
                     </View>
                 </KeyboardAwareScrollView>
             </LinearGradient>

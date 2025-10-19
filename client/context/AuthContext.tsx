@@ -63,20 +63,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         await sendEmailVerification(cred.user);
         await updateProfile(cred.user, { displayName: username });
-        try {
-            await fetch(apiUrl + "/api/users", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    uid: cred.user.uid,
-                    email: email,
-                    username: username,
-                }),
-            });
-        } catch (error) {
-            console.error("Failed to create user in backend: ", error);
+
+        const response = await fetch(apiUrl + "/api/users", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                uid: cred.user.uid,
+                email: email,
+                username: username,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            if (errorData.error === "Username is already taken") {
+                throw new Error("USERNAME_TAKEN");
+            } else if (errorData.error === "User already exists") {
+                throw new Error("USER_EXISTS");
+            } else {
+                throw new Error("REGISTRATION_FAILED");
+            }
         }
     };
     const login = async (email: string, password: string) => {
@@ -106,7 +114,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <AuthContext.Provider
-            value={{ user, loading, register, login, logout }}>
+            value={{ user, loading, register, login, logout }}
+        >
             {children}
         </AuthContext.Provider>
     );
