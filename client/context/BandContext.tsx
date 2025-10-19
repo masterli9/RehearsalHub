@@ -30,14 +30,7 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { user } = useAuth();
 
-    useEffect(() => {
-        const mockBands = [
-            { id: "1", name: "My First Band", inviteCode: "ABC123" },
-            { id: "2", name: "Side Project", inviteCode: "XYZ789" },
-        ];
-        setBands(mockBands);
-        setActiveBand(mockBands[0]);
-    }, []);
+    // Removed mock bands - let the real API calls handle band data
 
     const switchBand = (id: string) => {
         const found = bands.find((b) => b.id === id) || null;
@@ -137,14 +130,23 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
     const fetchBandMembers = async (bandId: string) => {
+        if (!bandId) {
+            console.warn("fetchBandMembers called with empty bandId");
+            return [];
+        }
+
         try {
             const res = await fetch(`${apiUrl}/api/bands/${bandId}/members`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
             });
+
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Error loading members");
-            return data; // array of members, member count
+            return data; // array of members
         } catch (err) {
             console.error("fetchBandMembers error:", err);
             return [];
@@ -161,8 +163,7 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 joinBandByCode,
                 fetchUserBands,
                 fetchBandMembers,
-            }}
-        >
+            }}>
             {children}
         </BandContext.Provider>
     );
