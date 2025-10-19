@@ -12,6 +12,7 @@ import { View, Text } from "react-native";
 import "../global.css";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { BandProvider, useBand } from "@/context/BandContext";
+import { MenuProvider } from "react-native-popup-menu";
 
 export const unstable_settings = {
     anchor: "(tabs)",
@@ -21,8 +22,8 @@ function AuthGate() {
     const { user, loading } = useAuth();
     if (loading) {
         return (
-            <View className='flex-1 items-center justify-center bg-black'>
-                <Text className='text-white text-lg'>
+            <View className="flex-1 items-center justify-center bg-black">
+                <Text className="text-white text-lg">
                     Loading (waiting for firebase)...
                 </Text>
             </View>
@@ -32,18 +33,18 @@ function AuthGate() {
     if (user && !user.emailVerified) {
         return (
             <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name='(auth)/auth' />
+                <Stack.Screen name="(auth)/auth" />
             </Stack>
         );
     }
 
     return user ? (
         <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name='(tabs)' />
+            <Stack.Screen name="(tabs)" />
         </Stack>
     ) : (
         <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name='(auth)/auth' />
+            <Stack.Screen name="(auth)/auth" />
         </Stack>
     );
 }
@@ -52,14 +53,19 @@ export default function RootLayout() {
     const colorScheme = useColorScheme();
 
     return (
-        <AuthProvider>
-            <BandProvider>
-                <ThemeProvider
-                    value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-                    <AuthGate />
-                    <StatusBar style='auto' />
-                </ThemeProvider>
-            </BandProvider>
-        </AuthProvider>
+        <MenuProvider>
+            <AuthProvider>
+                <BandProvider>
+                    <ThemeProvider
+                        value={
+                            colorScheme === "dark" ? DarkTheme : DefaultTheme
+                        }
+                    >
+                        <AuthGate />
+                        <StatusBar style="auto" />
+                    </ThemeProvider>
+                </BandProvider>
+            </AuthProvider>
+        </MenuProvider>
     );
 }

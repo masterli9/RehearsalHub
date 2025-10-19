@@ -117,7 +117,12 @@ export const joinBand = async (req, res) => {
             );
         }
 
-        res.status(200).json({ message: "Successfully joined band" });
+        res.status(200).json({
+            message: "Successfully joined band",
+            band_id: bandId,
+            name: bandResult.rows[0].name,
+            invite_code: bandResult.rows[0].invite_code,
+        });
     } catch (error) {
         console.error("Error while joining band: ", error);
         res.status(500).json({ error: "Server error" });
@@ -136,6 +141,11 @@ export const getAllRoles = async (req, res) => {
 };
 export const getBandMembers = async (req, res) => {
     const { band_id } = req.params;
+    const { user_id } = req.query; // Get user_id from query parameters
+
+    if (!user_id) {
+        return res.status(400).json({ error: "Missing user_id parameter" });
+    }
 
     try {
         const result = await pool.query(
@@ -155,9 +165,47 @@ export const getBandMembers = async (req, res) => {
             [band_id]
         );
 
-        res.json(result.rows);
+        const members = result.rows;
+
+        const currentUser = members.find(
+            (member) => member.firebase_uid === user_id
+        );
+
+        res.json({
+            members,
+            currentUserRoles: currentUser ? currentUser.roles : [],
+        });
     } catch (err) {
         console.error("Error fetching band members:", err);
         res.status(500).json({ error: "Failed to load band members" });
+    }
+};
+export const removeBandMember = async (req, res) => {
+    const { band_id, band_member_firebase_uid } = req.params;
+
+    try {
+        const convertedUserId = await getUserIdByFirebaseUid(
+            band_member_firebase_uid
+        );
+
+        const checkMember = await pool.query(
+            "SELECT * FROM band_members WHERE band_id = $1 AND user_id = $2",
+            [band_id, convertedUserId]
+        );
+
+        if (checkMember.rows.length === 0) {
+            return res.status(404).json({ error: "Band member not found" });
+        }
+
+        const bandMemberId = checkMember.rows[0].band_member_id;
+
+        await pool.query("DELETE FROM band_members WHERE band_member_id = $1", [
+            bandMemberId,
+        ]);
+
+        res.status(200).json({ message: "Member removed successfully" });
+    } catch (error) {
+        console.error("Error removing band member: ", error);
+        res.status(500).json({ error: "Server error" });
     }
 };

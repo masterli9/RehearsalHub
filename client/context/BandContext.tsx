@@ -19,7 +19,11 @@ type BandContextType = {
     createBand: (name: string) => Promise<void>;
     joinBandByCode: (code: string, role: BandRole[]) => Promise<void>;
     fetchUserBands: (uid: string) => Promise<void>;
-    fetchBandMembers: (bandId: string) => Promise<any[]>;
+    fetchBandMembers: (
+        bandId: string
+    ) => Promise<{ members: any[]; currentUserRoles: string[] }>;
+    removeBand: (bandId: string) => void;
+    removeBandMember: (bandId: string, firebaseUid: string) => Promise<void>;
 };
 
 const BandContext = createContext<BandContextType | undefined>(undefined);
@@ -132,24 +136,74 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
     const fetchBandMembers = async (bandId: string) => {
         if (!bandId) {
             console.warn("fetchBandMembers called with empty bandId");
-            return [];
+            return { members: [], currentUserRoles: [] };
         }
 
         try {
-            const res = await fetch(`${apiUrl}/api/bands/${bandId}/members`, {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
-            });
+            const userId = user?.uid || "demo_user";
+            const res = await fetch(
+                `${apiUrl}/api/bands/${bandId}/members?user_id=${userId}`,
+                {
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                }
+            );
 
             if (!res.ok) {
                 throw new Error(`HTTP ${res.status}: ${res.statusText}`);
             }
 
             const data = await res.json();
-            return data; // array of members
+            return {
+                members: data.members,
+                currentUserRoles: data.currentUserRoles,
+            };
         } catch (err) {
             console.error("fetchBandMembers error:", err);
-            return [];
+            return { members: [], currentUserRoles: [] };
+        }
+    };
+
+    const removeBand = (bandId: string) => {
+        setBands((prev) => {
+            const remainingBands = prev.filter((band) => band.id !== bandId);
+
+            // If the removed band was the active band, switch to the first remaining band or null
+            if (activeBand?.id === bandId) {
+                setActiveBand(
+                    remainingBands.length > 0 ? remainingBands[0] : null
+                );
+            }
+
+            return remainingBands;
+        });
+    };
+
+    const removeBandMember = async (bandId: string, firebaseUid: string) => {
+        try {
+            const response = await fetch(
+                `${apiUrl}/api/bands/${bandId}/remove-member/${firebaseUid}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+            if (!response.ok) {
+                throw new Error("Failed to remove member");
+            }
+
+            // Check if the removed member is the current user
+            if (firebaseUid === user?.uid) {
+                // If removing yourself, remove the band from your bands list
+                removeBand(bandId);
+            }
+            // Note: For removing other members, the UI will handle updating the member list
+            // since it has direct access to the member state
+        } catch (error) {
+            console.error("Error removing member:", error);
+            throw error; // Re-throw so the UI can handle the error
         }
     };
 
@@ -163,7 +217,10 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 joinBandByCode,
                 fetchUserBands,
                 fetchBandMembers,
-            }}>
+                removeBand,
+                removeBandMember,
+            }}
+        >
             {children}
         </BandContext.Provider>
     );
