@@ -3,10 +3,10 @@
         "name": "RehearsalHub",
         "slug": "rehearsalhub",
         "owner": "sterli",
+        "scheme": "com.sterli.rehearsalhub",
         "version": "1.0.0",
         "orientation": "portrait",
         "icon": "./assets/images/icon.png",
-        "scheme": "rehearsalhub",
         "userInterfaceStyle": "automatic",
         "newArchEnabled": true,
         "ios": {
@@ -19,6 +19,8 @@
                 "backgroundImage": "./assets/images/android-icon-background.png",
                 "monochromeImage": "./assets/images/android-icon-monochrome.png"
             },
+            "package": "com.sterli.rehearsalhub",
+            "googleServicesFile": "./google-services.json",
             "edgeToEdgeEnabled": true,
             "predictiveBackGestureEnabled": false
         },
@@ -45,6 +47,12 @@
         "experiments": {
             "typedRoutes": true,
             "reactCompiler": true
+        },
+        "extra": {
+            "router": {},
+            "eas": {
+                "projectId": "119900ec-d11a-4905-8653-da584c1b3a07"
+            }
         }
     }
 }

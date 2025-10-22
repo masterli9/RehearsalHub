@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1092570739344",
+    "project_id": "backstage-63e63",
+    "storage_bucket": "backstage-63e63.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1092570739344:android:65493d98ff390bb6f95e15",
+        "android_client_info": {
+          "package_name": "com.sterli.rehearsalhub"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1092570739344-radkahd9us79iiv8enc3im7ucudjtu3s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC9Djx5gNWKDvU83kexyyBINOFodItoL4c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1092570739344-radkahd9us79iiv8enc3im7ucudjtu3s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
