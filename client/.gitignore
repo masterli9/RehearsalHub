@@ -49,3 +49,6 @@ android/
 ios/
 
 config.ts
+credentials.json
+google-services.json
+eas.json
