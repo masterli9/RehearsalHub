@@ -1,7 +1,7 @@
 import pool from "../db/pool.js";
 
 export const registerUser = async (req, res) => {
-    const { uid, email, username } = req.body;
+    const { uid, email, username, photo_url } = req.body;
 
     if (!uid || !email || !username) {
         return res
@@ -16,7 +16,18 @@ export const registerUser = async (req, res) => {
             [uid]
         );
         if (existingUid.rows.length > 0) {
-            return res.status(400).json({ error: "User already exists" });
+            return res.status(200).json(existingUid.rows[0]); // Return existing user instead of error
+        }
+
+        // Check if email already exists (for conflict detection)
+        const existingEmail = await pool.query(
+            "SELECT * FROM users WHERE email = $1",
+            [email]
+        );
+        if (existingEmail.rows.length > 0) {
+            return res.status(400).json({
+                error: "Email is already registered with a different account",
+            });
         }
 
         // Check if username already exists (case-insensitive)
@@ -25,12 +36,18 @@ export const registerUser = async (req, res) => {
             [username]
         );
         if (existingUsername.rows.length > 0) {
-            return res.status(400).json({ error: "Username is already taken" });
+            // Generate a unique username for Google users
+            const uniqueUsername = username + "_" + uid.slice(0, 6);
+            const result = await pool.query(
+                "INSERT INTO users (firebase_uid, email, username, photourl) VALUES ($1, $2, $3, $4) RETURNING *",
+                [uid, email, uniqueUsername, photo_url]
+            );
+            return res.status(201).json(result.rows[0]);
         }
 
         const result = await pool.query(
-            "INSERT INTO users (firebase_uid, email, username) VALUES ($1, $2, $3) RETURNING *",
-            [uid, email, username]
+            "INSERT INTO users (firebase_uid, email, username, photourl) VALUES ($1, $2, $3, $4) RETURNING *",
+            [uid, email, username, photo_url]
         );
 
         res.status(201).json(result.rows[0]);

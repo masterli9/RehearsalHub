@@ -18,18 +18,20 @@ export default function HomeScreen() {
                     source={require("@/assets/images/partial-react-logo.png")}
                     style={styles.reactLogo}
                 />
-            }>
+            }
+        >
             <ThemedView style={styles.titleContainer}>
-                <ThemedText type='title'>
+                <ThemedText type="title">
                     Welcome{" "}
                     {user != null ? (user.email ?? "no user") : "no user"}!
                 </ThemedText>
                 <HelloWave />
             </ThemedView>
             <Pressable
-                className='bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95'
-                onPress={() => logout()}>
-                <Text className='text-base font-bold text-white dark:text-black'>
+                className="bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95"
+                onPress={() => logout()}
+            >
+                <Text className="text-base font-bold text-white dark:text-black">
                     Log out
                 </Text>
             </Pressable>

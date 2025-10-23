@@ -5,6 +5,7 @@ import { Pressable, Text, Image } from "react-native";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import * as AuthSession from "expo-auth-session";
+import { useAuth } from "@/context/AuthContext";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -13,17 +14,14 @@ export default function GoogleSignInButton({
 }: {
     className?: string;
 }) {
+    const { googleSignIn } = useAuth();
     const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
         clientId:
             "1092570739344-radkahd9us79iiv8enc3im7ucudjtu3s.apps.googleusercontent.com",
         androidClientId:
             "1092570739344-t2hps1ekhbs9um9ufhrofk8lr1slk8ra.apps.googleusercontent.com",
     });
-
-    console.log("OAuth request redirect URI:", request?.redirectUri);
     useEffect(() => {
-        console.log("OAuth request:", request);
-        console.log("OAuth response:", response);
         if (response?.type === "success") {
             const id_token = response.params.id_token;
             if (!id_token) {
@@ -32,8 +30,11 @@ export default function GoogleSignInButton({
             }
             const credential = GoogleAuthProvider.credential(id_token);
             signInWithCredential(auth, credential)
-                .then(() => console.log("✅ Firebase login success"))
-                .catch((err) => console.error("❌ Firebase login error:", err));
+                .then(() => {
+                    console.log("Firebase login success");
+                    // The AuthContext will handle user registration automatically
+                })
+                .catch((err) => console.error("Firebase login error:", err));
         }
     }, [response]);
 

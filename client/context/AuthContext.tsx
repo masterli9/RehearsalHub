@@ -23,6 +23,7 @@ type AuthContextType = {
     ) => Promise<void>;
     login: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
+    googleSignIn: (firebaseUser?: User) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -47,6 +48,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // }
             setUser(firebaseUser);
             setLoading(false);
+
+            // If user signed in with Google (has photoURL and providerData), register them
+            if (
+                firebaseUser &&
+                firebaseUser.photoURL &&
+                firebaseUser.providerData.some(
+                    (provider) => provider.providerId === "google.com"
+                )
+            ) {
+                console.log("Google user detected, registering in database...");
+                await googleSignIn(firebaseUser);
+            }
         });
         return () => unsub();
     }, []);
@@ -106,6 +119,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
         }
     };
+    const googleSignIn = async (firebaseUser?: User) => {
+        const userToUse = firebaseUser || user;
+        if (!userToUse) {
+            console.log("No user found, skipping database registration");
+            return;
+        }
+        const payload = {
+            uid: userToUse.uid,
+            email: userToUse.email ?? "",
+            username:
+                userToUse.displayName ?? "User_" + userToUse.uid.slice(0, 6),
+            photo_url: userToUse.photoURL ?? null,
+        };
+        try {
+            console.log("Attempting to register Google user:", payload);
+            const response = await fetch(`${apiUrl}/api/users`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(
+                    "Server error registering Google user:",
+                    errorData
+                );
+                throw new Error(
+                    `Registration failed: ${errorData.error || "Unknown error"}`
+                );
+            }
+
+            const result = await response.json();
+            console.log("Google user registered successfully:", result);
+        } catch (error) {
+            console.error("Error registering Google user: ", error);
+            // Don't throw the error to prevent breaking the auth flow
+        }
+    };
 
     const logout = async () => {
         await signOut(auth);
@@ -114,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <AuthContext.Provider
-            value={{ user, loading, register, login, logout }}
+            value={{ user, loading, register, login, logout, googleSignIn }}
         >
             {children}
         </AuthContext.Provider>
