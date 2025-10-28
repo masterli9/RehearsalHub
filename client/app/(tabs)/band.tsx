@@ -242,7 +242,10 @@ export default function Band() {
                                         roles: [],
                                     }}
                                     onSubmit={(values) => {
-                                        createBand(values.bandName);
+                                        createBand(
+                                            values.bandName,
+                                            values.roles
+                                        );
                                         setShowCreateModal(false);
                                     }}
                                     validateOnBlur={false}

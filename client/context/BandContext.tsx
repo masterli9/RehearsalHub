@@ -16,7 +16,7 @@ type BandContextType = {
     bands: Band[];
     activeBand: Band | null;
     switchBand: (id: string) => void;
-    createBand: (name: string) => Promise<void>;
+    createBand: (name: string, roles: BandRole[]) => Promise<void>;
     joinBandByCode: (code: string, role: BandRole[]) => Promise<void>;
     fetchUserBands: (uid: string) => Promise<void>;
     fetchBandMembers: (
@@ -73,14 +73,18 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    const createBand = async (name: string) => {
+    const createBand = async (name: string, roles: BandRole[]) => {
         try {
             const userId = user?.uid || "demo_user";
 
             const res = await fetch(`${apiUrl}/api/bands`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, creator_id: userId }),
+                body: JSON.stringify({
+                    name,
+                    creator_id: userId,
+                    roles: roles,
+                }),
             });
 
             if (!res.ok) throw new Error("Error creating band (fe)");

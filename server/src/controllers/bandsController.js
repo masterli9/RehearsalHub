@@ -2,12 +2,14 @@ import pool from "../db/pool.js";
 import { getUserIdByFirebaseUid } from "../utils/getUserId.js";
 
 export const createBand = async (req, res) => {
-    const { name, creator_id } = req.body;
+    const { name, creator_id, roles } = req.body;
 
     if (!name) {
         return res.status(400).json({ error: "Missing required fields" });
     }
     const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    const roleTitles = Array.isArray(roles) ? roles.map((r) => r.title) : [];
 
     try {
         // getUserIdByFirebaseUid is likely async/promise-based
@@ -29,13 +31,25 @@ export const createBand = async (req, res) => {
         );
         const bandMemberId = bandMemberResult.rows[0].band_member_id;
 
+        const chosenRoleResult = await pool.query(
+            "SELECT role_id, title FROM roles WHERE title = ANY($1)",
+            [roleTitles]
+        );
+
+        for (const role of chosenRoleResult.rows) {
+            await pool.query(
+                "INSERT INTO member_roles (band_member_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+                [bandMemberId, role.role_id]
+            );
+        }
+
         // Get the role_id for the "Leader" role (create if not exists)
-        let roleResult = await pool.query(
+        let leaderRoleResult = await pool.query(
             "SELECT role_id FROM roles WHERE title = $1",
             ["Leader"]
         );
         let roleId;
-        if (roleResult.rows.length === 0) {
+        if (leaderRoleResult.rows.length === 0) {
             // Create "leader" role if it doesn't exist
             const insertRole = await pool.query(
                 "INSERT INTO roles (title) VALUES ($1) RETURNING role_id",
@@ -43,7 +57,7 @@ export const createBand = async (req, res) => {
             );
             roleId = insertRole.rows[0].role_id;
         } else {
-            roleId = roleResult.rows[0].role_id;
+            roleId = leaderRoleResult.rows[0].role_id;
         }
 
         // Insert membership into member_roles with Leader role
