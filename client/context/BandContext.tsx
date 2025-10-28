@@ -192,11 +192,19 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 throw new Error("Failed to remove member");
             }
 
+            const data = await response.json();
+
             // Check if the removed member is the current user
             if (firebaseUid === user?.uid) {
                 // If removing yourself, remove the band from your bands list
                 removeBand(bandId);
             }
+
+            // If the band was deleted (no more members), remove it from the bands list
+            if (data.bandDeleted) {
+                removeBand(bandId);
+            }
+
             // Note: For removing other members, the UI will handle updating the member list
             // since it has direct access to the member state
         } catch (error) {

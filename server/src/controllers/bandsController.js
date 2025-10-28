@@ -203,7 +203,28 @@ export const removeBandMember = async (req, res) => {
             bandMemberId,
         ]);
 
-        res.status(200).json({ message: "Member removed successfully" });
+        // Check if the band has any remaining members
+        const remainingMembers = await pool.query(
+            "SELECT COUNT(*) as count FROM band_members WHERE band_id = $1",
+            [band_id]
+        );
+
+        const memberCount = parseInt(remainingMembers.rows[0].count);
+
+        // If no members remain, delete the band
+        if (memberCount === 0) {
+            await pool.query("DELETE FROM bands WHERE band_id = $1", [band_id]);
+            res.status(200).json({
+                message:
+                    "Member removed successfully. Band deleted as it has no remaining members.",
+                bandDeleted: true,
+            });
+        } else {
+            res.status(200).json({
+                message: "Member removed successfully",
+                bandDeleted: false,
+            });
+        }
     } catch (error) {
         console.error("Error removing band member: ", error);
         res.status(500).json({ error: "Server error" });

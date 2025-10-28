@@ -84,6 +84,9 @@ export default function Band() {
                 setMemberCount(memberCount - 1);
             }
 
+            // Refresh bands list to ensure consistency (in case band was deleted)
+            await fetchUserBands(user?.uid || "demo_user");
+
             // Reset the modal state after leaving
             setConfirmLeaveModal(false);
         } catch (error) {
@@ -121,29 +124,37 @@ export default function Band() {
         loadBandMembers();
     }, [activeBand]);
 
-    // Handle the leave confirmation alert
     useEffect(() => {
         if (confirmLeaveModal) {
-            Alert.alert(
-                "Leave band",
-                "Are you sure you want to leave " + activeBand?.name + "?",
-                [
-                    {
-                        text: "Cancel",
-                        style: "cancel",
-                        onPress: () => setConfirmLeaveModal(false),
-                    },
-                    {
-                        text: "Leave",
-                        onPress: () => {
-                            handleRemoveMember(
-                                activeBand?.id || "",
-                                user?.uid || ""
-                            );
+            if (currentUserRoles.includes("Leader")) {
+                Alert.alert(
+                    "You are the leader of this band. You cannot leave the band.",
+                    "Give someone else the leader role to leave the band.",
+                    [{ text: "OK", onPress: () => setConfirmLeaveModal(false) }]
+                );
+                setConfirmLeaveModal(false);
+            } else {
+                Alert.alert(
+                    "Leave band",
+                    "Are you sure you want to leave " + activeBand?.name + "?",
+                    [
+                        {
+                            text: "Cancel",
+                            style: "cancel",
+                            onPress: () => setConfirmLeaveModal(false),
                         },
-                    },
-                ]
-            );
+                        {
+                            text: "Leave",
+                            onPress: () => {
+                                handleRemoveMember(
+                                    activeBand?.id || "",
+                                    user?.uid || ""
+                                );
+                            },
+                        },
+                    ]
+                );
+            }
         }
     }, [confirmLeaveModal]);
 
