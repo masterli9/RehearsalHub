@@ -230,3 +230,73 @@ export const removeBandMember = async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 };
+export const makeLeader = async (req, res) => {
+    const { band_id, user_id } = req.params;
+
+    try {
+        const convertedUserId = await getUserIdByFirebaseUid(user_id);
+        const checkMember = await pool.query(
+            "SELECT * FROM band_members WHERE band_id = $1 AND user_id = $2",
+            [band_id, convertedUserId]
+        );
+        if (checkMember.rows.length === 0) {
+            return res.status(404).json({ error: "Band member not found" });
+        }
+        const bandMemberId = checkMember.rows[0].band_member_id;
+        const checkLeader = await pool.query(
+            "SELECT * FROM member_roles WHERE band_member_id = $1 AND role_id = (SELECT role_id FROM roles WHERE title = 'Leader')",
+            [bandMemberId]
+        );
+        if (checkLeader.rows.length > 0) {
+            return res.status(400).json({ error: "User is already a leader" });
+        }
+
+        // Get the Leader role_id
+        const roleResult = await pool.query(
+            "SELECT role_id FROM roles WHERE title = 'Leader'"
+        );
+        if (roleResult.rows.length === 0) {
+            return res.status(500).json({ error: "Leader role not found" });
+        }
+        const leaderRoleId = roleResult.rows[0].role_id;
+
+        // Insert or update the role
+        await pool.query(
+            "INSERT INTO member_roles (band_member_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            [bandMemberId, leaderRoleId]
+        );
+        res.status(200).json({ message: "Leader made successfully" });
+    } catch (error) {
+        console.error("Error making leader: ", error);
+        res.status(500).json({ error: "Server error" });
+    }
+};
+export const removeLeader = async (req, res) => {
+    const { band_id, user_id } = req.params;
+    try {
+        const convertedUserId = await getUserIdByFirebaseUid(user_id);
+        const checkMember = await pool.query(
+            "SELECT * FROM band_members WHERE band_id = $1 AND user_id = $2",
+            [band_id, convertedUserId]
+        );
+        if (checkMember.rows.length === 0) {
+            return res.status(404).json({ error: "Band member not found" });
+        }
+        const bandMemberId = checkMember.rows[0].band_member_id;
+        const checkLeader = await pool.query(
+            "SELECT * FROM member_roles WHERE band_member_id = $1 AND role_id = (SELECT role_id FROM roles WHERE title = 'Leader')",
+            [bandMemberId]
+        );
+        if (checkLeader.rows.length === 0) {
+            return res.status(400).json({ error: "User is not a leader" });
+        }
+        await pool.query(
+            "DELETE FROM member_roles WHERE band_member_id = $1 AND role_id = (SELECT role_id FROM roles WHERE title = 'Leader')",
+            [bandMemberId]
+        );
+        res.status(200).json({ message: "Leader removed successfully" });
+    } catch (error) {
+        console.error("Error removing leader: ", error);
+        res.status(500).json({ error: "Server error" });
+    }
+};

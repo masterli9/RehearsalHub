@@ -5,6 +5,8 @@ import {
     getBandMembers,
     joinBand,
     removeBandMember,
+    makeLeader,
+    removeLeader,
 } from "../controllers/bandsController.js";
 
 const router = express.Router();
@@ -17,5 +19,7 @@ router.delete(
     "/:band_id/remove-member/:band_member_firebase_uid",
     removeBandMember
 );
+router.put("/:band_id/make-leader/:user_id", makeLeader);
+router.put("/:band_id/remove-leader/:user_id", removeLeader);
 
 export default router;

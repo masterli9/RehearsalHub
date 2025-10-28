@@ -70,6 +70,27 @@ export default function Band() {
         removeBandMember,
     } = useBand();
 
+    const loadBandMembers = async () => {
+        if (activeBand?.id) {
+            try {
+                const members = await fetchBandMembers(activeBand.id);
+                setBandMembers(members.members);
+                setMemberCount(members.members.length || 0);
+                setCurrentUserRoles(members.currentUserRoles);
+            } catch (error) {
+                console.error("Error loading band members:", error);
+                setBandMembers([]);
+                setMemberCount(0);
+                setCurrentUserRoles([]);
+            }
+        } else {
+            // Clear members when no active band
+            setBandMembers([]);
+            setMemberCount(0);
+            setCurrentUserRoles([]);
+        }
+    };
+
     const handleRemoveMember = async (bandId: string, firebaseUid: string) => {
         try {
             await removeBandMember(bandId, firebaseUid);
@@ -95,32 +116,73 @@ export default function Band() {
         }
     };
 
+    const handleMakeLeader = async (firebaseUid: string) => {
+        try {
+            // Remove current user's leader role first
+            const removeResponse = await fetch(
+                `${apiUrl}/api/bands/${activeBand?.id}/remove-leader/${user?.uid}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            if (!removeResponse.ok) {
+                const errorData = await removeResponse.json();
+                Alert.alert(
+                    "Error",
+                    errorData.error || "Failed to remove leader role"
+                );
+                return;
+            }
+
+            // Make the new user a leader
+            const makeResponse = await fetch(
+                `${apiUrl}/api/bands/${activeBand?.id}/make-leader/${firebaseUid}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            if (!makeResponse.ok) {
+                const errorData = await makeResponse.json();
+                Alert.alert(
+                    "Error",
+                    errorData.error || "Failed to make leader"
+                );
+                // Try to restore leader role
+                await fetch(
+                    `${apiUrl}/api/bands/${activeBand?.id}/make-leader/${user?.uid}`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+                return;
+            }
+
+            // Refresh the members list to show updated roles
+            await loadBandMembers();
+
+            Alert.alert("Success", "Leader role transferred successfully");
+        } catch (error) {
+            console.error("Error making leader:", error);
+            Alert.alert("Error", "Failed to transfer leader role");
+        }
+    };
+
     useEffect(() => {
         fetchUserBands(user?.uid || "demo_user");
         fetchRoles();
     }, []);
     useEffect(() => {
-        const loadBandMembers = async () => {
-            if (activeBand?.id) {
-                try {
-                    const members = await fetchBandMembers(activeBand.id);
-                    setBandMembers(members.members);
-                    setMemberCount(members.members.length || 0);
-                    setCurrentUserRoles(members.currentUserRoles);
-                } catch (error) {
-                    console.error("Error loading band members:", error);
-                    setBandMembers([]);
-                    setMemberCount(0);
-                    setCurrentUserRoles([]);
-                }
-            } else {
-                // Clear members when no active band
-                setBandMembers([]);
-                setMemberCount(0);
-                setCurrentUserRoles([]);
-            }
-        };
-
         loadBandMembers();
     }, [activeBand]);
 
@@ -174,6 +236,10 @@ export default function Band() {
         joinCode: string;
         roles: BandRole[];
     };
+    type CreateFormValues = {
+        bandName: string;
+        roles: BandRole[];
+    };
 
     return (
         <LinearGradient
@@ -208,10 +274,11 @@ export default function Band() {
                                 <Text className='text-3xl font-bold text-black dark:text-white my-2'>
                                     Create a band
                                 </Text>
-                                <Formik
+                                <Formik<CreateFormValues>
                                     validationSchema={createBandSchema}
                                     initialValues={{
                                         bandName: "",
+                                        roles: [],
                                     }}
                                     onSubmit={(values) => {
                                         createBand(values.bandName);
@@ -224,6 +291,7 @@ export default function Band() {
                                         handleBlur,
                                         handleSubmit,
                                         values,
+                                        setFieldValue,
                                         errors,
                                         touched,
                                         submitCount,
@@ -246,6 +314,62 @@ export default function Band() {
                                                         {errors.bandName}
                                                     </Text>
                                                 )}
+                                            <Text className='text-base font-regular text-silverText text-center mb-2'>
+                                                Select your role(s) in the band:
+                                            </Text>
+                                            <View className='flex-row flex-wrap gap-2 w-full justify-center items-center my-2'>
+                                                {roles.map((role: BandRole) => {
+                                                    const isSelected =
+                                                        values.roles.some(
+                                                            (r) =>
+                                                                r.role_id ===
+                                                                role.role_id
+                                                        );
+
+                                                    return (
+                                                        <Pressable
+                                                            key={role.role_id}
+                                                            onPress={() => {
+                                                                if (
+                                                                    isSelected
+                                                                ) {
+                                                                    setFieldValue(
+                                                                        "roles",
+                                                                        values.roles.filter(
+                                                                            (
+                                                                                r
+                                                                            ) =>
+                                                                                r.role_id !==
+                                                                                role.role_id
+                                                                        )
+                                                                    );
+                                                                } else {
+                                                                    setFieldValue(
+                                                                        "roles",
+                                                                        [
+                                                                            ...values.roles,
+                                                                            role,
+                                                                        ]
+                                                                    );
+                                                                }
+                                                            }}
+                                                            className={`px-2 py-1 rounded-m border ${
+                                                                isSelected
+                                                                    ? "bg-transparentGreen border-green"
+                                                                    : "bg-transparent border-gray-400"
+                                                            }`}>
+                                                            <Text
+                                                                className={`${
+                                                                    isSelected
+                                                                        ? "text-black dark:text-white font-semibold"
+                                                                        : "text-gray-700 dark:text-gray-200"
+                                                                }`}>
+                                                                {role.title}
+                                                            </Text>
+                                                        </Pressable>
+                                                    );
+                                                })}
+                                            </View>
                                             <View className='flex-row gap-4 w-full justify-center items-center my-3'>
                                                 <StyledButton
                                                     onPress={() =>
@@ -635,47 +759,69 @@ export default function Band() {
                                             {member.email}
                                         </Text>
                                     </View>
-                                    {currentUserRoles.includes("Leader") && (
-                                        <Menu>
-                                            <MenuTrigger>
-                                                <Text className='text-black dark:text-white text-2xl p-4'>
-                                                    ⋮
-                                                </Text>
-                                            </MenuTrigger>
-                                            <MenuOptions
-                                                customStyles={{
-                                                    optionsContainer: {
-                                                        borderRadius: 10,
-                                                        paddingVertical: 4,
-                                                        backgroundColor:
-                                                            systemScheme ===
-                                                            "dark"
-                                                                ? "#333"
-                                                                : "#fff",
-                                                    },
-                                                }}>
-                                                <MenuOption
-                                                    onSelect={() =>
-                                                        handleRemoveMember(
-                                                            activeBand?.id ||
-                                                                "",
-                                                            member.firebase_uid
-                                                        )
-                                                    }
-                                                    text='Remove member'
+                                    {currentUserRoles.includes("Leader") &&
+                                        member.firebase_uid !== user?.uid && (
+                                            <Menu>
+                                                <MenuTrigger>
+                                                    <Text className='text-black dark:text-white text-2xl p-4'>
+                                                        ⋮
+                                                    </Text>
+                                                </MenuTrigger>
+                                                <MenuOptions
                                                     customStyles={{
-                                                        optionText: {
-                                                            color:
+                                                        optionsContainer: {
+                                                            borderRadius: 10,
+                                                            paddingVertical: 4,
+                                                            backgroundColor:
                                                                 systemScheme ===
                                                                 "dark"
-                                                                    ? "#fff"
-                                                                    : "#333",
+                                                                    ? "#333"
+                                                                    : "#fff",
                                                         },
-                                                    }}
-                                                />
-                                            </MenuOptions>
-                                        </Menu>
-                                    )}
+                                                    }}>
+                                                    <MenuOption
+                                                        onSelect={() =>
+                                                            handleRemoveMember(
+                                                                activeBand?.id ||
+                                                                    "",
+                                                                member.firebase_uid
+                                                            )
+                                                        }
+                                                        text='Remove member'
+                                                        customStyles={{
+                                                            optionText: {
+                                                                color:
+                                                                    systemScheme ===
+                                                                    "dark"
+                                                                        ? "#fff"
+                                                                        : "#333",
+                                                                paddingVertical: 8,
+                                                                fontSize: 16,
+                                                            },
+                                                        }}
+                                                    />
+                                                    <MenuOption
+                                                        onSelect={() =>
+                                                            handleMakeLeader(
+                                                                member.firebase_uid
+                                                            )
+                                                        }
+                                                        text='Make leader'
+                                                        customStyles={{
+                                                            optionText: {
+                                                                color:
+                                                                    systemScheme ===
+                                                                    "dark"
+                                                                        ? "#fff"
+                                                                        : "#333",
+                                                                paddingVertical: 8,
+                                                                fontSize: 16,
+                                                            },
+                                                        }}
+                                                    />
+                                                </MenuOptions>
+                                            </Menu>
+                                        )}
                                 </View>
                             ))}
                         </ScrollView>
