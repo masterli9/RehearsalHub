@@ -6,6 +6,7 @@ import {
     Modal,
     Pressable,
     ScrollView,
+    Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -26,9 +27,11 @@ import {
     MenuOptions,
     MenuOption,
     MenuTrigger,
+    renderers,
 } from "react-native-popup-menu";
 
 export default function Band() {
+    const { SlideInMenu } = renderers;
     const systemScheme = useColorScheme();
     const { user } = useAuth();
 
@@ -37,6 +40,7 @@ export default function Band() {
     const [bandMembers, setBandMembers] = useState<any[]>([]);
     const [memberCount, setMemberCount] = useState(0);
     const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([]);
+    const [confirmLeaveModal, setConfirmLeaveModal] = useState(false);
 
     const [roles, setRoles] = useState([]);
     const fetchRoles = async () => {
@@ -79,8 +83,12 @@ export default function Band() {
                 );
                 setMemberCount(memberCount - 1);
             }
+
+            // Reset the modal state after leaving
+            setConfirmLeaveModal(false);
         } catch (error) {
             console.error("Error removing member:", error);
+            setConfirmLeaveModal(false);
         }
     };
 
@@ -112,6 +120,32 @@ export default function Band() {
 
         loadBandMembers();
     }, [activeBand]);
+
+    // Handle the leave confirmation alert
+    useEffect(() => {
+        if (confirmLeaveModal) {
+            Alert.alert(
+                "Leave band",
+                "Are you sure you want to leave " + activeBand?.name + "?",
+                [
+                    {
+                        text: "Cancel",
+                        style: "cancel",
+                        onPress: () => setConfirmLeaveModal(false),
+                    },
+                    {
+                        text: "Leave",
+                        onPress: () => {
+                            handleRemoveMember(
+                                activeBand?.id || "",
+                                user?.uid || ""
+                            );
+                        },
+                    },
+                ]
+            );
+        }
+    }, [confirmLeaveModal]);
 
     const createBandSchema = Yup.object().shape({
         bandName: Yup.string()
@@ -412,7 +446,9 @@ export default function Band() {
                                 </Text>
                             </View>
                             <View className='flex-row items-center justify-center'>
-                                <Menu>
+                                <Menu
+                                    renderer={SlideInMenu}
+                                    rendererProps={{ transitionDuration: 200 }}>
                                     <MenuTrigger>
                                         <Text className='text-black dark:text-white text-2xl p-4'>
                                             ⋯
@@ -422,7 +458,6 @@ export default function Band() {
                                         customStyles={{
                                             optionsContainer: {
                                                 borderRadius: 10,
-                                                paddingVertical: 4,
                                                 backgroundColor:
                                                     systemScheme === "dark"
                                                         ? "#333"
@@ -441,6 +476,8 @@ export default function Band() {
                                                         systemScheme === "dark"
                                                             ? "#fff"
                                                             : "#333",
+                                                    paddingVertical: 8,
+                                                    fontSize: 16,
                                                 },
                                             }}
                                         />
@@ -456,6 +493,8 @@ export default function Band() {
                                                         systemScheme === "dark"
                                                             ? "#fff"
                                                             : "#333",
+                                                    paddingVertical: 8,
+                                                    fontSize: 16,
                                                 },
                                             }}
                                         />
@@ -472,20 +511,21 @@ export default function Band() {
                                                         systemScheme === "dark"
                                                             ? "#fff"
                                                             : "#333",
+                                                    paddingVertical: 8,
+                                                    fontSize: 16,
                                                 },
                                             }}
                                         />
                                         <MenuOption
                                             onSelect={() =>
-                                                handleRemoveMember(
-                                                    activeBand?.id || "",
-                                                    user?.uid || ""
-                                                )
+                                                setConfirmLeaveModal(true)
                                             }
                                             text='Leave band'
                                             customStyles={{
                                                 optionText: {
                                                     color: "#d11717",
+                                                    paddingVertical: 8,
+                                                    fontSize: 16,
                                                 },
                                             }}
                                         />
