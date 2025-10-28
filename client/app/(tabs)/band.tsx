@@ -68,6 +68,7 @@ export default function Band() {
         fetchUserBands,
         fetchBandMembers,
         removeBandMember,
+        makeLeader,
     } = useBand();
 
     const loadBandMembers = async () => {
@@ -118,63 +119,23 @@ export default function Band() {
 
     const handleMakeLeader = async (firebaseUid: string) => {
         try {
-            // Remove current user's leader role first
-            const removeResponse = await fetch(
-                `${apiUrl}/api/bands/${activeBand?.id}/remove-leader/${user?.uid}`,
-                {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-
-            if (!removeResponse.ok) {
-                const errorData = await removeResponse.json();
-                Alert.alert(
-                    "Error",
-                    errorData.error || "Failed to remove leader role"
-                );
+            if (!activeBand?.id) {
+                Alert.alert("Error", "No active band");
                 return;
             }
 
-            // Make the new user a leader
-            const makeResponse = await fetch(
-                `${apiUrl}/api/bands/${activeBand?.id}/make-leader/${firebaseUid}`,
-                {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-
-            if (!makeResponse.ok) {
-                const errorData = await makeResponse.json();
-                Alert.alert(
-                    "Error",
-                    errorData.error || "Failed to make leader"
-                );
-                // Try to restore leader role
-                await fetch(
-                    `${apiUrl}/api/bands/${activeBand?.id}/make-leader/${user?.uid}`,
-                    {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                    }
-                );
-                return;
-            }
+            await makeLeader(activeBand.id, firebaseUid);
 
             // Refresh the members list to show updated roles
             await loadBandMembers();
 
             Alert.alert("Success", "Leader role transferred successfully");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error making leader:", error);
-            Alert.alert("Error", "Failed to transfer leader role");
+            Alert.alert(
+                "Error",
+                error.message || "Failed to transfer leader role"
+            );
         }
     };
 

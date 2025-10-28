@@ -24,6 +24,7 @@ type BandContextType = {
     ) => Promise<{ members: any[]; currentUserRoles: string[] }>;
     removeBand: (bandId: string) => void;
     removeBandMember: (bandId: string, firebaseUid: string) => Promise<void>;
+    makeLeader: (bandId: string, newLeaderFirebaseUid: string) => Promise<void>;
 };
 
 const BandContext = createContext<BandContextType | undefined>(undefined);
@@ -213,6 +214,62 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
+    const makeLeader = async (bandId: string, newLeaderFirebaseUid: string) => {
+        try {
+            const currentUserId = user?.uid;
+            if (!currentUserId) {
+                throw new Error("User not authenticated");
+            }
+
+            // Remove current user's leader role first
+            const removeResponse = await fetch(
+                `${apiUrl}/api/bands/${bandId}/remove-leader/${currentUserId}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            if (!removeResponse.ok) {
+                const errorData = await removeResponse.json();
+                throw new Error(
+                    errorData.error || "Failed to remove leader role"
+                );
+            }
+
+            // Make the new user a leader
+            const makeResponse = await fetch(
+                `${apiUrl}/api/bands/${bandId}/make-leader/${newLeaderFirebaseUid}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            if (!makeResponse.ok) {
+                const errorData = await makeResponse.json();
+                // Try to restore leader role to current user
+                await fetch(
+                    `${apiUrl}/api/bands/${bandId}/make-leader/${currentUserId}`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+                throw new Error(errorData.error || "Failed to make leader");
+            }
+        } catch (error) {
+            console.error("Error making leader:", error);
+            throw error;
+        }
+    };
+
     return (
         <BandContext.Provider
             value={{
@@ -225,6 +282,7 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 fetchBandMembers,
                 removeBand,
                 removeBandMember,
+                makeLeader,
             }}>
             {children}
         </BandContext.Provider>
