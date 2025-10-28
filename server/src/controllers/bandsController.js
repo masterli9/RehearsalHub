@@ -29,24 +29,24 @@ export const createBand = async (req, res) => {
         );
         const bandMemberId = bandMemberResult.rows[0].band_member_id;
 
-        // Get the role_id for the "leader" role (create if not exists)
+        // Get the role_id for the "Leader" role (create if not exists)
         let roleResult = await pool.query(
             "SELECT role_id FROM roles WHERE title = $1",
-            ["leader"]
+            ["Leader"]
         );
         let roleId;
         if (roleResult.rows.length === 0) {
             // Create "leader" role if it doesn't exist
             const insertRole = await pool.query(
                 "INSERT INTO roles (title) VALUES ($1) RETURNING role_id",
-                ["leader"]
+                ["Leader"]
             );
             roleId = insertRole.rows[0].role_id;
         } else {
             roleId = roleResult.rows[0].role_id;
         }
 
-        // Insert membership into member_roles with leader role
+        // Insert membership into member_roles with Leader role
         await pool.query(
             "INSERT INTO member_roles (band_member_id, role_id) VALUES ($1, $2)",
             [bandMemberId, roleId]

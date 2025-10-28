@@ -34,8 +34,6 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { user } = useAuth();
 
-    // Removed mock bands - let the real API calls handle band data
-
     const switchBand = (id: string) => {
         const found = bands.find((b) => b.id === id) || null;
         setActiveBand(found);
@@ -219,8 +217,7 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 fetchBandMembers,
                 removeBand,
                 removeBandMember,
-            }}
-        >
+            }}>
             {children}
         </BandContext.Provider>
     );
