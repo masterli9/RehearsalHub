@@ -58,7 +58,7 @@ export default function VerifyEmail() {
         if (!user) return;
         await user.reload();
         if (user.emailVerified) {
-            router.replace("/(tabs)/explore");
+            router.replace("/(tabs)");
         } else {
             Alert.alert(
                 "Still not verified.",
