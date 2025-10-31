@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 
 import usersRoutes from "./routes/users.js";
 import bandsRoutes from "./routes/bands.js";
+import messagesRoutes from "./routes/messages.js";
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ app.use(express.json());
 
 app.use("/api/users", usersRoutes);
 app.use("/api/bands", bandsRoutes);
+app.use("/api/messages", messagesRoutes);
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
