@@ -34,6 +34,11 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
     const [activeBand, setActiveBand] = useState<Band | null>(null);
 
     const { user } = useAuth();
+    useEffect(() => {
+        if (user?.uid) {
+            fetchUserBands(user.uid);
+        }
+    }, [user?.uid]);
 
     const switchBand = (id: string) => {
         const found = bands.find((b) => b.id === id) || null;

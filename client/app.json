@@ -22,7 +22,8 @@
             "package": "com.sterli.rehearsalhub",
             "googleServicesFile": "./google-services.json",
             "edgeToEdgeEnabled": true,
-            "predictiveBackGestureEnabled": false
+            "predictiveBackGestureEnabled": false,
+            "softwareKeyboardLayoutMode": "resize"
         },
         "web": {
             "output": "static",

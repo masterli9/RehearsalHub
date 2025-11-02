@@ -1,15 +1,14 @@
-import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
-import { Text, useColorScheme, View, Alert } from "react-native";
+import { Text, View, Alert } from "react-native";
 import { useState } from "react";
 import { sendEmailVerification } from "firebase/auth";
 import { useAuth } from "@/context/AuthContext";
 import { router } from "expo-router";
 import { useEffect } from "react";
 import StyledButton from "@/components/StyledButton";
+import PageContainer from "@/components/PageContainer";
+import Card from "@/components/Card";
 
 export default function VerifyEmail() {
-    const systemScheme = useColorScheme();
     const [resendDisabledUntil, setResendDisabledUntil] = useState<
         number | null
     >(null);
@@ -68,31 +67,21 @@ export default function VerifyEmail() {
     };
 
     return (
-        <LinearGradient
-            colors={
-                systemScheme === "dark"
-                    ? ["rgba(172, 70, 255, 0.46)", "#0A0A0A"]
-                    : ["rgba(172, 70, 255, 0.46)", "#ffffffff"]
-            }
-            start={{ x: 0, y: 1 }}
-            end={{ x: 0, y: 0 }}
-            className='flex-1 items-center justify-center p-3'>
-            <SafeAreaView>
-                <View className='flex-col items-center justify-center p-3 bg-darkWhite dark:bg-boxBackground-dark gap-2 rounded-2xl'>
-                    <Text className='text-dark dark:text-white text-center text-2xl font-regular my-3'>
-                        Check your inbox to verify your email.
-                    </Text>
-                    <StyledButton
-                        title='Resend email'
-                        onPress={handleResend}
-                        disabled={isDisabled}
-                    />
-                    <StyledButton
-                        title="I've verified"
-                        onPress={handleVerified}
-                    />
-                </View>
-            </SafeAreaView>
-        </LinearGradient>
+        <PageContainer centered>
+            <Card className='flex-col items-center justify-center p-3 gap-2'>
+                <Text className='text-dark dark:text-white text-center text-2xl font-regular my-3'>
+                    Check your inbox to verify your email.
+                </Text>
+                <StyledButton
+                    title='Resend email'
+                    onPress={handleResend}
+                    disabled={isDisabled}
+                />
+                <StyledButton
+                    title="I've verified"
+                    onPress={handleVerified}
+                />
+            </Card>
+        </PageContainer>
     );
 }

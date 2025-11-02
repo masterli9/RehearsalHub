@@ -1,8 +1,6 @@
-import { Text, TextInput, useColorScheme, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { Text, View } from "react-native";
 import { router } from "expo-router";
 import { useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import SwitchTabs from "@/components/SwitchTabs";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { Formik } from "formik";
@@ -10,10 +8,16 @@ import * as Yup from "yup";
 import { useAuth } from "@/context/AuthContext";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import StyledButton from "@/components/StyledButton";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import StyledTextInput from "@/components/StyledTextInput";
+import ErrorText from "@/components/ErrorText";
+import Card from "@/components/Card";
 
 export default function Auth() {
-    const systemScheme = useColorScheme();
     const [activeTab, setActiveTab] = useState("Login");
+    const systemScheme = useColorScheme();
 
     const { login, register } = useAuth();
 
@@ -78,9 +82,9 @@ export default function Auth() {
                     enableOnAndroid={true}
                     enableAutomaticScroll={true}
                     showsVerticalScrollIndicator={false}>
-                    <View
+                    <Card
                         key={activeTab}
-                        className='flex-col items-center justify-center bg-darkWhite dark:bg-boxBackground-dark w-full p-4 rounded-2xl'>
+                        className='flex-col items-center justify-center w-full p-4'>
                         <Text className='text-2xl font-bold text-black dark:text-white mt-3'>
                             Welcome to RehearsalHub!
                         </Text>
@@ -128,10 +132,9 @@ export default function Auth() {
                                     submitCount,
                                 }) => (
                                     <>
-                                        <TextInput
+                                        <StyledTextInput
                                             placeholder='Email'
-                                            placeholderTextColor='#A1A1A1'
-                                            className='w-full p-3 bg-white dark:bg-darkGray my-4 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                            className='my-4'
                                             value={values.email}
                                             onChangeText={handleChange("email")}
                                             onBlur={handleBlur("email")}
@@ -140,15 +143,14 @@ export default function Auth() {
                                         />
                                         {(touched.email || submitCount > 0) &&
                                             errors.email && (
-                                                <Text className='text-red-500 mb-3'>
+                                                <ErrorText>
                                                     {errors.email}
-                                                </Text>
+                                                </ErrorText>
                                             )}
-                                        <TextInput
+                                        <StyledTextInput
                                             secureTextEntry
                                             placeholder='Password'
-                                            placeholderTextColor='#A1A1A1'
-                                            className='w-full p-3 bg-white dark:bg-darkGray mb-6 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                            className='mb-6'
                                             value={values.password}
                                             onChangeText={handleChange(
                                                 "password"
@@ -160,9 +162,9 @@ export default function Auth() {
                                         {(touched.password ||
                                             submitCount > 0) &&
                                             errors.password && (
-                                                <Text className='text-red-500 mb-3'>
+                                                <ErrorText>
                                                     {errors.password}
-                                                </Text>
+                                                </ErrorText>
                                             )}
                                         <StyledButton
                                             title='Log in'
@@ -230,10 +232,9 @@ export default function Auth() {
                                     submitCount,
                                 }) => (
                                     <>
-                                        <TextInput
+                                        <StyledTextInput
                                             placeholder='Username'
-                                            placeholderTextColor='#A1A1A1'
-                                            className='w-full p-3 my-4 bg-white dark:bg-darkGray text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                            className='my-4'
                                             value={values.username}
                                             onChangeText={handleChange(
                                                 "username"
@@ -243,14 +244,13 @@ export default function Auth() {
                                         {(touched.username ||
                                             submitCount > 0) &&
                                             errors.username && (
-                                                <Text className='text-red-500 mb-3'>
+                                                <ErrorText>
                                                     {errors.username}
-                                                </Text>
+                                                </ErrorText>
                                             )}
-                                        <TextInput
+                                        <StyledTextInput
                                             placeholder='Email'
-                                            placeholderTextColor='#A1A1A1'
-                                            className='w-full p-3 bg-white dark:bg-darkGray mb-4 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                            className='mb-4'
                                             value={values.email}
                                             onChangeText={handleChange("email")}
                                             onBlur={handleBlur("email")}
@@ -259,15 +259,14 @@ export default function Auth() {
                                         />
                                         {(touched.email || submitCount > 0) &&
                                             errors.email && (
-                                                <Text className='text-red-500 mb-3'>
+                                                <ErrorText>
                                                     {errors.email}
-                                                </Text>
+                                                </ErrorText>
                                             )}
-                                        <TextInput
+                                        <StyledTextInput
                                             secureTextEntry
                                             placeholder='Password'
-                                            placeholderTextColor='#A1A1A1'
-                                            className='w-full p-3 bg-white dark:bg-darkGray mb-4 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                            className='mb-4'
                                             value={values.password}
                                             onChangeText={handleChange(
                                                 "password"
@@ -279,15 +278,14 @@ export default function Auth() {
                                         {(touched.password ||
                                             submitCount > 0) &&
                                             errors.password && (
-                                                <Text className='text-red-500 mb-3'>
+                                                <ErrorText>
                                                     {errors.password}
-                                                </Text>
+                                                </ErrorText>
                                             )}
-                                        <TextInput
+                                        <StyledTextInput
                                             secureTextEntry
                                             placeholder='Confirm Password'
-                                            placeholderTextColor='#A1A1A1'
-                                            className='w-full p-3 bg-white dark:bg-darkGray mb-6 text-black dark:text-white rounded-m border border-accent-light dark:border-accent-dark'
+                                            className='mb-6'
                                             value={values.confirmPassword}
                                             onChangeText={handleChange(
                                                 "confirmPassword"
@@ -301,9 +299,9 @@ export default function Auth() {
                                         {(touched.confirmPassword ||
                                             submitCount > 0) &&
                                             errors.confirmPassword && (
-                                                <Text className='text-red-500 mb-3'>
+                                                <ErrorText>
                                                     {errors.confirmPassword}
-                                                </Text>
+                                                </ErrorText>
                                             )}
                                         <StyledButton
                                             title='Register'
@@ -317,7 +315,7 @@ export default function Auth() {
                         )}
                         <View className='border-b border-accent-light dark:border-accent-dark my-4 w-full'></View>
                         <GoogleSignInButton className='bg-darkGray w-full flex-row justify-center items-center p-3 rounded-m active:bg-accent-dark' />
-                    </View>
+                    </Card>
                 </KeyboardAwareScrollView>
             </LinearGradient>
         </SafeAreaView>

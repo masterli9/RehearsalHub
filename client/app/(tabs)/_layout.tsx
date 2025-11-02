@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import React from "react";
 
+import { LinearGradient } from "expo-linear-gradient";
 import { HapticTab } from "@/components/haptic-tab";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -83,6 +84,16 @@ export default function TabLayout() {
 
     return (
         <SafeAreaView className='flex-1' edges={["bottom"]}>
+            {/* <LinearGradient
+                colors={
+                    colorScheme === "dark"
+                        ? ["rgba(172, 70, 255, 0.46)", "#0A0A0A"]
+                        : ["rgba(172, 70, 255, 0.46)", "#ffffffff"]
+                }
+                start={{ x: 0, y: 1 }}
+                end={{ x: 0, y: 0 }}
+                className='flex-1 w-full'> */}
+            {/* TODO: Add linear gradient back */}
             <MoreSheetProvider>
                 <Tabs
                     screenOptions={{
@@ -95,7 +106,7 @@ export default function TabLayout() {
                             height: 68,
                             paddingTop: 18,
                             paddingBottom: 16,
-                            paddingHorizontal: 12,
+                            paddingHorizontal: 16,
                             borderTopWidth: 0,
                             backgroundColor:
                                 colorScheme === "dark" ? "#0A0A0A" : "#FFFFFF",
@@ -220,6 +231,7 @@ export default function TabLayout() {
                 </Tabs>
                 <MoreSheet />
             </MoreSheetProvider>
+            {/* </LinearGradient> */}
         </SafeAreaView>
     );
 }
