@@ -207,7 +207,8 @@ export default function Band() {
             <StyledModal
                 visible={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
-                title='Create a band'>
+                title="Create a band"
+            >
                 <Formik<CreateFormValues>
                     validationSchema={createBandSchema}
                     initialValues={{
@@ -219,7 +220,8 @@ export default function Band() {
                         setShowCreateModal(false);
                     }}
                     validateOnBlur={false}
-                    validateOnChange={false}>
+                    validateOnChange={false}
+                >
                     {({
                         handleChange,
                         handleBlur,
@@ -232,8 +234,8 @@ export default function Band() {
                     }) => (
                         <>
                             <StyledTextInput
-                                placeholder='Band name'
-                                className='my-4'
+                                placeholder="Band name"
+                                className="my-4"
                                 value={values.bandName}
                                 onChangeText={handleChange("bandName")}
                                 onBlur={handleBlur("bandName")}
@@ -242,10 +244,10 @@ export default function Band() {
                                 errors.bandName && (
                                     <ErrorText>{errors.bandName}</ErrorText>
                                 )}
-                            <Text className='text-base font-regular text-silverText text-center mb-2'>
+                            <Text className="text-base font-regular text-silverText text-center mb-2">
                                 Select your role(s) in the band:
                             </Text>
-                            <View className='flex-row flex-wrap gap-2 w-full justify-center items-center my-2'>
+                            <View className="flex-row flex-wrap gap-2 w-full justify-center items-center my-2">
                                 {roles.map((role: BandRole) => {
                                     const isSelected = values.roles.some(
                                         (r) => r.role_id === role.role_id
@@ -275,27 +277,29 @@ export default function Band() {
                                                 isSelected
                                                     ? "bg-transparentGreen border-green"
                                                     : "bg-transparent border-gray-400"
-                                            }`}>
+                                            }`}
+                                        >
                                             <Text
                                                 className={`${
                                                     isSelected
                                                         ? "text-black dark:text-white font-semibold"
                                                         : "text-gray-700 dark:text-gray-200"
-                                                }`}>
+                                                }`}
+                                            >
                                                 {role.title}
                                             </Text>
                                         </Pressable>
                                     );
                                 })}
                             </View>
-                            <View className='flex-row gap-4 w-full justify-center items-center my-3'>
+                            <View className="flex-row gap-4 w-full justify-center items-center my-3">
                                 <StyledButton
                                     onPress={() => setShowCreateModal(false)}
-                                    title='Cancel'
+                                    title="Cancel"
                                 />
                                 <StyledButton
                                     onPress={() => handleSubmit()}
-                                    title='Submit'
+                                    title="Submit"
                                 />
                             </View>
                         </>
@@ -306,8 +310,9 @@ export default function Band() {
             <StyledModal
                 visible={showJoinModal}
                 onClose={() => setShowJoinModal(false)}
-                title='Join a band'
-                subtitle='Your band leader should provide you a join code.'>
+                title="Join a band"
+                subtitle="Your band leader should provide you a join code."
+            >
                 <Formik<JoinFormValues>
                     validationSchema={joinBandSchema}
                     initialValues={{
@@ -322,7 +327,8 @@ export default function Band() {
                         setShowJoinModal(false);
                     }}
                     validateOnBlur={false}
-                    validateOnChange={false}>
+                    validateOnChange={false}
+                >
                     {({
                         handleChange,
                         handleBlur,
@@ -335,8 +341,8 @@ export default function Band() {
                     }) => (
                         <>
                             <StyledTextInput
-                                placeholder='Join code'
-                                className='my-4'
+                                placeholder="Join code"
+                                className="my-4"
                                 value={values.joinCode}
                                 onChangeText={handleChange("joinCode")}
                                 onBlur={handleBlur("joinCode")}
@@ -345,10 +351,10 @@ export default function Band() {
                                 errors.joinCode && (
                                     <ErrorText>{errors.joinCode}</ErrorText>
                                 )}
-                            <Text className='text-base font-regular text-silverText text-center mb-2'>
+                            <Text className="text-base font-regular text-silverText text-center mb-2">
                                 Select your role(s) in the band:
                             </Text>
-                            <View className='flex-row flex-wrap gap-2 w-full justify-center items-center my-2'>
+                            <View className="flex-row flex-wrap gap-2 w-full justify-center items-center my-2">
                                 {roles.map((role: BandRole) => {
                                     const isSelected = values.roles.some(
                                         (r) => r.role_id === role.role_id
@@ -378,13 +384,15 @@ export default function Band() {
                                                 isSelected
                                                     ? "bg-transparentGreen border-green"
                                                     : "bg-transparent border-gray-400"
-                                            }`}>
+                                            }`}
+                                        >
                                             <Text
                                                 className={`${
                                                     isSelected
                                                         ? "text-black dark:text-white font-semibold"
                                                         : "text-gray-700 dark:text-gray-200"
-                                                }`}>
+                                                }`}
+                                            >
                                                 {role.title}
                                             </Text>
                                         </Pressable>
@@ -400,14 +408,14 @@ export default function Band() {
                                                                     }
                                                                 </Text>
                                                             )} */}
-                            <View className='flex-row gap-4 w-full justify-center items-center my-3'>
+                            <View className="flex-row gap-4 w-full justify-center items-center my-3">
                                 <StyledButton
                                     onPress={() => setShowJoinModal(false)}
-                                    title='Cancel'
+                                    title="Cancel"
                                 />
                                 <StyledButton
                                     onPress={() => handleSubmit()}
-                                    title='Submit'
+                                    title="Submit"
                                 />
                             </View>
                         </>
@@ -416,20 +424,20 @@ export default function Band() {
             </StyledModal>
             {bands.length === 0 ? (
                 <>
-                    <Card className='flex-col w-full items-center justify-center'>
-                        <Text className='text-3xl font-bold text-black dark:text-white my-2 text-center'>
+                    <Card className="flex-col w-full items-center justify-center">
+                        <Text className="text-3xl font-bold text-black dark:text-white my-2 text-center">
                             You don't have a band yet!
                         </Text>
-                        <Text className='text-silverText mb-2 text-center'>
+                        <Text className="text-silverText mb-2 text-center">
                             Create a new band or join an existing one.
                         </Text>
-                        <View className='flex-row gap-4 w-full justify-center items-center my-3'>
+                        <View className="flex-row gap-4 w-full justify-center items-center my-3">
                             <StyledButton
-                                title='Create a band'
+                                title="Create a band"
                                 onPress={() => setShowCreateModal(true)}
                             />
                             <StyledButton
-                                title='Join a band'
+                                title="Join a band"
                                 onPress={() => setShowJoinModal(true)}
                             />
                         </View>
@@ -437,21 +445,22 @@ export default function Band() {
                 </>
             ) : (
                 <>
-                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2'>
-                        <View className='flex-col items-start justify-center'>
-                            <Text className='text-black dark:text-white text-2xl font-bold my-1'>
+                    <View className="flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2">
+                        <View className="flex-col items-start justify-center">
+                            <Text className="text-black dark:text-white text-2xl font-bold my-1">
                                 {activeBand?.name}
                             </Text>
-                            <Text className='text-silverText'>
+                            <Text className="text-silverText">
                                 {memberCount} members
                             </Text>
                         </View>
-                        <View className='flex-row items-center justify-center'>
+                        <View className="flex-row items-center justify-center">
                             <Menu
                                 renderer={SlideInMenu}
-                                rendererProps={{ transitionDuration: 200 }}>
+                                rendererProps={{ transitionDuration: 200 }}
+                            >
                                 <MenuTrigger>
-                                    <Text className='text-black dark:text-white text-2xl p-4'>
+                                    <Text className="text-black dark:text-white text-2xl p-4">
                                         ⋯
                                     </Text>
                                 </MenuTrigger>
@@ -464,13 +473,14 @@ export default function Band() {
                                                     ? "#333"
                                                     : "#fff",
                                         },
-                                    }}>
+                                    }}
+                                >
                                     <MenuOption
                                         onSelect={() => {
                                             setShowJoinModal(false);
                                             setShowCreateModal(true);
                                         }}
-                                        text='Create new band'
+                                        text="Create new band"
                                         customStyles={{
                                             optionText: {
                                                 color:
@@ -487,7 +497,7 @@ export default function Band() {
                                             setShowJoinModal(true);
                                             setShowCreateModal(false);
                                         }}
-                                        text='Join new band'
+                                        text="Join new band"
                                         customStyles={{
                                             optionText: {
                                                 color:
@@ -503,7 +513,7 @@ export default function Band() {
                                         onSelect={() => {
                                             switchBand(activeBand?.id || "");
                                         }}
-                                        text='Switch band' // TODO: Add functionality
+                                        text="Switch band" // TODO: Add functionality
                                         customStyles={{
                                             optionText: {
                                                 color:
@@ -519,7 +529,7 @@ export default function Band() {
                                         onSelect={() =>
                                             setConfirmLeaveModal(true)
                                         }
-                                        text='Leave band'
+                                        text="Leave band"
                                         customStyles={{
                                             optionText: {
                                                 color: "#d11717",
@@ -533,22 +543,23 @@ export default function Band() {
                         </View>
                     </View>
                     <ScrollView
-                        className='flex-col px-3 w-full'
+                        className="flex-col px-3 w-full"
                         contentContainerStyle={{
                             alignItems: "center",
                             justifyContent: "center",
-                        }}>
-                        <Card className='bg-darkWhite dark:bg-darkGray w-full flex-row items-center justify-between mb-5'>
-                            <View className='flex-col items-start justify-center w-2/3'>
-                                <Text className='text-black dark:text-white text-xl font-bold my-1'>
+                        }}
+                    >
+                        <Card className="bg-darkWhite dark:bg-darkGray w-full flex-row items-center justify-between mb-5">
+                            <View className="flex-col items-start justify-center w-2/3">
+                                <Text className="text-black dark:text-white text-xl font-bold my-1">
                                     Invite Code
                                 </Text>
-                                <Text className='text-silverText text-base'>
+                                <Text className="text-silverText text-base">
                                     Share this invite code with your members
                                 </Text>
                             </View>
                             <Pressable
-                                className='border border-silverText rounded-lg p-1 active:scale-90'
+                                className="border border-silverText rounded-lg p-1 active:scale-90"
                                 onPress={async () => {
                                     const code = activeBand?.inviteCode || "";
 
@@ -569,7 +580,7 @@ export default function Band() {
                                 }}
                                 // TODO: Fix toast
                             >
-                                <Text className='text-black dark:text-white'>
+                                <Text className="text-black dark:text-white">
                                     {activeBand?.inviteCode}
                                 </Text>
                             </Pressable>
@@ -582,42 +593,49 @@ export default function Band() {
                                     member.email ||
                                     idx
                                 }
-                                variant='boxBackground'
-                                className='w-full flex-row items-center justify-between my-1'>
-                                <View className='flex-col items-start justify-center flex-1'>
-                                    <View className='flex-row flex-wrap items-center'>
+                                variant="boxBackground"
+                                className="w-full flex-row items-center justify-between my-1"
+                            >
+                                <View className="flex-col items-start justify-center flex-1">
+                                    <View className="flex-row flex-wrap items-center">
                                         <Text
-                                            className='text-black dark:text-white text-xl font-bold my-1 mr-2'
+                                            className="text-black dark:text-white text-xl font-bold my-1 mr-2"
                                             numberOfLines={1}
-                                            ellipsizeMode='tail'>
+                                            ellipsizeMode="tail"
+                                        >
                                             {member.username}
                                         </Text>
-                                        {(Array.isArray(member.roles)
-                                            ? member.roles.slice(0, 1)
-                                            : []
-                                        ).map((r: any, i: number) => (
-                                            <Text
-                                                key={
-                                                    typeof r === "string"
-                                                        ? r
-                                                        : r.role_id ||
-                                                          r.title ||
-                                                          i
-                                                }
-                                                className='text-white text-base my-1 bg-accent-light dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'>
-                                                {typeof r === "string"
-                                                    ? r
-                                                    : r.title}
-                                            </Text>
-                                        ))}
-                                        {Array.isArray(member.roles) &&
+                                        {member.roles.length > 0 &&
+                                            (Array.isArray(member.roles)
+                                                ? member.roles.slice(0, 1)
+                                                : []
+                                            )
+                                                .filter((r: any) => r != null)
+                                                .map((r: any, i: number) => (
+                                                    <Text
+                                                        key={
+                                                            typeof r ===
+                                                            "string"
+                                                                ? r
+                                                                : r.role_id ||
+                                                                  r.title ||
+                                                                  i
+                                                        }
+                                                        className="text-white text-base my-1 bg-accent-light dark:bg-accent-dark px-3 py-1 rounded-xl mr-2"
+                                                    >
+                                                        {typeof r === "string"
+                                                            ? r
+                                                            : r?.title || ""}
+                                                    </Text>
+                                                ))}
+                                        {member.roles.length > 0 &&
                                             member.roles.length > 1 && (
-                                                <Text className='text-white text-base my-1 bg-accent-light dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'>
+                                                <Text className="text-white text-base my-1 bg-accent-light dark:bg-accent-dark px-3 py-1 rounded-xl mr-2">
                                                     +{member.roles.length - 1}
                                                 </Text>
                                             )}
                                     </View>
-                                    <Text className='text-silverText text-base'>
+                                    <Text className="text-silverText text-base">
                                         {member.email}
                                     </Text>
                                 </View>
@@ -625,7 +643,7 @@ export default function Band() {
                                     member.firebase_uid !== user?.uid && (
                                         <Menu>
                                             <MenuTrigger>
-                                                <Text className='text-black dark:text-white text-2xl p-4'>
+                                                <Text className="text-black dark:text-white text-2xl p-4">
                                                     ⋮
                                                 </Text>
                                             </MenuTrigger>
@@ -640,7 +658,8 @@ export default function Band() {
                                                                 ? "#333"
                                                                 : "#fff",
                                                     },
-                                                }}>
+                                                }}
+                                            >
                                                 <MenuOption
                                                     onSelect={() =>
                                                         handleRemoveMember(
@@ -649,7 +668,7 @@ export default function Band() {
                                                             member.firebase_uid
                                                         )
                                                     }
-                                                    text='Remove member'
+                                                    text="Remove member"
                                                     customStyles={{
                                                         optionText: {
                                                             color:
@@ -668,7 +687,7 @@ export default function Band() {
                                                             member.firebase_uid
                                                         )
                                                     }
-                                                    text='Make leader'
+                                                    text="Make leader"
                                                     customStyles={{
                                                         optionText: {
                                                             color:
