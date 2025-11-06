@@ -16,6 +16,18 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import apiUrl from "@/config";
 
+interface Message {
+    id: number;
+    text: string;
+    sent_at: string;
+    bandId: number;
+    author: {
+        bandMemberId: number;
+        username: string;
+        photourl: string | null;
+    };
+}
+
 const chat = () => {
     const { bands, activeBand, fetchUserBands } = useBand();
     const { user, idToken } = useAuth();
@@ -26,41 +38,53 @@ const chat = () => {
     // Offset pro iOS, aby se počítal i header (React Navigation)
     const KBO = Platform.OS === "ios" ? headerHeight : 10;
 
-    // Mock messages data - replace with real data later
-    const [messages, setMessages] = useState([
-        {
-            id: "1",
-            authorUsername: "Sterli",
-            sentAt: "12:00",
-            text: "This is a very fucking long message that should not split any word in half you know what I mean right i guess so",
-        },
-        {
-            id: "2",
-            authorUsername: "Jane Doe",
-            sentAt: "12:01",
-            text: "MessageBubble",
-        },
-    ]);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [nextCursor, setNextCursor] = useState<string | null>(null);
 
-    const getMessageHistory = async () => {
-        const res = await fetch(`${apiUrl}/api/messages/${activeBand?.id}`, {
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${idToken ?? ""}`,
-            },
-            method: "GET",
-        });
+    const getMessageHistory = async ({
+        loadOlder = false,
+    }: {
+        loadOlder?: boolean;
+    }) => {
+        const params = new URLSearchParams();
+        if (loadOlder && nextCursor) params.set("before", nextCursor);
+        params.set("limit", "5");
+
+        const res = await fetch(
+            `${apiUrl}/api/messages/${activeBand?.id}${params.toString()}`,
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${idToken ?? ""}`,
+                },
+                method: "GET",
+            }
+        );
         const data = await res.json();
         if (!res.ok) {
             console.error("Failed to get message history:", data);
             return;
         }
-        console.log(data);
-        setMessages(data.items.reverse());
+        const { items, nextCursor: newCursor } = data;
+
+        const asc = [...items].reverse();
+        if (loadOlder) {
+            setMessages((prev) => [...prev, ...asc]);
+        } else {
+            setMessages(asc);
+        }
+        setNextCursor(newCursor ?? null);
     };
     useEffect(() => {
-        getMessageHistory();
-    }, [activeBand?.id]);
+        getMessageHistory({ loadOlder: false });
+    }, [activeBand?.id, nextCursor]);
+    useEffect(() => {
+        getMessageHistory({ loadOlder: false });
+    }, []);
+
+    const handleMessageSend = async () => {
+        getMessageHistory({ loadOlder: true });
+    };
 
     const MessageBubble = ({
         text,
@@ -112,7 +136,7 @@ const chat = () => {
                     >
                         <FlatList
                             data={messages}
-                            keyExtractor={(item) => item.id}
+                            keyExtractor={(item) => item.id.toString()}
                             className="flex-1 w-full px-2"
                             contentContainerStyle={{
                                 flexGrow: 1,
@@ -123,8 +147,8 @@ const chat = () => {
                             renderItem={({ item }) => (
                                 <MessageBubble
                                     text={item.text}
-                                    authorUsername={item.authorUsername}
-                                    sentAt={item.sentAt}
+                                    authorUsername={item.author.username}
+                                    sentAt={item.sent_at}
                                 />
                             )}
                         />
@@ -136,7 +160,9 @@ const chat = () => {
                             />
                             <Pressable
                                 className={`bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 justify-center items-center`}
-                                onPress={() => {}}
+                                onPress={() => {
+                                    handleMessageSend();
+                                }}
                             >
                                 <Text className="text-base font-bold text-white dark:text-black">
                                     Send
