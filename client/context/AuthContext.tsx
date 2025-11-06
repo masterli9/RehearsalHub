@@ -16,6 +16,7 @@ import { router } from "expo-router";
 type AuthContextType = {
     user: User | null;
     loading: boolean;
+    idToken: string | null;
     register: (
         email: string,
         password: string,
@@ -36,6 +37,7 @@ export const useAuth = () => {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
+    const [idToken, setIdToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -48,7 +50,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // }
             setUser(firebaseUser);
             setLoading(false);
-
+            const idToken = await auth.currentUser?.getIdToken();
+            setIdToken(idToken ?? null);
             // If user signed in with Google (has photoURL and providerData), register them
             if (
                 firebaseUser &&
@@ -168,7 +171,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <AuthContext.Provider
-            value={{ user, loading, register, login, logout, googleSignIn }}
+            value={{
+                user,
+                loading,
+                idToken,
+                register,
+                login,
+                logout,
+                googleSignIn,
+            }}
         >
             {children}
         </AuthContext.Provider>

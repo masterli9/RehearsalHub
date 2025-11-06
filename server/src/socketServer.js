@@ -83,11 +83,12 @@ io.on("connection", async (socket) => {
         io.to(`band:${bandId}`).emit("typing:state", { uid, isTyping: false });
     });
 
-    socket.on("nessage:send", async ({ bandId, text, tempId }, ack) => {
+    socket.on("message:send", async ({ bandId, text, tempId }, ack) => {
         if (
             typeof text !== "string" ||
             !text.trim() ||
-            !Number.isInteger(bandId)
+            !Number.isInteger(bandId) ||
+            text.trim().length > 1200
         ) {
             return ack?.({ ok: false, error: "invalid-payload", tempId });
         }

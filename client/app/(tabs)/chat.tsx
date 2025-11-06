@@ -14,10 +14,11 @@ import PageContainer from "@/components/PageContainer";
 import StyledTextInput from "@/components/StyledTextInput";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import apiUrl from "@/config";
 
 const chat = () => {
     const { bands, activeBand, fetchUserBands } = useBand();
-    const { user } = useAuth();
+    const { user, idToken } = useAuth();
 
     const insets = useSafeAreaInsets();
     const headerHeight = useHeaderHeight?.() ?? 0;
@@ -26,7 +27,7 @@ const chat = () => {
     const KBO = Platform.OS === "ios" ? headerHeight : 10;
 
     // Mock messages data - replace with real data later
-    const [messages] = useState([
+    const [messages, setMessages] = useState([
         {
             id: "1",
             authorUsername: "Sterli",
@@ -40,6 +41,26 @@ const chat = () => {
             text: "MessageBubble",
         },
     ]);
+
+    const getMessageHistory = async () => {
+        const res = await fetch(`${apiUrl}/api/messages/${activeBand?.id}`, {
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${idToken ?? ""}`,
+            },
+            method: "GET",
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            console.error("Failed to get message history:", data);
+            return;
+        }
+        console.log(data);
+        setMessages(data.items.reverse());
+    };
+    useEffect(() => {
+        getMessageHistory();
+    }, [activeBand?.id]);
 
     const MessageBubble = ({
         text,

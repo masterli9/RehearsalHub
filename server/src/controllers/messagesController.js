@@ -21,7 +21,7 @@ export const getMessages = async (req, res) => {
 
     const limit = Math.min(parseInt(req.query.limit, 10) || 30, 50);
     let beforeSentAt = new Date();
-    let beforeId = Number.MAX_SAFE_INTEGER;
+    let beforeId = 2147483647; // PostgreSQL integer max value
 
     if (req.query.before) {
         const c = decodeCursor(req.query.before);
@@ -34,13 +34,13 @@ export const getMessages = async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT m.message_id, m.text, m.sent_at, bm.band_member_id, u.username, u.photourl
-            FROM messages m JOIN band_members bm USING(band_member_id) 
-            WHERE m.band_id = $1 AND (m.sent_at < $2 OR (m.sent_at = $2 AND m.message_id < $3)) 
+            FROM messages m JOIN band_members bm USING(band_member_id) JOIN users u USING(user_id)
+            WHERE m.band_member_id = $1 AND (m.sent_at < $2 OR (m.sent_at = $2 AND m.message_id < $3))
             ORDER BY m.sent_at DESC, m.message_id DESC LIMIT $4`,
-            [bandId, beforeSentAt, beforeId, limit]
+            [bandMemberId, beforeSentAt, beforeId, limit]
         );
 
-        const items = q.rows.map((row) => ({
+        const items = result.rows.map((row) => ({
             id: row.message_id,
             text: row.text,
             sent_at: row.sent_at,
