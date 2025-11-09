@@ -9,12 +9,13 @@ import {
 import { useBand } from "@/context/BandContext";
 import { useAuth } from "@/context/AuthContext";
 import NoBand from "@/components/NoBand";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import PageContainer from "@/components/PageContainer";
 import StyledTextInput from "@/components/StyledTextInput";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import apiUrl from "@/config";
+import { io } from "socket.io-client";
 
 interface Message {
     id: number;
@@ -29,7 +30,7 @@ interface Message {
 }
 
 const chat = () => {
-    const { bands, activeBand, fetchUserBands } = useBand();
+    const { bands, activeBand } = useBand();
     const { user, idToken } = useAuth();
 
     const insets = useSafeAreaInsets();
@@ -37,6 +38,59 @@ const chat = () => {
 
     // Offset pro iOS, aby se počítal i header (React Navigation)
     const KBO = Platform.OS === "ios" ? headerHeight : 10;
+
+    const [messageInput, setMessageInput] = useState("");
+    // Create socket instance only once and reuse it
+    const socketRef = useRef<ReturnType<typeof io> | null>(null);
+    const socket = useMemo(() => {
+        if (!socketRef.current) {
+            socketRef.current = io("http://192.168.88.240:3001", {
+                auth: {
+                    token: idToken ?? "",
+                },
+                port: 3001,
+                transports: ["websocket", "polling"], // Explicitly set transports
+            });
+        } else {
+            // Update auth token if it changed
+            socketRef.current.auth = { token: idToken ?? "" };
+        }
+        return socketRef.current;
+    }, [idToken]);
+    useEffect(() => {
+        if (!socketRef.current) {
+            socketRef.current = io("http://192.168.88.240:3001", {
+                auth: {
+                    token: idToken ?? "",
+                },
+                port: 3001,
+                transports: ["websocket", "polling"], // Explicitly set transports
+            });
+        } else {
+            // Update auth token if it changed
+            socketRef.current.auth = { token: idToken ?? "" };
+        }
+
+        const socket = socketRef.current;
+        if (!socket.connected) {
+            socket.connect();
+        }
+        const onConnect = () => {
+            console.log("Socket connected:", socket.connected);
+        };
+        socket.on("connect", onConnect);
+
+        const onConnectError = (err: any) => {
+            console.error("Socket connect error:", err);
+        };
+        socket.on("connect_error", onConnectError);
+
+        return () => {
+            socket.off("connect", onConnect);
+            socket.off("connect_error", onConnectError);
+            socket.disconnect();
+        };
+    }, [idToken]);
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -78,13 +132,22 @@ const chat = () => {
     useEffect(() => {
         getMessageHistory({ loadOlder: false });
     }, [activeBand?.id, nextCursor]);
-    useEffect(() => {
-        getMessageHistory({ loadOlder: false });
-    }, []);
-
-    const handleMessageSend = async () => {
+    const handleMessageSend = async ({ text }: { text: string }) => {
+        socket.emit("message:send", {
+            bandId: activeBand?.id,
+            text: text,
+            tempId: Date.now(),
+        });
         getMessageHistory({ loadOlder: true });
     };
+    useEffect(() => {
+        // Avoid calling connect if already connected or connecting
+        if (!socket.connected) {
+            socket.connect();
+        }
+
+        getMessageHistory({ loadOlder: false });
+    }, []);
 
     const MessageBubble = ({
         text,
@@ -99,13 +162,12 @@ const chat = () => {
             authorUsername === user?.displayName ? "right" : "left";
         return (
             <View
-                className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}
-            >
-                <Text className="text-base text-silverText px-2">
+                className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}>
+                <Text className='text-base text-silverText px-2'>
                     {authorUsername} · {sentAt}
                 </Text>
-                <View className="bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl max-w-[66.67%]">
-                    <Text className="text-black dark:text-white text-base text-wrap">
+                <View className='bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl max-w-[66.67%]'>
+                    <Text className='text-black dark:text-white text-base text-wrap'>
                         {text}
                     </Text>
                 </View>
@@ -119,31 +181,30 @@ const chat = () => {
                 <NoBand />
             ) : (
                 <>
-                    <View className="flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2">
-                        <View className="flex-col items-start justify-center">
-                            <Text className="text-black dark:text-white text-2xl font-bold my-1">
+                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2'>
+                        <View className='flex-col items-start justify-center'>
+                            <Text className='text-black dark:text-white text-2xl font-bold my-1'>
                                 {activeBand?.name} Chat
                             </Text>
-                            <Text className="text-silverText">
+                            <Text className='text-silverText'>
                                 Chat with your bandmates
                             </Text>
                         </View>
                     </View>
                     <KeyboardAvoidingView
-                        className="flex-1 w-full"
-                        behavior="padding"
-                        keyboardVerticalOffset={KBO}
-                    >
+                        className='flex-1 w-full'
+                        behavior='padding'
+                        keyboardVerticalOffset={KBO}>
                         <FlatList
                             data={messages}
                             keyExtractor={(item) => item.id.toString()}
-                            className="flex-1 w-full px-2"
+                            className='flex-1 w-full px-2'
                             contentContainerStyle={{
                                 flexGrow: 1,
                                 justifyContent: "flex-end",
                             }}
                             inverted={false}
-                            keyboardShouldPersistTaps="handled"
+                            keyboardShouldPersistTaps='handled'
                             renderItem={({ item }) => (
                                 <MessageBubble
                                     text={item.text}
@@ -152,19 +213,22 @@ const chat = () => {
                                 />
                             )}
                         />
-                        <View className="flex-row w-full gap-3 px-2">
+                        <View className='flex-row w-full gap-3 px-2'>
                             <StyledTextInput
-                                variant="rounded"
-                                className="flex-1 bg-darkWhite dark:bg-accent-dark"
-                                placeholder="Message"
+                                variant='rounded'
+                                className='flex-1 bg-darkWhite dark:bg-accent-dark'
+                                placeholder='Message'
+                                onChangeText={(text) => setMessageInput(text)}
+                                value={messageInput}
                             />
                             <Pressable
                                 className={`bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 justify-center items-center`}
                                 onPress={() => {
-                                    handleMessageSend();
-                                }}
-                            >
-                                <Text className="text-base font-bold text-white dark:text-black">
+                                    if (messageInput.trim() === "") return;
+                                    handleMessageSend({ text: messageInput });
+                                    setMessageInput("");
+                                }}>
+                                <Text className='text-base font-bold text-white dark:text-black'>
                                     Send
                                 </Text>
                             </Pressable>
