@@ -74,7 +74,7 @@ io.on("connection", async (socket) => {
             }
 
             const q = await pool.query(
-                "SELECT bm.band_member_id FROM band_members bm JOIN users u USING(user_id) WHERE u.firebase_uid = $1 AND bm.band_id = $2 LIMIT 1",
+                "SELECT bm.band_member_id, u.username FROM band_members bm JOIN users u USING(user_id) WHERE u.firebase_uid = $1 AND bm.band_id = $2 LIMIT 1",
                 [uid, id]
             );
             if (q.rows.length === 0) {
@@ -90,6 +90,7 @@ io.on("connection", async (socket) => {
             const bandMemberId = q.rows[0].band_member_id;
             socket.data.activeBandId = id;
             socket.data.bandMemberId = bandMemberId;
+            socket.data.user.username = q.rows[0].username;
 
             socket.join(`band:${id}`);
             ack?.({ ok: true });
@@ -133,7 +134,7 @@ io.on("connection", async (socket) => {
         }
         try {
             const q1 = await pool.query(
-                "SELECT bm.band_member_id FROM band_members bm JOIN users u USING(user_id) WHERE u.firebase_uid = $1 AND bm.band_id = $2",
+                "SELECT bm.band_member_id, u.username FROM band_members bm JOIN users u USING(user_id) WHERE u.firebase_uid = $1 AND bm.band_id = $2",
                 [socket.data.user.uid, bandId]
             );
 
@@ -142,13 +143,12 @@ io.on("connection", async (socket) => {
             }
 
             const bandMemberId = q1.rows[0].band_member_id;
+            const username = q1.rows[0].username;
 
             const q2 = await pool.query(
                 "INSERT INTO messages (text, band_member_id) VALUES ($1, $2) RETURNING message_id, text, sent_at",
                 [text.trim(), bandMemberId]
             );
-
-            const username = socket.data.user.username;
             const date = new Date(q2.rows[0].sent_at).toISOString();
 
             const msg = {

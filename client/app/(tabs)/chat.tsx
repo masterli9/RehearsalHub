@@ -20,7 +20,10 @@ import { onIdTokenChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 interface Message {
-    id: number;
+    id?: number;
+    clientId?: string;
+    status?: "pending" | "ok" | "failed";
+    error?: string;
     text: string;
     sent_at: string;
     bandId: number;
@@ -130,11 +133,27 @@ const chat = () => {
                     username: msg.author?.username || "Unknown",
                     photourl: msg.author?.photourl || null,
                 },
+                status: "ok",
             };
             setMessages((prev) => {
                 // Check if message already exists to prevent duplicates
                 const exists = prev.some((m) => m.id === transformedMsg.id);
                 if (exists) return prev;
+
+                const i = prev.findIndex(
+                    (m) =>
+                        !m.id &&
+                        m.status === "pending" &&
+                        m.bandId === transformedMsg.bandId &&
+                        m.text === transformedMsg.text
+                );
+                if (i !== -1) {
+                    // Replace the optimistic "pending" message with the actual one from the server (confirmed)
+                    const copy = [...prev];
+                    copy[i] = { ...copy[i], ...transformedMsg, status: "ok" };
+                    return copy;
+                }
+
                 return [...prev, transformedMsg];
             });
         };
@@ -210,7 +229,9 @@ const chat = () => {
                 [
                     ...prev,
                     {
-                        id: -1, // dočasně (nebo ulož tempId jinam)
+                        clientId: tempId,
+                        id: undefined,
+                        status: "pending",
                         text,
                         sent_at: new Date().toISOString(),
                         bandId: activeBand.id,
@@ -223,7 +244,6 @@ const chat = () => {
                 ] as Message[]
         );
 
-        // 2) poslat se serverem a počkat na ack
         socketRef.current.emit(
             "message:send",
             {
@@ -233,10 +253,36 @@ const chat = () => {
             },
             (res: any) => {
                 if (res?.ok) {
-                    // přijde skutečná zpráva (id, sentAt) – můžeš nahradit temp bublinu;
-                    // nebo to nech na `message:new`, který ji stejně doručí
+                    setMessages((prev) => {
+                        // už máme zprávu s tímto id? -> message:new přišla dřív
+                        const already = prev.some(
+                            (m) => m.id === res.message.id
+                        );
+                        if (already) {
+                            // jen odstraň pending s tímto clientId
+                            return prev.filter(
+                                (m) => m.clientId !== res.tempId
+                            );
+                        }
+                        // jinak standardně nahrad pending za reálnou
+                        return prev.map((m) =>
+                            m.clientId === res.tempId
+                                ? { ...m, ...res.message, status: "ok" }
+                                : m
+                        );
+                    });
                 } else {
-                    // označ poslední bublinu jako failed nebo ji smaž
+                    setMessages((prev) =>
+                        prev.map((msg) =>
+                            msg.clientId === res?.tempId
+                                ? {
+                                      ...msg,
+                                      status: "failed",
+                                      error: res?.error ?? "unknown-error",
+                                  }
+                                : msg
+                        )
+                    );
                 }
             }
         );
@@ -295,7 +341,13 @@ const chat = () => {
                         keyboardVerticalOffset={KBO}>
                         <FlatList
                             data={messages}
-                            keyExtractor={(item) => item.id.toString()}
+                            keyExtractor={(item) =>
+                                (
+                                    item.id ??
+                                    item.clientId ??
+                                    "unknown"
+                                ).toString()
+                            }
                             className='flex-1 w-full px-2'
                             contentContainerStyle={{
                                 flexGrow: 1,
