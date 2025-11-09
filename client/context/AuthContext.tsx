@@ -17,6 +17,7 @@ type AuthContextType = {
     user: User | null;
     loading: boolean;
     idToken: string | null;
+    setIdToken: (idToken: string | null) => void;
     register: (
         email: string,
         password: string,
@@ -175,12 +176,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 user,
                 loading,
                 idToken,
+                setIdToken,
                 register,
                 login,
                 logout,
                 googleSignIn,
-            }}
-        >
+            }}>
             {children}
         </AuthContext.Provider>
     );

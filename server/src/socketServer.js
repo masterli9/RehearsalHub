@@ -49,7 +49,10 @@ io.use(async (socket, next) => {
         const token = socket.handshake.auth?.token;
         if (!token) return next(console.error("No token provided"));
         const decoded = await adminAuth.verifyIdToken(token);
-        socket.data.user = { uid: decoded.uid, email: decoded.email ?? null };
+        socket.data.user = {
+            uid: decoded.uid,
+            email: decoded.email ?? null,
+        };
         return next();
     } catch (err) {
         return next(console.error("Error verifying token:", err));
@@ -57,22 +60,32 @@ io.use(async (socket, next) => {
 });
 
 io.on("connection", async (socket) => {
+    if (!socket.data?.user?.uid) {
+        return socket.disconnect(true);
+    }
     console.log("socket connected", socket.id, socket.data.user);
     const { uid } = socket.data.user;
     try {
         const { rows } = await pool.query(
-            "SELECT bm.band_id FROM band_members bm JOIN users u USING(user_id) WHERE u.firebase_uid = $1",
+            "SELECT bm.band_id, u.username FROM band_members bm JOIN users u USING(user_id) WHERE u.firebase_uid = $1",
             [uid]
         );
         if (rows.length === 0) {
             console.error("User is not a member of any band");
             socket.disconnect(true);
+            return;
+        }
+
+        if (rows[0].username) {
+            socket.data.user.username = rows[0].username;
         }
 
         rows.forEach((row) => socket.join(`band:${row.band_id}`));
 
         console.log(
-            `User ${uid} joined: ${rows.map((row) => row.band_id).join(", ")}`
+            `User ${uid} (${socket.data.user.username}) joined: ${rows
+                .map((row) => row.band_id)
+                .join(", ")}`
         );
     } catch (error) {
         console.error("band join failed", error);
@@ -125,12 +138,15 @@ io.on("connection", async (socket) => {
                 [text.trim(), bandMemberId]
             );
 
+            const username = socket.data.user.username;
+            const date = new Date(q2.rows[0].sent_at).toISOString();
+
             const msg = {
                 message_id: q2.rows[0].message_id,
                 text: q2.rows[0].text,
-                sent_at: q2.rows[0].sent_at,
+                sent_at: date,
                 bandId,
-                author: { bandMemberId: bandMemberId },
+                author: { bandMemberId: bandMemberId, username: username },
             };
 
             ack?.({ ok: true, message: msg, tempId });

@@ -16,6 +16,8 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import apiUrl from "@/config";
 import { io } from "socket.io-client";
+import { onIdTokenChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 interface Message {
     id: number;
@@ -31,32 +33,40 @@ interface Message {
 
 const chat = () => {
     const { bands, activeBand } = useBand();
-    const { user, idToken } = useAuth();
+    const { user, idToken, setIdToken } = useAuth();
 
     const insets = useSafeAreaInsets();
     const headerHeight = useHeaderHeight?.() ?? 0;
 
+    const userTZ = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
     // Offset pro iOS, aby se počítal i header (React Navigation)
     const KBO = Platform.OS === "ios" ? headerHeight : 10;
 
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [messageInput, setMessageInput] = useState("");
     // Create socket instance only once and reuse it
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
-    const socket = useMemo(() => {
-        if (!socketRef.current) {
-            socketRef.current = io("http://192.168.88.240:3001", {
-                auth: {
-                    token: idToken ?? "",
-                },
-                port: 3001,
-                transports: ["websocket", "polling"], // Explicitly set transports
-            });
-        } else {
-            // Update auth token if it changed
-            socketRef.current.auth = { token: idToken ?? "" };
-        }
-        return socketRef.current;
-    }, [idToken]);
+
+    // Handle token changes from Firebase
+    useEffect(() => {
+        const unsubscribe = onIdTokenChanged(auth, async (user) => {
+            const newToken = user ? await user.getIdToken() : null;
+            setIdToken(newToken);
+
+            if (socketRef.current) {
+                socketRef.current.auth = { token: newToken ?? "" };
+                if (socketRef.current.connected) {
+                    socketRef.current.disconnect();
+                    socketRef.current.connect();
+                }
+            }
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    // Create and manage socket connection
     useEffect(() => {
         if (!socketRef.current) {
             socketRef.current = io("http://192.168.88.240:3001", {
@@ -64,7 +74,8 @@ const chat = () => {
                     token: idToken ?? "",
                 },
                 port: 3001,
-                transports: ["websocket", "polling"], // Explicitly set transports
+                transports: ["websocket", "polling"],
+                autoConnect: false, // Don't auto-connect, we'll connect manually
             });
         } else {
             // Update auth token if it changed
@@ -72,6 +83,8 @@ const chat = () => {
         }
 
         const socket = socketRef.current;
+
+        // Only connect if not already connected
         if (!socket.connected) {
             socket.connect();
         }
@@ -80,20 +93,50 @@ const chat = () => {
         };
         socket.on("connect", onConnect);
 
-        const onConnectError = (err: any) => {
+        const onConnectError = async (err: any) => {
             console.error("Socket connect error:", err);
+            if (/unauthorized|id-token-expired/i.test(err.message)) {
+                const fresh = await auth.currentUser?.getIdToken(true);
+                socket.auth = { token: fresh ?? "" };
+                socket.connect();
+                console.log("Socket reconnected:", socket.connected);
+            }
         };
         socket.on("connect_error", onConnectError);
+
+        // Listen for new messages in real-time
+        const onNewMessage = (msg: any) => {
+            // Transform server message format to match client Message interface
+            // Server sends: { message_id, text, sent_at, bandId, author: { bandMemberId } }
+            // Client expects: { id, text, sent_at, bandId, author: { bandMemberId, username, photourl } }
+            const transformedMsg: Message = {
+                id: msg.message_id || msg.id,
+                text: msg.text,
+                sent_at: msg.sent_at,
+                bandId: msg.bandId,
+                author: {
+                    bandMemberId:
+                        msg.author?.bandMemberId || msg.author?.band_member_id,
+                    username: msg.author?.username || "Unknown",
+                    photourl: msg.author?.photourl || null,
+                },
+            };
+            setMessages((prev) => {
+                // Check if message already exists to prevent duplicates
+                const exists = prev.some((m) => m.id === transformedMsg.id);
+                if (exists) return prev;
+                return [...prev, transformedMsg];
+            });
+        };
+        socket.on("message:new", onNewMessage);
 
         return () => {
             socket.off("connect", onConnect);
             socket.off("connect_error", onConnectError);
+            socket.off("message:new", onNewMessage);
             socket.disconnect();
         };
     }, [idToken]);
-
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [nextCursor, setNextCursor] = useState<string | null>(null);
 
     const getMessageHistory = async ({
         loadOlder = false,
@@ -123,7 +166,14 @@ const chat = () => {
 
         const asc = [...items].reverse();
         if (loadOlder) {
-            setMessages((prev) => [...prev, ...asc]);
+            // Deduplicate messages by ID to prevent duplicate keys
+            setMessages((prev) => {
+                const existingIds = new Set(prev.map((msg) => msg.id));
+                const newMessages = asc.filter(
+                    (msg) => !existingIds.has(msg.id)
+                );
+                return [...prev, ...newMessages];
+            });
         } else {
             setMessages(asc);
         }
@@ -131,23 +181,17 @@ const chat = () => {
     };
     useEffect(() => {
         getMessageHistory({ loadOlder: false });
-    }, [activeBand?.id, nextCursor]);
+    }, [activeBand?.id]); // Removed nextCursor to prevent infinite loop
     const handleMessageSend = async ({ text }: { text: string }) => {
-        socket.emit("message:send", {
-            bandId: activeBand?.id,
-            text: text,
-            tempId: Date.now(),
-        });
+        if (socketRef.current) {
+            socketRef.current.emit("message:send", {
+                bandId: activeBand?.id,
+                text: text,
+                tempId: Date.now(),
+            });
+        }
         getMessageHistory({ loadOlder: true });
     };
-    useEffect(() => {
-        // Avoid calling connect if already connected or connecting
-        if (!socket.connected) {
-            socket.connect();
-        }
-
-        getMessageHistory({ loadOlder: false });
-    }, []);
 
     const MessageBubble = ({
         text,
@@ -160,11 +204,16 @@ const chat = () => {
     }) => {
         const position =
             authorUsername === user?.displayName ? "right" : "left";
+
+        const formattedDate = new Intl.DateTimeFormat(undefined, {
+            timeZone: userTZ,
+            timeStyle: "short",
+        }).format(new Date(sentAt));
         return (
             <View
                 className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}>
                 <Text className='text-base text-silverText px-2'>
-                    {authorUsername} · {sentAt}
+                    {authorUsername} · {formattedDate}
                 </Text>
                 <View className='bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl max-w-[66.67%]'>
                     <Text className='text-black dark:text-white text-base text-wrap'>
