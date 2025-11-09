@@ -90,6 +90,16 @@ const chat = () => {
         }
         const onConnect = () => {
             console.log("Socket connected:", socket.connected);
+            if (activeBand?.id) {
+                socket.emit(
+                    "band:select",
+                    { bandId: activeBand.id },
+                    (ack: any) => {
+                        if (!ack?.ok)
+                            console.warn("band:select failed", ack?.error);
+                    }
+                );
+            }
         };
         socket.on("connect", onConnect);
 
@@ -145,14 +155,14 @@ const chat = () => {
     }) => {
         const params = new URLSearchParams();
         if (loadOlder && nextCursor) params.set("before", nextCursor);
-        params.set("limit", "5");
+        params.set("limit", "10");
+        const freshToken = await auth.currentUser?.getIdToken();
 
         const res = await fetch(
-            `${apiUrl}/api/messages/${activeBand?.id}${params.toString()}`,
+            `${apiUrl}/api/messages/${activeBand?.id}?${params.toString()}`,
             {
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${idToken ?? ""}`,
+                    Authorization: `Bearer ${freshToken ?? ""}`,
                 },
                 method: "GET",
             }
@@ -172,7 +182,7 @@ const chat = () => {
                 const newMessages = asc.filter(
                     (msg) => !existingIds.has(msg.id)
                 );
-                return [...prev, ...newMessages];
+                return [...newMessages, ...prev];
             });
         } else {
             setMessages(asc);
@@ -180,17 +190,56 @@ const chat = () => {
         setNextCursor(newCursor ?? null);
     };
     useEffect(() => {
-        getMessageHistory({ loadOlder: false });
-    }, [activeBand?.id]); // Removed nextCursor to prevent infinite loop
-    const handleMessageSend = async ({ text }: { text: string }) => {
-        if (socketRef.current) {
-            socketRef.current.emit("message:send", {
-                bandId: activeBand?.id,
-                text: text,
-                tempId: Date.now(),
-            });
+        if (socketRef.current?.connected && activeBand?.id) {
+            socketRef.current.emit(
+                "band:select",
+                { bandId: activeBand.id },
+                () => {}
+            );
         }
-        getMessageHistory({ loadOlder: true });
+
+        getMessageHistory({ loadOlder: false });
+    }, [activeBand?.id]);
+    const handleMessageSend = async ({ text }: { text: string }) => {
+        if (!socketRef.current || !activeBand?.id) return;
+
+        const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        // 1) optimistická bublina (pending = true) – můžeš si rozšířit typ
+        setMessages(
+            (prev) =>
+                [
+                    ...prev,
+                    {
+                        id: -1, // dočasně (nebo ulož tempId jinam)
+                        text,
+                        sent_at: new Date().toISOString(),
+                        bandId: activeBand.id,
+                        author: {
+                            bandMemberId: -1,
+                            username: user?.displayName ?? "You",
+                            photourl: null,
+                        },
+                    },
+                ] as Message[]
+        );
+
+        // 2) poslat se serverem a počkat na ack
+        socketRef.current.emit(
+            "message:send",
+            {
+                bandId: activeBand.id,
+                text,
+                tempId,
+            },
+            (res: any) => {
+                if (res?.ok) {
+                    // přijde skutečná zpráva (id, sentAt) – můžeš nahradit temp bublinu;
+                    // nebo to nech na `message:new`, který ji stejně doručí
+                } else {
+                    // označ poslední bublinu jako failed nebo ji smaž
+                }
+            }
+        );
     };
 
     const MessageBubble = ({
@@ -262,16 +311,18 @@ const chat = () => {
                                 />
                             )}
                         />
-                        <View className='flex-row w-full gap-3 px-2'>
+                        <View className='flex-row w-full gap-3 px-2 items-end'>
                             <StyledTextInput
                                 variant='rounded'
-                                className='flex-1 bg-darkWhite dark:bg-accent-dark'
+                                className='flex-1 bg-darkWhite dark:bg-accent-dark max-h-50'
                                 placeholder='Message'
                                 onChangeText={(text) => setMessageInput(text)}
                                 value={messageInput}
+                                keyboardType='default'
+                                multiline={true}
                             />
                             <Pressable
-                                className={`bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 justify-center items-center`}
+                                className={`bg-black dark:bg-white rounded-m p-3 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 justify-center items-center max-h-20`}
                                 onPress={() => {
                                     if (messageInput.trim() === "") return;
                                     handleMessageSend({ text: messageInput });

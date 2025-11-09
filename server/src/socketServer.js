@@ -63,36 +63,46 @@ io.on("connection", async (socket) => {
     if (!socket.data?.user?.uid) {
         return socket.disconnect(true);
     }
-    console.log("socket connected", socket.id, socket.data.user);
     const { uid } = socket.data.user;
-    try {
-        const { rows } = await pool.query(
-            "SELECT bm.band_id, u.username FROM band_members bm JOIN users u USING(user_id) WHERE u.firebase_uid = $1",
-            [uid]
-        );
-        if (rows.length === 0) {
-            console.error("User is not a member of any band");
-            socket.disconnect(true);
-            return;
+    console.log("socket connected", socket.id, socket.data.user);
+
+    socket.on("band:select", async ({ bandId }, ack) => {
+        try {
+            const id = Number(bandId);
+            if (!Number.isInteger(id)) {
+                return ack?.({ ok: false, error: "invalid-band-id", tempId });
+            }
+
+            const q = await pool.query(
+                "SELECT bm.band_member_id FROM band_members bm JOIN users u USING(user_id) WHERE u.firebase_uid = $1 AND bm.band_id = $2 LIMIT 1",
+                [uid, id]
+            );
+            if (q.rows.length === 0) {
+                return ack?.({ ok: false, error: "not-a-member" });
+            }
+
+            for (const room of socket.rooms) {
+                if (room.startsWith("band:")) {
+                    socket.leave(room);
+                }
+            }
+
+            const bandMemberId = q.rows[0].band_member_id;
+            socket.data.activeBandId = id;
+            socket.data.bandMemberId = bandMemberId;
+
+            socket.join(`band:${id}`);
+            ack?.({ ok: true });
+            console.log(
+                `User ${uid} (${socket.data.user.username}) joined band ${id}`
+            );
+        } catch (error) {
+            console.error("band:select failed", error);
+            ack?.({ ok: false, error: "server-error" });
         }
+    });
 
-        if (rows[0].username) {
-            socket.data.user.username = rows[0].username;
-        }
-
-        rows.forEach((row) => socket.join(`band:${row.band_id}`));
-
-        console.log(
-            `User ${uid} (${socket.data.user.username}) joined: ${rows
-                .map((row) => row.band_id)
-                .join(", ")}`
-        );
-    } catch (error) {
-        console.error("band join failed", error);
-        socket.disconnect(true);
-    }
-
-    socket.on("typig:start", ({ bandId }) => {
+    socket.on("typing:start", ({ bandId }) => {
         const bucket = getTypingBucket(uid);
         if (!bucket.tryRemove(1)) return;
         io.to(`band:${bandId}`).emit("typing:state", { uid, isTyping: true });
