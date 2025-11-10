@@ -114,7 +114,11 @@ io.on("connection", async (socket) => {
         io.to(`band:${bandId}`).emit("typing:state", { uid, isTyping: false });
     });
 
-    socket.on("message:send", async ({ bandId, text, tempId }, ack) => {
+    socket.on("message:send", async ({ text, tempId }, ack) => {
+        const bandId = socket.data.activeBandId;
+        if (!Number.isInteger(bandId)) {
+            return ack?.({ ok: false, error: "no-active-band", tempId });
+        }
         if (
             typeof text !== "string" ||
             !text.trim() ||
@@ -152,6 +156,7 @@ io.on("connection", async (socket) => {
             const date = new Date(q2.rows[0].sent_at).toISOString();
 
             const msg = {
+                id: q2.rows[0].message_id,
                 message_id: q2.rows[0].message_id,
                 text: q2.rows[0].text,
                 sent_at: date,
@@ -162,6 +167,8 @@ io.on("connection", async (socket) => {
             ack?.({ ok: true, message: msg, tempId });
 
             io.to(`band:${bandId}`).emit("message:new", msg);
+
+            io.emit("message:new", { ...msg, tempId });
         } catch (error) {
             console.error("Error sending message", error);
             ack?.({ ok: false, error: "server-error", tempId });

@@ -50,6 +50,7 @@ const chat = () => {
     const [messageInput, setMessageInput] = useState("");
     // Create socket instance only once and reuse it
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
+    const flatListRef = useRef<FlatList<Message>>(null);
 
     // Handle token changes from Firebase
     useEffect(() => {
@@ -151,10 +152,13 @@ const chat = () => {
                     // Replace the optimistic "pending" message with the actual one from the server (confirmed)
                     const copy = [...prev];
                     copy[i] = { ...copy[i], ...transformedMsg, status: "ok" };
+                    delete copy[i].clientId;
+                    flatListRef.current?.scrollToEnd({ animated: true });
                     return copy;
                 }
 
-                return [...prev, transformedMsg];
+                flatListRef.current?.scrollToEnd({ animated: true });
+                return [...prev, { ...transformedMsg, status: "ok" }];
             });
         };
         socket.on("message:new", onNewMessage);
@@ -201,10 +205,12 @@ const chat = () => {
                 const newMessages = asc.filter(
                     (msg) => !existingIds.has(msg.id)
                 );
+                flatListRef.current?.scrollToEnd({ animated: true });
                 return [...newMessages, ...prev];
             });
         } else {
             setMessages(asc);
+            flatListRef.current?.scrollToEnd({ animated: true });
         }
         setNextCursor(newCursor ?? null);
     };
@@ -286,6 +292,7 @@ const chat = () => {
                 }
             }
         );
+        flatListRef.current?.scrollToEnd({ animated: true });
     };
 
     const MessageBubble = ({
@@ -355,6 +362,7 @@ const chat = () => {
                             }}
                             inverted={false}
                             keyboardShouldPersistTaps='handled'
+                            ref={flatListRef}
                             renderItem={({ item }) => (
                                 <MessageBubble
                                     text={item.text}
