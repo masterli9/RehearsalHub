@@ -120,6 +120,8 @@ const chat = () => {
         };
         socket.on("connect_error", onConnectError);
 
+        socket.on("rate-limited", () => console.log("Rate limited"));
+
         // Listen for new messages in real-time
         const onNewMessage = (msg: any) => {
             // Transform server message format to match client Message interface

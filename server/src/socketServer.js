@@ -12,9 +12,9 @@ function getMessageBucket(uid) {
     let b = messageBuckets.get(uid);
     if (!b) {
         b = new TokenBucket({
-            capacity: 5,
-            refillAmount: 5,
-            refillIntervalMs: 3000,
+            capacity: 3,
+            refillAmount: 1,
+            refillIntervalMs: 2000,
         });
         messageBuckets.set(uid, b);
     }
@@ -28,7 +28,9 @@ function getTypingBucket(uid) {
             refillAmount: 5,
             refillIntervalMs: 1000,
         });
+        typingBuckets.set(uid, b);
     }
+    return b;
 }
 
 const app = express();
