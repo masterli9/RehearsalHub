@@ -9,7 +9,7 @@ import {
 import { useBand } from "@/context/BandContext";
 import { useAuth } from "@/context/AuthContext";
 import NoBand from "@/components/NoBand";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import PageContainer from "@/components/PageContainer";
 import StyledTextInput from "@/components/StyledTextInput";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -51,6 +51,8 @@ const chat = () => {
     // Create socket instance only once and reuse it
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
     const flatListRef = useRef<FlatList<Message>>(null);
+    const shouldScrollToEndRef = useRef(true);
+    const isInitialLoadRef = useRef(true);
 
     // Handle token changes from Firebase
     useEffect(() => {
@@ -153,11 +155,11 @@ const chat = () => {
                     const copy = [...prev];
                     copy[i] = { ...copy[i], ...transformedMsg, status: "ok" };
                     delete copy[i].clientId;
-                    flatListRef.current?.scrollToEnd({ animated: true });
+                    shouldScrollToEndRef.current = true;
                     return copy;
                 }
 
-                flatListRef.current?.scrollToEnd({ animated: true });
+                shouldScrollToEndRef.current = true;
                 return [...prev, { ...transformedMsg, status: "ok" }];
             });
         };
@@ -205,12 +207,15 @@ const chat = () => {
                 const newMessages = asc.filter(
                     (msg) => !existingIds.has(msg.id)
                 );
-                flatListRef.current?.scrollToEnd({ animated: true });
+                // Don't scroll when loading older messages (user is scrolling up)
+                shouldScrollToEndRef.current = false;
                 return [...newMessages, ...prev];
             });
         } else {
             setMessages(asc);
-            flatListRef.current?.scrollToEnd({ animated: true });
+            // Scroll to end on initial load
+            shouldScrollToEndRef.current = true;
+            isInitialLoadRef.current = true;
         }
         setNextCursor(newCursor ?? null);
     };
@@ -223,13 +228,42 @@ const chat = () => {
             );
         }
 
-        getMessageHistory({ loadOlder: false });
+        if (activeBand?.id) {
+            // Reset scroll state when switching bands
+            isInitialLoadRef.current = true;
+            shouldScrollToEndRef.current = true;
+            getMessageHistory({ loadOlder: false });
+        }
     }, [activeBand?.id]);
+
+    // Scroll to end when messages are first loaded
+    // Use useLayoutEffect for synchronous execution after render
+    useLayoutEffect(() => {
+        if (messages.length > 0 && shouldScrollToEndRef.current) {
+            // Combine timeout and requestAnimationFrame to ensure FlatList content is fully rendered
+            const timeoutId = setTimeout(() => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        flatListRef.current?.scrollToEnd({
+                            animated: !isInitialLoadRef.current,
+                        });
+                        if (isInitialLoadRef.current) {
+                            isInitialLoadRef.current = false;
+                        }
+                        shouldScrollToEndRef.current = false;
+                    });
+                });
+            }, 150);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [messages.length]);
+
     const handleMessageSend = async ({ text }: { text: string }) => {
         if (!socketRef.current || !activeBand?.id) return;
 
         const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         // 1) optimistická bublina (pending = true) – můžeš si rozšířit typ
+        shouldScrollToEndRef.current = true;
         setMessages(
             (prev) =>
                 [
@@ -266,11 +300,13 @@ const chat = () => {
                         );
                         if (already) {
                             // jen odstraň pending s tímto clientId
+                            shouldScrollToEndRef.current = true;
                             return prev.filter(
                                 (m) => m.clientId !== res.tempId
                             );
                         }
                         // jinak standardně nahrad pending za reálnou
+                        shouldScrollToEndRef.current = true;
                         return prev.map((m) =>
                             m.clientId === res.tempId
                                 ? { ...m, ...res.message, status: "ok" }
@@ -292,7 +328,6 @@ const chat = () => {
                 }
             }
         );
-        flatListRef.current?.scrollToEnd({ animated: true });
     };
 
     const MessageBubble = ({
@@ -363,6 +398,23 @@ const chat = () => {
                             inverted={false}
                             keyboardShouldPersistTaps='handled'
                             ref={flatListRef}
+                            onContentSizeChange={() => {
+                                // Scroll when content size changes (new messages added)
+                                // Note: Initial load is handled by useLayoutEffect
+                                if (
+                                    shouldScrollToEndRef.current &&
+                                    messages.length > 0 &&
+                                    !isInitialLoadRef.current
+                                ) {
+                                    // Small delay to ensure content is fully rendered
+                                    setTimeout(() => {
+                                        flatListRef.current?.scrollToEnd({
+                                            animated: true,
+                                        });
+                                        shouldScrollToEndRef.current = false;
+                                    }, 50);
+                                }
+                            }}
                             renderItem={({ item }) => (
                                 <MessageBubble
                                     text={item.text}

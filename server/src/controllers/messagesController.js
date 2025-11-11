@@ -35,9 +35,9 @@ export const getMessages = async (req, res) => {
         const result = await pool.query(
             `SELECT m.message_id, m.text, m.sent_at, bm.band_member_id, u.username, u.photourl
             FROM messages m JOIN band_members bm USING(band_member_id) JOIN users u USING(user_id)
-            WHERE m.band_member_id = $1 AND (m.sent_at < $2 OR (m.sent_at = $2 AND m.message_id < $3))
+            WHERE bm.band_id = $1 AND (m.sent_at < $2 OR (m.sent_at = $2 AND m.message_id < $3))
             ORDER BY m.sent_at DESC, m.message_id DESC LIMIT $4`,
-            [bandMemberId, beforeSentAt, beforeId, limit]
+            [bandId, beforeSentAt, beforeId, limit]
         );
 
         const items = result.rows.map((row) => ({
