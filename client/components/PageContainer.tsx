@@ -25,13 +25,16 @@ const PageContainer: React.FC<PageContainerProps> = ({
             }
             start={{ x: 0, y: 1 }}
             end={{ x: 0, y: 0 }}
-            className='flex-1 items-center justify-center w-full'>
+            className="flex-1 items-center justify-center w-full"
+        >
             <SafeAreaView
+                edges={["top", "left", "right"]}
                 className={`flex-1 w-full items-center ${
                     centered || noBandState
                         ? "justify-center px-4"
                         : "justify-start"
-                }`}>
+                }`}
+            >
                 {children}
             </SafeAreaView>
         </LinearGradient>

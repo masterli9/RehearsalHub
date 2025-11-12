@@ -75,7 +75,7 @@ const chat = () => {
     // Create and manage socket connection
     useEffect(() => {
         if (!socketRef.current) {
-            socketRef.current = io("http://192.168.88.240:3001", {
+            socketRef.current = io("http://10.20.5.4:3001", {
                 auth: {
                     token: idToken ?? "",
                 },
@@ -348,14 +348,16 @@ const chat = () => {
             timeZone: userTZ,
             timeStyle: "short",
         }).format(new Date(sentAt));
+
         return (
             <View
-                className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}>
-                <Text className='text-base text-silverText px-2'>
+                className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}
+            >
+                <Text className="text-base text-silverText px-2">
                     {authorUsername} · {formattedDate}
                 </Text>
-                <View className='bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl max-w-[66.67%]'>
-                    <Text className='text-black dark:text-white text-base text-wrap'>
+                <View className="bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl max-w-[66.67%]">
+                    <Text className="text-black dark:text-white text-base text-wrap font-regular">
                         {text}
                     </Text>
                 </View>
@@ -369,20 +371,21 @@ const chat = () => {
                 <NoBand />
             ) : (
                 <>
-                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2'>
-                        <View className='flex-col items-start justify-center'>
-                            <Text className='text-black dark:text-white text-2xl font-bold my-1'>
+                    <View className="flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2">
+                        <View className="flex-col items-start justify-center">
+                            <Text className="text-black dark:text-white text-2xl font-bold my-1">
                                 {activeBand?.name} Chat
                             </Text>
-                            <Text className='text-silverText'>
+                            <Text className="text-silverText">
                                 Chat with your bandmates
                             </Text>
                         </View>
                     </View>
                     <KeyboardAvoidingView
-                        className='flex-1 w-full'
-                        behavior='padding'
-                        keyboardVerticalOffset={KBO}>
+                        className="flex-1 w-full"
+                        behavior="padding"
+                        keyboardVerticalOffset={KBO}
+                    >
                         <FlatList
                             data={messages}
                             keyExtractor={(item) =>
@@ -392,13 +395,14 @@ const chat = () => {
                                     "unknown"
                                 ).toString()
                             }
-                            className='flex-1 w-full px-2'
+                            className="flex-1 w-full px-2"
                             contentContainerStyle={{
                                 flexGrow: 1,
                                 justifyContent: "flex-end",
+                                paddingBottom: 8,
                             }}
                             inverted={false}
-                            keyboardShouldPersistTaps='handled'
+                            keyboardShouldPersistTaps="handled"
                             ref={flatListRef}
                             onContentSizeChange={() => {
                                 // Scroll when content size changes (new messages added)
@@ -425,14 +429,19 @@ const chat = () => {
                                 />
                             )}
                         />
-                        <View className='flex-row w-full gap-3 px-2 items-end'>
+                        <View
+                            className="flex-row w-full gap-3 px-2 items-end"
+                            style={{
+                                paddingBottom: 8,
+                            }}
+                        >
                             <StyledTextInput
-                                variant='rounded'
-                                className='flex-1 bg-darkWhite dark:bg-accent-dark max-h-50'
-                                placeholder='Message'
+                                variant="rounded"
+                                className="flex-1 bg-darkWhite dark:bg-accent-dark max-h-50"
+                                placeholder="Message"
                                 onChangeText={(text) => setMessageInput(text)}
                                 value={messageInput}
-                                keyboardType='default'
+                                keyboardType="default"
                                 multiline={true}
                             />
                             <Pressable
@@ -441,8 +450,9 @@ const chat = () => {
                                     if (messageInput.trim() === "") return;
                                     handleMessageSend({ text: messageInput });
                                     setMessageInput("");
-                                }}>
-                                <Text className='text-base font-bold text-white dark:text-black'>
+                                }}
+                            >
+                                <Text className="text-base font-bold text-white dark:text-black">
                                     Send
                                 </Text>
                             </Pressable>

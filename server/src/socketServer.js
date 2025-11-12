@@ -40,6 +40,7 @@ const io = new Server(server, {
         origin: [
             "http://localhost:3000",
             "http://192.168.88.240:3000",
+            "http://10.20.5.4:3000",
             /^http:\/\/192\.168\.\d+\.\d+:3000$/,
         ],
         credentials: true,

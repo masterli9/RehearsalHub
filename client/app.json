@@ -23,7 +23,8 @@
             "googleServicesFile": "./google-services.json",
             "edgeToEdgeEnabled": true,
             "predictiveBackGestureEnabled": false,
-            "softwareKeyboardLayoutMode": "resize"
+            "softwareKeyboardLayoutMode": "resize",
+            "windowSoftInputMode": "adjustResize"
         },
         "web": {
             "output": "static",
