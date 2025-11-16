@@ -5,6 +5,8 @@ import {
     KeyboardAvoidingView,
     Platform,
     FlatList,
+    Keyboard,
+    LayoutAnimation,
 } from "react-native";
 import { useBand } from "@/context/BandContext";
 import { useAuth } from "@/context/AuthContext";
@@ -45,9 +47,37 @@ const chat = () => {
     // Offset pro iOS, aby se počítal i header (React Navigation)
     const KBO = Platform.OS === "ios" ? headerHeight : 10;
 
+    // Tab bar height matches the calculation in _layout.tsx
+    const tabBarHeight = 68 + insets.bottom;
+
     const [messages, setMessages] = useState<Message[]>([]);
     const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [messageInput, setMessageInput] = useState("");
+
+    const [inputHeight, setInputHeight] = useState(0);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+    useEffect(() => {
+        const show = Keyboard.addListener("keyboardDidShow", (e) => {
+            const newHeight = e.endCoordinates.height;
+            LayoutAnimation.configureNext(
+                LayoutAnimation.Presets.easeInEaseOut
+            );
+            setKeyboardHeight(newHeight);
+            shouldScrollToEndRef.current = true;
+        });
+
+        const hide = Keyboard.addListener("keyboardDidHide", () => {
+            LayoutAnimation.configureNext(
+                LayoutAnimation.Presets.easeInEaseOut
+            );
+            setKeyboardHeight(0);
+        });
+        return () => {
+            show.remove();
+            hide.remove();
+        };
+    }, []);
+
     // Create socket instance only once and reuse it
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
     const flatListRef = useRef<FlatList<Message>>(null);
@@ -383,8 +413,8 @@ const chat = () => {
                     </View>
                     <KeyboardAvoidingView
                         className="flex-1 w-full"
-                        behavior="padding"
-                        keyboardVerticalOffset={KBO}
+                        behavior={Platform.OS === "ios" ? "padding" : "height"}
+                        keyboardVerticalOffset={headerHeight}
                     >
                         <FlatList
                             data={messages}
@@ -399,7 +429,9 @@ const chat = () => {
                             contentContainerStyle={{
                                 flexGrow: 1,
                                 justifyContent: "flex-end",
-                                paddingBottom: 8,
+                                paddingBottom:
+                                    8 +
+                                    Math.max(0, keyboardHeight - tabBarHeight),
                             }}
                             inverted={false}
                             keyboardShouldPersistTaps="handled"
@@ -431,8 +463,15 @@ const chat = () => {
                         />
                         <View
                             className="flex-row w-full gap-3 px-2 items-end"
+                            onLayout={(e) =>
+                                setInputHeight(e.nativeEvent.layout.height)
+                            }
                             style={{
                                 paddingBottom: 8,
+                                marginBottom: Math.max(
+                                    0,
+                                    keyboardHeight - tabBarHeight
+                                ),
                             }}
                         >
                             <StyledTextInput
