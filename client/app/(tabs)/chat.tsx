@@ -6,7 +6,6 @@ import {
     Platform,
     FlatList,
     Keyboard,
-    LayoutAnimation,
 } from "react-native";
 import { useBand } from "@/context/BandContext";
 import { useAuth } from "@/context/AuthContext";
@@ -37,6 +36,7 @@ interface Message {
 }
 
 const chat = () => {
+    const socketUrl = "http://192.168.88.240";
     const { bands, activeBand } = useBand();
     const { user, idToken, setIdToken } = useAuth();
 
@@ -44,39 +44,42 @@ const chat = () => {
     const headerHeight = useHeaderHeight?.() ?? 0;
 
     const userTZ = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
-    // Offset pro iOS, aby se počítal i header (React Navigation)
-    const KBO = Platform.OS === "ios" ? headerHeight : 10;
-
-    // Tab bar height matches the calculation in _layout.tsx
-    const tabBarHeight = 68 + insets.bottom;
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [messageInput, setMessageInput] = useState("");
 
-    const [inputHeight, setInputHeight] = useState(0);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
-    useEffect(() => {
-        const show = Keyboard.addListener("keyboardDidShow", (e) => {
-            const newHeight = e.endCoordinates.height;
-            LayoutAnimation.configureNext(
-                LayoutAnimation.Presets.easeInEaseOut
-            );
-            setKeyboardHeight(newHeight);
-            shouldScrollToEndRef.current = true;
-        });
+    const baseBottomInset = Math.max(insets.bottom, 8);
+    // const bottomSpacing = keyboardHeight > 0 ? 8 : baseBottomInset;
+    const bottomSpacing = keyboardHeight > 0 ? 8 : 0;
 
-        const hide = Keyboard.addListener("keyboardDidHide", () => {
-            LayoutAnimation.configureNext(
-                LayoutAnimation.Presets.easeInEaseOut
-            );
-            setKeyboardHeight(0);
-        });
-        return () => {
-            show.remove();
-            hide.remove();
-        };
-    }, []);
+    // Track keyboard height for both iOS and Android
+    useEffect(() => {
+        if (Platform.OS === "ios") {
+            const sub = Keyboard.addListener("keyboardWillChangeFrame", (e) => {
+                const h = Math.max(0, e.endCoordinates.height - insets.bottom);
+                setKeyboardHeight(h);
+            });
+            return () => sub.remove();
+        } else {
+            // Android keyboard listeners
+            const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
+                setKeyboardHeight(e.endCoordinates.height);
+                // Scroll to end when keyboard appears on Android
+                setTimeout(() => {
+                    flatListRef.current?.scrollToEnd({ animated: true });
+                }, 100);
+            });
+            const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+                setKeyboardHeight(0);
+            });
+            return () => {
+                showSub.remove();
+                hideSub.remove();
+            };
+        }
+    }, [insets.bottom]);
 
     // Create socket instance only once and reuse it
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
@@ -105,7 +108,7 @@ const chat = () => {
     // Create and manage socket connection
     useEffect(() => {
         if (!socketRef.current) {
-            socketRef.current = io("http://10.20.5.4:3001", {
+            socketRef.current = io(`${socketUrl}:3001`, {
                 auth: {
                     token: idToken ?? "",
                 },
@@ -381,13 +384,12 @@ const chat = () => {
 
         return (
             <View
-                className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}
-            >
-                <Text className="text-base text-silverText px-2">
+                className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}>
+                <Text className='text-base text-silverText px-2'>
                     {authorUsername} · {formattedDate}
                 </Text>
-                <View className="bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl max-w-[66.67%]">
-                    <Text className="text-black dark:text-white text-base text-wrap font-regular">
+                <View className='bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl max-w-[66.67%]'>
+                    <Text className='text-black dark:text-white text-base text-wrap font-regular'>
                         {text}
                     </Text>
                 </View>
@@ -401,21 +403,22 @@ const chat = () => {
                 <NoBand />
             ) : (
                 <>
-                    <View className="flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2">
-                        <View className="flex-col items-start justify-center">
-                            <Text className="text-black dark:text-white text-2xl font-bold my-1">
+                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2'>
+                        <View className='flex-col items-start justify-center'>
+                            <Text className='text-black dark:text-white text-2xl font-bold my-1'>
                                 {activeBand?.name} Chat
                             </Text>
-                            <Text className="text-silverText">
+                            <Text className='text-silverText'>
                                 Chat with your bandmates
                             </Text>
                         </View>
                     </View>
                     <KeyboardAvoidingView
-                        className="flex-1 w-full"
-                        behavior={Platform.OS === "ios" ? "padding" : "height"}
-                        keyboardVerticalOffset={headerHeight}
-                    >
+                        className='flex-1 w-full'
+                        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+                        keyboardVerticalOffset={
+                            Platform.OS === "ios" ? headerHeight : 0
+                        }>
                         <FlatList
                             data={messages}
                             keyExtractor={(item) =>
@@ -425,16 +428,14 @@ const chat = () => {
                                     "unknown"
                                 ).toString()
                             }
-                            className="flex-1 w-full px-2"
+                            className='flex-1 w-full px-2'
                             contentContainerStyle={{
                                 flexGrow: 1,
                                 justifyContent: "flex-end",
-                                paddingBottom:
-                                    8 +
-                                    Math.max(0, keyboardHeight - tabBarHeight),
+                                paddingBottom: 0,
                             }}
                             inverted={false}
-                            keyboardShouldPersistTaps="handled"
+                            keyboardShouldPersistTaps='handled'
                             ref={flatListRef}
                             onContentSizeChange={() => {
                                 // Scroll when content size changes (new messages added)
@@ -462,25 +463,18 @@ const chat = () => {
                             )}
                         />
                         <View
-                            className="flex-row w-full gap-3 px-2 items-end"
-                            onLayout={(e) =>
-                                setInputHeight(e.nativeEvent.layout.height)
-                            }
+                            className='flex-row w-full gap-3 px-2 items-end'
                             style={{
-                                paddingBottom: 8,
-                                marginBottom: Math.max(
-                                    0,
-                                    keyboardHeight - tabBarHeight
-                                ),
-                            }}
-                        >
+                                paddingBottom:
+                                    keyboardHeight > 0 ? bottomSpacing : 8,
+                            }}>
                             <StyledTextInput
-                                variant="rounded"
-                                className="flex-1 bg-darkWhite dark:bg-accent-dark max-h-50"
-                                placeholder="Message"
+                                variant='rounded'
+                                className='flex-1 bg-darkWhite dark:bg-accent-dark max-h-50'
+                                placeholder='Message'
                                 onChangeText={(text) => setMessageInput(text)}
                                 value={messageInput}
-                                keyboardType="default"
+                                keyboardType='default'
                                 multiline={true}
                             />
                             <Pressable
@@ -489,9 +483,8 @@ const chat = () => {
                                     if (messageInput.trim() === "") return;
                                     handleMessageSend({ text: messageInput });
                                     setMessageInput("");
-                                }}
-                            >
-                                <Text className="text-base font-bold text-white dark:text-black">
+                                }}>
+                                <Text className='text-base font-bold text-white dark:text-black'>
                                     Send
                                 </Text>
                             </Pressable>
