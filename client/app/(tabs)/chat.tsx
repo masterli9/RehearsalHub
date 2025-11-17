@@ -437,6 +437,32 @@ const chat = () => {
             }
         );
     };
+    const formattedTime = new Intl.DateTimeFormat(undefined, {
+        timeZone: userTZ,
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+    const formattedDate = new Intl.DateTimeFormat(undefined, {
+        timeZone: userTZ,
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+    });
+
+    const isSameDay = (date1: Date, date2: Date) => {
+        return (
+            date1.getFullYear() === date2.getFullYear() &&
+            date1.getMonth() === date2.getMonth() &&
+            date1.getDate() === date2.getDate()
+        );
+    };
+    const prettyTime = (iso: string) => {
+        const d = new Date(iso);
+        const diff = Date.now() - d.getTime();
+        if (diff < 10_000) return "just now";
+        return formattedTime.format(d);
+    };
 
     const MessageBubble = ({
         text,
@@ -450,16 +476,11 @@ const chat = () => {
         const position =
             authorUsername === user?.displayName ? "right" : "left";
 
-        const formattedDate = new Intl.DateTimeFormat(undefined, {
-            timeZone: userTZ,
-            timeStyle: "short",
-        }).format(new Date(sentAt));
-
         return (
             <View
                 className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}>
                 <Text className='text-base text-silverText px-2'>
-                    {authorUsername} · {formattedDate}
+                    {authorUsername} · {prettyTime(sentAt)}
                 </Text>
                 <View className='bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl max-w-[66.67%]'>
                     <Text className='text-black dark:text-white text-base text-wrap font-regular'>
@@ -467,6 +488,27 @@ const chat = () => {
                     </Text>
                 </View>
             </View>
+        );
+    };
+    const renderItem = ({ item, index }: { item: Message; index: number }) => {
+        const d = new Date(item.sent_at);
+        const prev = messages[index - 1];
+        const showDate = !prev || !isSameDay(d, new Date(prev.sent_at));
+
+        return (
+            <>
+                {showDate && (
+                    <Text className='text-silverText text-center text-sm my-2'>
+                        {formattedDate.format(d)}
+                    </Text>
+                )}
+                <MessageBubble
+                    key={item.id ?? item.clientId ?? index}
+                    text={item.text}
+                    authorUsername={item.author.username}
+                    sentAt={item.sent_at}
+                />
+            </>
         );
     };
 
@@ -523,13 +565,7 @@ const chat = () => {
                             inverted={false}
                             keyboardShouldPersistTaps='handled'
                             ref={flatListRef}
-                            renderItem={({ item }) => (
-                                <MessageBubble
-                                    text={item.text}
-                                    authorUsername={item.author.username}
-                                    sentAt={item.sent_at}
-                                />
-                            )}
+                            renderItem={renderItem}
                         />
                         <View
                             className='flex-row w-full gap-3 px-2 items-end'
