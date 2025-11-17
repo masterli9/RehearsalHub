@@ -13,6 +13,7 @@ import "../global.css";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { BandProvider, useBand } from "@/context/BandContext";
 import { MenuProvider } from "react-native-popup-menu";
+import { KeyboardProvider } from "react-native-keyboard-controller"; // TODO: Add back in when fixing emoji keyboard avoiding issues
 
 export const unstable_settings = {
     anchor: "(tabs)",
@@ -22,8 +23,8 @@ function AuthGate() {
     const { user, loading } = useAuth();
     if (loading) {
         return (
-            <View className="flex-1 items-center justify-center bg-black">
-                <Text className="text-white text-lg">
+            <View className='flex-1 items-center justify-center bg-black'>
+                <Text className='text-white text-lg'>
                     Loading (waiting for firebase)...
                 </Text>
             </View>
@@ -33,18 +34,18 @@ function AuthGate() {
     if (user && !user.emailVerified) {
         return (
             <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(auth)/auth" />
+                <Stack.Screen name='(auth)/auth' />
             </Stack>
         );
     }
 
     return user ? (
         <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name='(tabs)' />
         </Stack>
     ) : (
         <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)/auth" />
+            <Stack.Screen name='(auth)/auth' />
         </Stack>
     );
 }
@@ -54,18 +55,19 @@ export default function RootLayout() {
 
     return (
         <MenuProvider>
+            {/* <KeyboardProvider> */}
             <AuthProvider>
                 <BandProvider>
                     <ThemeProvider
                         value={
                             colorScheme === "dark" ? DarkTheme : DefaultTheme
-                        }
-                    >
+                        }>
                         <AuthGate />
-                        <StatusBar style="auto" />
+                        <StatusBar style='auto' />
                     </ThemeProvider>
                 </BandProvider>
             </AuthProvider>
+            {/* </KeyboardProvider> */}
         </MenuProvider>
     );
 }

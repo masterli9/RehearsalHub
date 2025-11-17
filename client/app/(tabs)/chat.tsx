@@ -6,6 +6,7 @@ import {
     Platform,
     FlatList,
     Keyboard,
+    ActivityIndicator,
 } from "react-native";
 import { useBand } from "@/context/BandContext";
 import { useAuth } from "@/context/AuthContext";
@@ -19,6 +20,7 @@ import apiUrl from "@/config";
 import { io } from "socket.io-client";
 import { onIdTokenChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
 
 interface Message {
     id?: number;
@@ -40,6 +42,14 @@ const chat = () => {
     const { bands, activeBand } = useBand();
     const { user, idToken, setIdToken } = useAuth();
 
+    // Create socket instance only once and reuse it
+    const socketRef = useRef<ReturnType<typeof io> | null>(null);
+    const flatListRef = useRef<FlatList<Message>>(null);
+    const shouldScrollToEndRef = useRef(true);
+    const isInitialLoadRef = useRef(true);
+    const wasLoadingOlderRef = useRef(false);
+    const topVisibleMessageIdRef = useRef<number | null>(null);
+
     const insets = useSafeAreaInsets();
     const headerHeight = useHeaderHeight?.() ?? 0;
 
@@ -47,12 +57,105 @@ const chat = () => {
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [nextCursor, setNextCursor] = useState<string | null>(null);
+    const [hasMore, setHasMore] = useState(true);
     const [messageInput, setMessageInput] = useState("");
 
+    const [isLoadingOlder, setIsLoadingOlder] = useState(false);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     const baseBottomInset = Math.max(insets.bottom, 8);
     // const bottomSpacing = keyboardHeight > 0 ? 8 : baseBottomInset;
     const bottomSpacing = keyboardHeight > 0 ? 8 : 0;
+
+    const TOP_THRESHOLD = 40;
+
+    const getMessageHistory = async ({
+        loadOlder = false,
+    }: {
+        loadOlder?: boolean;
+    }) => {
+        const params = new URLSearchParams();
+        if (loadOlder && nextCursor) params.set("before", nextCursor);
+        params.set("limit", "10");
+        const freshToken = await auth.currentUser?.getIdToken();
+
+        const res = await fetch(
+            `${apiUrl}/api/messages/${activeBand?.id}?${params.toString()}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${freshToken ?? ""}`,
+                },
+                method: "GET",
+            }
+        );
+        const data = await res.json();
+        if (!res.ok) {
+            console.error("Failed to get message history:", data);
+            return;
+        }
+        const { items, nextCursor: newCursor } = data;
+
+        const asc = [...items].reverse();
+        if (loadOlder) {
+            // Deduplicate messages by ID to prevent duplicate keys
+            setMessages((prev) => {
+                const existingIds = new Set(prev.map((msg) => msg.id));
+                const newMessages = asc.filter(
+                    (msg) => !existingIds.has(msg.id)
+                );
+                // Don't scroll when loading older messages (user is scrolling up)
+                shouldScrollToEndRef.current = false;
+                return [...newMessages, ...prev];
+            });
+        } else {
+            setMessages(asc);
+            // Scroll to end on initial load
+            shouldScrollToEndRef.current = true;
+            isInitialLoadRef.current = true;
+        }
+        setNextCursor(newCursor ?? null);
+        setHasMore(Boolean(newCursor));
+    };
+
+    const maybeLoadOlder = async () => {
+        if (isLoadingOlder || !hasMore || !nextCursor) return;
+
+        wasLoadingOlderRef.current = true;
+        setIsLoadingOlder(true);
+        await getMessageHistory({ loadOlder: true });
+    };
+
+    const onScroll = (e: any) => {
+        const y = e.nativeEvent.contentOffset.y;
+        if (y <= TOP_THRESHOLD) {
+            maybeLoadOlder();
+        }
+    };
+
+    const viewabilityConfig = useRef({
+        itemVisiblePercentThreshold: 50,
+        waitForInteraction: false,
+    }).current;
+
+    const onViewableItemsChanged = useRef(
+        ({ viewableItems }: { viewableItems: any[] }) => {
+            if (viewableItems.length > 0) {
+                // Get the id of the first visible item
+                topVisibleMessageIdRef.current = viewableItems[0].item.id;
+            }
+        }
+    ).current;
+
+    const onScrollToIndexFailed = (info: {
+        index: number;
+        highestMeasuredFrameIndex: number;
+        averageItemLength: number;
+    }) => {
+        const offset = info.averageItemLength * info.index;
+        flatListRef.current?.scrollToOffset({
+            offset,
+            animated: false,
+        });
+    };
 
     // Track keyboard height for both iOS and Android
     useEffect(() => {
@@ -80,12 +183,6 @@ const chat = () => {
             };
         }
     }, [insets.bottom]);
-
-    // Create socket instance only once and reuse it
-    const socketRef = useRef<ReturnType<typeof io> | null>(null);
-    const flatListRef = useRef<FlatList<Message>>(null);
-    const shouldScrollToEndRef = useRef(true);
-    const isInitialLoadRef = useRef(true);
 
     // Handle token changes from Firebase
     useEffect(() => {
@@ -208,52 +305,6 @@ const chat = () => {
         };
     }, [idToken]);
 
-    const getMessageHistory = async ({
-        loadOlder = false,
-    }: {
-        loadOlder?: boolean;
-    }) => {
-        const params = new URLSearchParams();
-        if (loadOlder && nextCursor) params.set("before", nextCursor);
-        params.set("limit", "10");
-        const freshToken = await auth.currentUser?.getIdToken();
-
-        const res = await fetch(
-            `${apiUrl}/api/messages/${activeBand?.id}?${params.toString()}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${freshToken ?? ""}`,
-                },
-                method: "GET",
-            }
-        );
-        const data = await res.json();
-        if (!res.ok) {
-            console.error("Failed to get message history:", data);
-            return;
-        }
-        const { items, nextCursor: newCursor } = data;
-
-        const asc = [...items].reverse();
-        if (loadOlder) {
-            // Deduplicate messages by ID to prevent duplicate keys
-            setMessages((prev) => {
-                const existingIds = new Set(prev.map((msg) => msg.id));
-                const newMessages = asc.filter(
-                    (msg) => !existingIds.has(msg.id)
-                );
-                // Don't scroll when loading older messages (user is scrolling up)
-                shouldScrollToEndRef.current = false;
-                return [...newMessages, ...prev];
-            });
-        } else {
-            setMessages(asc);
-            // Scroll to end on initial load
-            shouldScrollToEndRef.current = true;
-            isInitialLoadRef.current = true;
-        }
-        setNextCursor(newCursor ?? null);
-    };
     useEffect(() => {
         if (socketRef.current?.connected && activeBand?.id) {
             socketRef.current.emit(
@@ -292,6 +343,28 @@ const chat = () => {
             return () => clearTimeout(timeoutId);
         }
     }, [messages.length]);
+
+    useLayoutEffect(() => {
+        if (
+            wasLoadingOlderRef.current &&
+            topVisibleMessageIdRef.current &&
+            messages.length > 0
+        ) {
+            const newIndexOfOldTopMessage = messages.findIndex(
+                (m) => m.id === topVisibleMessageIdRef.current
+            );
+
+            if (newIndexOfOldTopMessage !== -1) {
+                flatListRef.current?.scrollToIndex({
+                    index: newIndexOfOldTopMessage,
+                    animated: false,
+                    viewPosition: 0,
+                });
+            }
+            wasLoadingOlderRef.current = false;
+            setIsLoadingOlder(false);
+        }
+    }, [messages]);
 
     const handleMessageSend = async ({ text }: { text: string }) => {
         if (!socketRef.current || !activeBand?.id) return;
@@ -421,6 +494,14 @@ const chat = () => {
                         }>
                         <FlatList
                             data={messages}
+                            ListHeaderComponent={
+                                isLoadingOlder ? (
+                                    <ActivityIndicator
+                                        size='large'
+                                        color='#2B7FFF'
+                                    />
+                                ) : null
+                            }
                             keyExtractor={(item) =>
                                 (
                                     item.id ??
@@ -434,26 +515,14 @@ const chat = () => {
                                 justifyContent: "flex-end",
                                 paddingBottom: 0,
                             }}
+                            onScroll={onScroll}
+                            scrollEventThrottle={16}
+                            onViewableItemsChanged={onViewableItemsChanged}
+                            viewabilityConfig={viewabilityConfig}
+                            onScrollToIndexFailed={onScrollToIndexFailed}
                             inverted={false}
                             keyboardShouldPersistTaps='handled'
                             ref={flatListRef}
-                            onContentSizeChange={() => {
-                                // Scroll when content size changes (new messages added)
-                                // Note: Initial load is handled by useLayoutEffect
-                                if (
-                                    shouldScrollToEndRef.current &&
-                                    messages.length > 0 &&
-                                    !isInitialLoadRef.current
-                                ) {
-                                    // Small delay to ensure content is fully rendered
-                                    setTimeout(() => {
-                                        flatListRef.current?.scrollToEnd({
-                                            animated: true,
-                                        });
-                                        shouldScrollToEndRef.current = false;
-                                    }, 50);
-                                }
-                            }}
                             renderItem={({ item }) => (
                                 <MessageBubble
                                     text={item.text}
