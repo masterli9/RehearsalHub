@@ -11,7 +11,7 @@ import {
 import { useBand } from "@/context/BandContext";
 import { useAuth } from "@/context/AuthContext";
 import NoBand from "@/components/NoBand";
-import { useEffect, useLayoutEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import PageContainer from "@/components/PageContainer";
 import StyledTextInput from "@/components/StyledTextInput";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -20,7 +20,6 @@ import apiUrl from "@/config";
 import { io } from "socket.io-client";
 import { onIdTokenChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
 
 interface Message {
     id?: number;
@@ -45,10 +44,7 @@ const chat = () => {
     // Create socket instance only once and reuse it
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
     const flatListRef = useRef<FlatList<Message>>(null);
-    const shouldScrollToEndRef = useRef(true);
-    const isInitialLoadRef = useRef(true);
-    const wasLoadingOlderRef = useRef(false);
-    const topVisibleMessageIdRef = useRef<number | null>(null);
+    const shouldScrollToBottomRef = useRef(false);
 
     const insets = useSafeAreaInsets();
     const headerHeight = useHeaderHeight?.() ?? 0;
@@ -63,10 +59,7 @@ const chat = () => {
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     const baseBottomInset = Math.max(insets.bottom, 8);
-    // const bottomSpacing = keyboardHeight > 0 ? 8 : baseBottomInset;
     const bottomSpacing = keyboardHeight > 0 ? 8 : 0;
-
-    const TOP_THRESHOLD = 40;
 
     const getMessageHistory = async ({
         loadOlder = false,
@@ -75,7 +68,7 @@ const chat = () => {
     }) => {
         const params = new URLSearchParams();
         if (loadOlder && nextCursor) params.set("before", nextCursor);
-        params.set("limit", "10");
+        params.set("limit", "40");
         const freshToken = await auth.currentUser?.getIdToken();
 
         const res = await fetch(
@@ -94,23 +87,20 @@ const chat = () => {
         }
         const { items, nextCursor: newCursor } = data;
 
-        const asc = [...items].reverse();
+        // For inverted list: newest messages at index 0, so keep DESC order (don't reverse)
+        const desc = items; // items come from API in DESC order (newest first)
         if (loadOlder) {
             // Deduplicate messages by ID to prevent duplicate keys
             setMessages((prev) => {
                 const existingIds = new Set(prev.map((msg) => msg.id));
-                const newMessages = asc.filter(
-                    (msg) => !existingIds.has(msg.id)
+                const newMessages = desc.filter(
+                    (msg: Message) => !existingIds.has(msg.id)
                 );
-                // Don't scroll when loading older messages (user is scrolling up)
-                shouldScrollToEndRef.current = false;
-                return [...newMessages, ...prev];
+                // Add older messages at the end (they'll appear at top when inverted)
+                return [...prev, ...newMessages];
             });
         } else {
-            setMessages(asc);
-            // Scroll to end on initial load
-            shouldScrollToEndRef.current = true;
-            isInitialLoadRef.current = true;
+            setMessages(desc);
         }
         setNextCursor(newCursor ?? null);
         setHasMore(Boolean(newCursor));
@@ -118,43 +108,31 @@ const chat = () => {
 
     const maybeLoadOlder = async () => {
         if (isLoadingOlder || !hasMore || !nextCursor) return;
-
-        wasLoadingOlderRef.current = true;
         setIsLoadingOlder(true);
         await getMessageHistory({ loadOlder: true });
+        setIsLoadingOlder(false);
     };
 
-    const onScroll = (e: any) => {
-        const y = e.nativeEvent.contentOffset.y;
-        if (y <= TOP_THRESHOLD) {
-            maybeLoadOlder();
-        }
+    const onEndReached = () => {
+        // With inverted list, onEndReached triggers when scrolling to top (older messages)
+        maybeLoadOlder();
     };
-
-    const viewabilityConfig = useRef({
-        itemVisiblePercentThreshold: 50,
-        waitForInteraction: false,
-    }).current;
-
-    const onViewableItemsChanged = useRef(
-        ({ viewableItems }: { viewableItems: any[] }) => {
-            if (viewableItems.length > 0) {
-                // Get the id of the first visible item
-                topVisibleMessageIdRef.current = viewableItems[0].item.id;
-            }
-        }
-    ).current;
 
     const onScrollToIndexFailed = (info: {
         index: number;
         highestMeasuredFrameIndex: number;
         averageItemLength: number;
     }) => {
-        const offset = info.averageItemLength * info.index;
-        flatListRef.current?.scrollToOffset({
-            offset,
-            animated: false,
-        });
+        // Fallback: scroll to offset if index fails (e.g., item not rendered yet)
+        if (info.index === 0) {
+            // For inverted list, offset 0 is the bottom
+            requestAnimationFrame(() => {
+                flatListRef.current?.scrollToOffset({
+                    offset: 0,
+                    animated: true,
+                });
+            });
+        }
     };
 
     // Track keyboard height for both iOS and Android
@@ -169,10 +147,6 @@ const chat = () => {
             // Android keyboard listeners
             const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
                 setKeyboardHeight(e.endCoordinates.height);
-                // Scroll to end when keyboard appears on Android
-                setTimeout(() => {
-                    flatListRef.current?.scrollToEnd({ animated: true });
-                }, 100);
             });
             const hideSub = Keyboard.addListener("keyboardDidHide", () => {
                 setKeyboardHeight(0);
@@ -287,12 +261,11 @@ const chat = () => {
                     const copy = [...prev];
                     copy[i] = { ...copy[i], ...transformedMsg, status: "ok" };
                     delete copy[i].clientId;
-                    shouldScrollToEndRef.current = true;
                     return copy;
                 }
 
-                shouldScrollToEndRef.current = true;
-                return [...prev, { ...transformedMsg, status: "ok" }];
+                // For inverted list, add new messages at the beginning
+                return [{ ...transformedMsg, status: "ok" }, ...prev];
             });
         };
         socket.on("message:new", onNewMessage);
@@ -315,54 +288,20 @@ const chat = () => {
         }
 
         if (activeBand?.id) {
-            // Reset scroll state when switching bands
-            isInitialLoadRef.current = true;
-            shouldScrollToEndRef.current = true;
             getMessageHistory({ loadOlder: false });
         }
     }, [activeBand?.id]);
 
-    // Scroll to end when messages are first loaded
-    // Use useLayoutEffect for synchronous execution after render
-    useLayoutEffect(() => {
-        if (messages.length > 0 && shouldScrollToEndRef.current) {
-            // Combine timeout and requestAnimationFrame to ensure FlatList content is fully rendered
-            const timeoutId = setTimeout(() => {
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        flatListRef.current?.scrollToEnd({
-                            animated: !isInitialLoadRef.current,
-                        });
-                        if (isInitialLoadRef.current) {
-                            isInitialLoadRef.current = false;
-                        }
-                        shouldScrollToEndRef.current = false;
-                    });
-                });
-            }, 150);
-            return () => clearTimeout(timeoutId);
-        }
-    }, [messages.length]);
-
-    useLayoutEffect(() => {
-        if (
-            wasLoadingOlderRef.current &&
-            topVisibleMessageIdRef.current &&
-            messages.length > 0
-        ) {
-            const newIndexOfOldTopMessage = messages.findIndex(
-                (m) => m.id === topVisibleMessageIdRef.current
-            );
-
-            if (newIndexOfOldTopMessage !== -1) {
+    // Scroll to bottom when shouldScrollToBottomRef is true and messages update
+    useEffect(() => {
+        if (shouldScrollToBottomRef.current && messages.length > 0) {
+            requestAnimationFrame(() => {
                 flatListRef.current?.scrollToIndex({
-                    index: newIndexOfOldTopMessage,
-                    animated: false,
-                    viewPosition: 0,
+                    index: 0,
+                    animated: true,
                 });
-            }
-            wasLoadingOlderRef.current = false;
-            setIsLoadingOlder(false);
+            });
+            shouldScrollToBottomRef.current = false;
         }
     }, [messages]);
 
@@ -370,12 +309,11 @@ const chat = () => {
         if (!socketRef.current || !activeBand?.id) return;
 
         const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        // 1) optimistická bublina (pending = true) – můžeš si rozšířit typ
-        shouldScrollToEndRef.current = true;
+        // For inverted list, add pending message at the beginning
+        shouldScrollToBottomRef.current = true;
         setMessages(
             (prev) =>
                 [
-                    ...prev,
                     {
                         clientId: tempId,
                         id: undefined,
@@ -389,6 +327,7 @@ const chat = () => {
                             photourl: null,
                         },
                     },
+                    ...prev,
                 ] as Message[]
         );
 
@@ -408,13 +347,11 @@ const chat = () => {
                         );
                         if (already) {
                             // jen odstraň pending s tímto clientId
-                            shouldScrollToEndRef.current = true;
                             return prev.filter(
                                 (m) => m.clientId !== res.tempId
                             );
                         }
                         // jinak standardně nahrad pending za reálnou
-                        shouldScrollToEndRef.current = true;
                         return prev.map((m) =>
                             m.clientId === res.tempId
                                 ? { ...m, ...res.message, status: "ok" }
@@ -492,22 +429,23 @@ const chat = () => {
     };
     const renderItem = ({ item, index }: { item: Message; index: number }) => {
         const d = new Date(item.sent_at);
-        const prev = messages[index - 1];
-        const showDate = !prev || !isSameDay(d, new Date(prev.sent_at));
+        // For inverted list: index 0 is newest, so "next" is index + 1
+        const next = messages[index + 1];
+        const showDate = !next || !isSameDay(d, new Date(next.sent_at));
 
         return (
             <>
-                {showDate && (
-                    <Text className='text-silverText text-center text-sm my-2'>
-                        {formattedDate.format(d)}
-                    </Text>
-                )}
                 <MessageBubble
                     key={item.id ?? item.clientId ?? index}
                     text={item.text}
                     authorUsername={item.author.username}
                     sentAt={item.sent_at}
                 />
+                {showDate && (
+                    <Text className='text-silverText text-center text-sm my-2'>
+                        {formattedDate.format(d)}
+                    </Text>
+                )}
             </>
         );
     };
@@ -536,7 +474,7 @@ const chat = () => {
                         }>
                         <FlatList
                             data={messages}
-                            ListHeaderComponent={
+                            ListFooterComponent={
                                 isLoadingOlder ? (
                                     <ActivityIndicator
                                         size='large'
@@ -553,19 +491,18 @@ const chat = () => {
                             }
                             className='flex-1 w-full px-2'
                             contentContainerStyle={{
-                                flexGrow: 1,
-                                justifyContent: "flex-end",
-                                paddingBottom: 0,
+                                paddingTop: 8,
                             }}
-                            onScroll={onScroll}
-                            scrollEventThrottle={16}
-                            onViewableItemsChanged={onViewableItemsChanged}
-                            viewabilityConfig={viewabilityConfig}
-                            onScrollToIndexFailed={onScrollToIndexFailed}
-                            inverted={false}
+                            inverted={true}
                             keyboardShouldPersistTaps='handled'
                             ref={flatListRef}
                             renderItem={renderItem}
+                            onEndReached={onEndReached}
+                            onEndReachedThreshold={0.5}
+                            onScrollToIndexFailed={onScrollToIndexFailed}
+                            maintainVisibleContentPosition={{
+                                minIndexForVisible: 0,
+                            }}
                         />
                         <View
                             className='flex-row w-full gap-3 px-2 items-end'
