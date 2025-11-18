@@ -7,6 +7,7 @@ import {
     FlatList,
     Keyboard,
     ActivityIndicator,
+    useColorScheme,
 } from "react-native";
 import { useBand } from "@/context/BandContext";
 import { useAuth } from "@/context/AuthContext";
@@ -412,6 +413,7 @@ const chat = () => {
     }) => {
         const position =
             authorUsername === user?.displayName ? "right" : "left";
+        const colorScheme = useColorScheme();
 
         return (
             <View
@@ -419,8 +421,16 @@ const chat = () => {
                 <Text className='text-base text-silverText px-2'>
                     {authorUsername} · {prettyTime(sentAt)}
                 </Text>
-                <View className='bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl max-w-[66.67%]'>
-                    <Text className='text-black dark:text-white text-base text-wrap font-regular'>
+                <View
+                    className='bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl'
+                    style={{ maxWidth: "80%" }}>
+                    <Text
+                        style={{
+                            color:
+                                colorScheme === "dark" ? "#ffffff" : "#000000",
+                            fontSize: 16,
+                            // width: "100%",
+                        }}>
                         {text}
                     </Text>
                 </View>
