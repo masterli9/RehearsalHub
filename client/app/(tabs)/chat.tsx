@@ -46,6 +46,7 @@ const chat = () => {
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
     const flatListRef = useRef<FlatList<Message>>(null);
     const shouldScrollToBottomRef = useRef(false);
+    const initialRenderRef = useRef(true);
 
     const insets = useSafeAreaInsets();
     const headerHeight = useHeaderHeight?.() ?? 0;
@@ -59,9 +60,12 @@ const chat = () => {
 
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
     const [loadOlderError, setLoadOlderError] = useState(false);
+    const [initialLoadError, setInitialLoadError] = useState(false);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     const baseBottomInset = Math.max(insets.bottom, 8);
     const bottomSpacing = keyboardHeight > 0 ? 8 : 0;
+
+    const maxMessageLength = 1200;
 
     const getMessageHistory = async ({
         loadOlder = false,
@@ -121,6 +125,7 @@ const chat = () => {
                 setLoadOlderError(false); // Clear error on success
             } else {
                 setMessages(desc);
+                setInitialLoadError(false); // Clear initial load error on success
             }
             setNextCursor(newCursor ?? null);
             setHasMore(Boolean(newCursor));
@@ -133,6 +138,8 @@ const chat = () => {
                 console.error("Request timed out after 20 seconds");
                 if (loadOlder) {
                     setLoadOlderError(true);
+                } else {
+                    setInitialLoadError(true);
                 }
                 throw new Error("Request timeout");
             }
@@ -141,8 +148,14 @@ const chat = () => {
             if (loadOlder) {
                 console.log("Setting loadOlderError to true");
                 setLoadOlderError(true);
+            } else {
+                console.log("Setting initialLoadError to true");
+                setInitialLoadError(true);
             }
             throw error;
+        } finally {
+            // Always set initialRenderRef to false after first attempt (success or fail)
+            initialRenderRef.current = false;
         }
     };
 
@@ -364,6 +377,8 @@ const chat = () => {
 
     const handleMessageSend = async ({ text }: { text: string }) => {
         if (!socketRef.current || !activeBand?.id) return;
+
+        if (!text.trim() || text.length > maxMessageLength) return;
 
         const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         // For inverted list, add pending message at the beginning
@@ -604,53 +619,87 @@ const chat = () => {
                         keyboardVerticalOffset={
                             Platform.OS === "ios" ? headerHeight : 0
                         }>
-                        <FlatList
-                            data={messages}
-                            ListFooterComponent={
-                                isLoadingOlder ? (
-                                    <View className='py-4'>
-                                        <ActivityIndicator
-                                            size='large'
-                                            color='#2B7FFF'
-                                        />
-                                    </View>
-                                ) : loadOlderError ? (
-                                    <View className='py-4 items-center'>
-                                        <Text className='text-red-500 text-sm mb-2'>
-                                            Failed to load older messages
-                                        </Text>
-                                        <Pressable
-                                            onPress={() => maybeLoadOlder(true)}
-                                            className='bg-red-500 px-4 py-2 rounded-lg active:opacity-70'>
-                                            <Text className='text-white font-semibold'>
-                                                Try Again
+                        {initialRenderRef.current ? (
+                            <View className='flex-1 w-full justify-center items-center'>
+                                <ActivityIndicator
+                                    size='large'
+                                    color='#2B7FFF'
+                                />
+                                <Text className='text-silverText mt-4'>
+                                    Loading messages...
+                                </Text>
+                            </View>
+                        ) : initialLoadError ? (
+                            <View className='flex-1 w-full justify-center items-center px-8'>
+                                <Text className='text-red-500 text-lg font-semibold mb-2'>
+                                    Failed to load messages
+                                </Text>
+                                <Text className='text-silverText text-center mb-4'>
+                                    Check your connection and try again
+                                </Text>
+                                <Pressable
+                                    onPress={() => {
+                                        setInitialLoadError(false);
+                                        initialRenderRef.current = true;
+                                        getMessageHistory({ loadOlder: false });
+                                    }}
+                                    className='bg-red-500 px-6 py-3 rounded-lg active:opacity-70'>
+                                    <Text className='text-white font-semibold text-base'>
+                                        Try Again
+                                    </Text>
+                                </Pressable>
+                            </View>
+                        ) : (
+                            <FlatList
+                                data={messages}
+                                ListFooterComponent={
+                                    isLoadingOlder ? (
+                                        <View className='py-4'>
+                                            <ActivityIndicator
+                                                size='large'
+                                                color='#2B7FFF'
+                                            />
+                                        </View>
+                                    ) : loadOlderError ? (
+                                        <View className='py-4 items-center'>
+                                            <Text className='text-red-500 text-sm mb-2'>
+                                                Failed to load older messages
                                             </Text>
-                                        </Pressable>
-                                    </View>
-                                ) : null
-                            }
-                            keyExtractor={(item) =>
-                                (
-                                    item.id ??
-                                    item.clientId ??
-                                    "unknown"
-                                ).toString()
-                            }
-                            className='flex-1 w-full px-2'
-                            contentContainerStyle={{
-                                paddingTop: 8,
-                            }}
-                            inverted={true}
-                            keyboardShouldPersistTaps='handled'
-                            ref={flatListRef}
-                            renderItem={renderItem}
-                            onEndReached={onEndReached}
-                            onEndReachedThreshold={0.5}
-                            onScrollToIndexFailed={onScrollToIndexFailed}
-                            maintainVisibleContentPosition={{
-                                minIndexForVisible: 0,
-                            }}
-                        />
+                                            <Pressable
+                                                onPress={() =>
+                                                    maybeLoadOlder(true)
+                                                }
+                                                className='bg-red-500 px-4 py-2 rounded-lg active:opacity-70'>
+                                                <Text className='text-white font-semibold'>
+                                                    Try Again
+                                                </Text>
+                                            </Pressable>
+                                        </View>
+                                    ) : null
+                                }
+                                keyExtractor={(item) =>
+                                    (
+                                        item.id ??
+                                        item.clientId ??
+                                        "unknown"
+                                    ).toString()
+                                }
+                                className='flex-1 w-full px-2'
+                                contentContainerStyle={{
+                                    paddingTop: 8,
+                                }}
+                                inverted={true}
+                                keyboardShouldPersistTaps='handled'
+                                ref={flatListRef}
+                                renderItem={renderItem}
+                                onEndReached={onEndReached}
+                                onEndReachedThreshold={0.5}
+                                onScrollToIndexFailed={onScrollToIndexFailed}
+                                maintainVisibleContentPosition={{
+                                    minIndexForVisible: 0,
+                                }}
+                            />
+                        )}
                         <View
                             className='flex-row w-full gap-3 px-2 items-end'
                             style={{
@@ -659,7 +708,7 @@ const chat = () => {
                             }}>
                             <StyledTextInput
                                 variant='rounded'
-                                className='flex-1 bg-darkWhite dark:bg-accent-dark max-h-50'
+                                className='flex-1 bg-darkWhite dark:bg-accent-dark max-h-40'
                                 placeholder='Message'
                                 onChangeText={(text) => setMessageInput(text)}
                                 value={messageInput}
@@ -667,7 +716,13 @@ const chat = () => {
                                 multiline={true}
                             />
                             <Pressable
-                                className={`bg-black dark:bg-white rounded-m p-3 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 justify-center items-center max-h-20`}
+                                className={`disabled:bg-black/70 dark:disabled:bg-white/80 bg-black dark:bg-white rounded-m p-3 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 justify-center items-center max-h-20`}
+                                disabled={
+                                    messageInput.trim() === "" ||
+                                    messageInput.length > maxMessageLength
+                                        ? true
+                                        : false
+                                }
                                 onPress={() => {
                                     if (messageInput.trim() === "") return;
                                     handleMessageSend({ text: messageInput });
@@ -678,6 +733,12 @@ const chat = () => {
                                 </Text>
                             </Pressable>
                         </View>
+                        {messageInput.length > maxMessageLength && (
+                            <Text className='text-red-500 text-sm text-center'>
+                                Message is too long. Maximum length is{" "}
+                                {maxMessageLength} characters.
+                            </Text>
+                        )}
                     </KeyboardAvoidingView>
                 </>
             )}
