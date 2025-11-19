@@ -12,9 +12,9 @@ function getMessageBucket(uid) {
     let b = messageBuckets.get(uid);
     if (!b) {
         b = new TokenBucket({
-            capacity: 3,
+            capacity: 1,
             refillAmount: 1,
-            refillIntervalMs: 2000,
+            refillIntervalMs: 1500,
         });
         messageBuckets.set(uid, b);
     }
@@ -40,7 +40,7 @@ const io = new Server(server, {
         origin: [
             "http://localhost:3000",
             "http://192.168.88.240:3000",
-            "http://10.20.5.4:3000",
+            /^http:\/\/10\.20\.\d+\.\d+:3000$/,
             /^http:\/\/192\.168\.\d+\.\d+:3000$/,
         ],
         credentials: true,
