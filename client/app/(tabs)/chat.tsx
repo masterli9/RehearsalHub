@@ -332,6 +332,21 @@ const chat = () => {
                 ] as Message[]
         );
 
+        // Set timeout BEFORE emitting - if no response in 15 seconds, mark as failed
+        const timeoutId = setTimeout(() => {
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg.clientId === tempId && msg.status === "pending"
+                        ? {
+                              ...msg,
+                              status: "failed",
+                              error: "timeout",
+                          }
+                        : msg
+                )
+            );
+        }, 15000);
+
         socketRef.current.emit(
             "message:send",
             {
@@ -340,6 +355,9 @@ const chat = () => {
                 tempId,
             },
             (res: any) => {
+                // Clear timeout since we got a response
+                clearTimeout(timeoutId);
+
                 if (res?.ok) {
                     setMessages((prev) => {
                         // už máme zprávu s tímto id? -> message:new přišla dřív
@@ -402,14 +420,31 @@ const chat = () => {
         return formattedTime.format(d);
     };
 
+    const handleMessageRetry = ({
+        text,
+        clientId,
+    }: {
+        text: string;
+        clientId: string;
+    }) => {
+        // Remove the failed message
+        setMessages((prev) => prev.filter((msg) => msg.clientId !== clientId));
+        // Send the message again
+        handleMessageSend({ text });
+    };
+
     const MessageBubble = ({
         text,
         authorUsername,
         sentAt,
+        status,
+        clientId,
     }: {
         text: string;
         authorUsername: string;
         sentAt: string;
+        status: "ok" | "pending" | "failed";
+        clientId?: string;
     }) => {
         const position =
             authorUsername === user?.displayName ? "right" : "left";
@@ -418,7 +453,8 @@ const chat = () => {
         return (
             <View
                 className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}>
-                <Text className='text-base text-silverText px-2'>
+                <Text
+                    className={`text-base ${colorScheme === "dark" ? "text-silverText" : "text-blue"} px-2`}>
                     {authorUsername} · {prettyTime(sentAt)}
                 </Text>
                 <View
@@ -434,6 +470,34 @@ const chat = () => {
                         {text}
                     </Text>
                 </View>
+                {status === "pending" && (
+                    <View className='flex-row items-center gap-2'>
+                        <ActivityIndicator size='small' color='#2B7FFF' />
+                        <Text
+                            className={`${colorScheme === "dark" ? "text-silverText" : "text-blue"} text-xs`}>
+                            Sending...
+                        </Text>
+                    </View>
+                )}
+                {status === "failed" && (
+                    <View className='flex-row items-center gap-2'>
+                        <Text className='text-red-500 text-xs'>
+                            Failed to send.
+                        </Text>
+                        <Pressable
+                            onPress={() => {
+                                if (clientId) {
+                                    handleMessageRetry({ text, clientId });
+                                } else {
+                                    handleMessageSend({ text });
+                                }
+                            }}>
+                            <Text className='text-red-500 underline text-xs'>
+                                Try again.
+                            </Text>
+                        </Pressable>
+                    </View>
+                )}
             </View>
         );
     };
@@ -450,6 +514,8 @@ const chat = () => {
                     text={item.text}
                     authorUsername={item.author.username}
                     sentAt={item.sent_at}
+                    status={item.status || "ok"}
+                    clientId={item.clientId}
                 />
                 {showDate && (
                     <Text className='text-silverText text-center text-sm my-2'>
