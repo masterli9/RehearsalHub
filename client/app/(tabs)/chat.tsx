@@ -179,6 +179,7 @@ const chat = () => {
 
     // Create and manage socket connection
     useEffect(() => {
+        // Create socket only once
         if (!socketRef.current) {
             socketRef.current = io(`${socketUrl}:3001`, {
                 auth: {
@@ -186,19 +187,15 @@ const chat = () => {
                 },
                 port: 3001,
                 transports: ["websocket", "polling"],
-                autoConnect: false, // Don't auto-connect, we'll connect manually
+                autoConnect: false,
             });
-        } else {
-            // Update auth token if it changed
-            socketRef.current.auth = { token: idToken ?? "" };
         }
 
         const socket = socketRef.current;
 
-        // Only connect if not already connected
-        if (!socket.connected) {
-            socket.connect();
-        }
+        // Update auth token when it changes
+        socket.auth = { token: idToken ?? "" };
+
         const onConnect = () => {
             console.log("Socket connected:", socket.connected);
             if (activeBand?.id) {
@@ -212,7 +209,10 @@ const chat = () => {
                 );
             }
         };
-        socket.on("connect", onConnect);
+
+        const onDisconnect = (reason: string) => {
+            console.log("Socket disconnected:", reason);
+        };
 
         const onConnectError = async (err: any) => {
             console.error("Socket connect error:", err);
@@ -220,14 +220,9 @@ const chat = () => {
                 const fresh = await auth.currentUser?.getIdToken(true);
                 socket.auth = { token: fresh ?? "" };
                 socket.connect();
-                console.log("Socket reconnected:", socket.connected);
             }
         };
-        socket.on("connect_error", onConnectError);
 
-        socket.on("rate-limited", () => console.log("Rate limited"));
-
-        // Listen for new messages in real-time
         const onNewMessage = (msg: any) => {
             // Transform server message format to match client Message interface
             // Server sends: { message_id, text, sent_at, bandId, author: { bandMemberId } }
@@ -269,25 +264,33 @@ const chat = () => {
                 return [{ ...transformedMsg, status: "ok" }, ...prev];
             });
         };
+
+        // Add listeners
+        socket.on("connect", onConnect);
+        socket.on("disconnect", onDisconnect);
+        socket.on("connect_error", onConnectError);
         socket.on("message:new", onNewMessage);
+        socket.on("rate-limited", () => console.log("Rate limited"));
 
-        return () => {
-            socket.off("connect", onConnect);
-            socket.off("connect_error", onConnectError);
-            socket.off("message:new", onNewMessage);
-            socket.disconnect();
-        };
-    }, [idToken]);
-
-    useEffect(() => {
-        if (socketRef.current?.connected && activeBand?.id) {
-            socketRef.current.emit(
-                "band:select",
-                { bandId: activeBand.id },
-                () => {}
-            );
+        // Connect if not connected, or reconnect if token changed
+        if (!socket.connected) {
+            socket.connect();
+        } else {
+            // If already connected but token changed, reconnect
+            socket.disconnect().connect();
         }
 
+        return () => {
+            // Only remove listeners, don't disconnect the socket
+            socket.off("connect", onConnect);
+            socket.off("disconnect", onDisconnect);
+            socket.off("connect_error", onConnectError);
+            socket.off("message:new", onNewMessage);
+        };
+    }, [idToken, activeBand?.id]);
+
+    // Load message history when active band changes
+    useEffect(() => {
         if (activeBand?.id) {
             getMessageHistory({ loadOlder: false });
         }
