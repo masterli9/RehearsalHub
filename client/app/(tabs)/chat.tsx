@@ -58,6 +58,7 @@ const chat = () => {
     const [messageInput, setMessageInput] = useState("");
 
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+    const [loadOlderError, setLoadOlderError] = useState(false);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     const baseBottomInset = Math.max(insets.bottom, 8);
     const bottomSpacing = keyboardHeight > 0 ? 8 : 0;
@@ -67,51 +68,103 @@ const chat = () => {
     }: {
         loadOlder?: boolean;
     }) => {
-        const params = new URLSearchParams();
-        if (loadOlder && nextCursor) params.set("before", nextCursor);
-        params.set("limit", "40");
-        const freshToken = await auth.currentUser?.getIdToken();
+        // Create AbortController for timeout
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+            abortController.abort();
+        }, 20000); // 20 second timeout
 
-        const res = await fetch(
-            `${apiUrl}/api/messages/${activeBand?.id}?${params.toString()}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${freshToken ?? ""}`,
-                },
-                method: "GET",
-            }
-        );
-        const data = await res.json();
-        if (!res.ok) {
-            console.error("Failed to get message history:", data);
-            return;
-        }
-        const { items, nextCursor: newCursor } = data;
+        try {
+            const params = new URLSearchParams();
+            if (loadOlder && nextCursor) params.set("before", nextCursor);
+            params.set("limit", "10");
+            const freshToken = await auth.currentUser?.getIdToken();
 
-        // For inverted list: newest messages at index 0, so keep DESC order (don't reverse)
-        const desc = items; // items come from API in DESC order (newest first)
-        if (loadOlder) {
-            // Deduplicate messages by ID to prevent duplicate keys
-            setMessages((prev) => {
-                const existingIds = new Set(prev.map((msg) => msg.id));
-                const newMessages = desc.filter(
-                    (msg: Message) => !existingIds.has(msg.id)
+            const res = await fetch(
+                `${apiUrl}/api/messages/${activeBand?.id}?${params.toString()}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${freshToken ?? ""}`,
+                    },
+                    method: "GET",
+                    signal: abortController.signal, // Add abort signal
+                }
+            );
+
+            // Clear timeout on successful response
+            clearTimeout(timeoutId);
+
+            // Check if response is ok BEFORE parsing JSON
+            if (!res.ok) {
+                console.error(
+                    "Failed to get message history, status:",
+                    res.status
                 );
-                // Add older messages at the end (they'll appear at top when inverted)
-                return [...prev, ...newMessages];
-            });
-        } else {
-            setMessages(desc);
+                throw new Error("Failed to load messages");
+            }
+
+            const data = await res.json();
+            const { items, nextCursor: newCursor } = data;
+
+            // For inverted list: newest messages at index 0, so keep DESC order (don't reverse)
+            const desc = items; // items come from API in DESC order (newest first)
+            if (loadOlder) {
+                // Deduplicate messages by ID to prevent duplicate keys
+                setMessages((prev) => {
+                    const existingIds = new Set(prev.map((msg) => msg.id));
+                    const newMessages = desc.filter(
+                        (msg: Message) => !existingIds.has(msg.id)
+                    );
+                    // Add older messages at the end (they'll appear at top when inverted)
+                    return [...prev, ...newMessages];
+                });
+                setLoadOlderError(false); // Clear error on success
+            } else {
+                setMessages(desc);
+            }
+            setNextCursor(newCursor ?? null);
+            setHasMore(Boolean(newCursor));
+        } catch (error: any) {
+            // Clear timeout if error occurs
+            clearTimeout(timeoutId);
+
+            // Check if error was due to abort (timeout)
+            if (error.name === "AbortError") {
+                console.error("Request timed out after 20 seconds");
+                if (loadOlder) {
+                    setLoadOlderError(true);
+                }
+                throw new Error("Request timeout");
+            }
+
+            console.error("Error fetching message history:", error);
+            if (loadOlder) {
+                console.log("Setting loadOlderError to true");
+                setLoadOlderError(true);
+            }
+            throw error;
         }
-        setNextCursor(newCursor ?? null);
-        setHasMore(Boolean(newCursor));
     };
 
-    const maybeLoadOlder = async () => {
+    const maybeLoadOlder = (forceRetry: boolean = false) => {
+        // Don't try to load if already loading, no more messages, no cursor
+        // OR there's an error (unless forceRetry is true)
         if (isLoadingOlder || !hasMore || !nextCursor) return;
+        if (loadOlderError && !forceRetry) return;
+
         setIsLoadingOlder(true);
-        await getMessageHistory({ loadOlder: true });
-        setIsLoadingOlder(false);
+        setLoadOlderError(false); // Clear previous errors
+
+        // Use setTimeout to ensure state update is rendered before fetch starts
+        setTimeout(async () => {
+            try {
+                await getMessageHistory({ loadOlder: true });
+            } catch (error) {
+                // Error is already set in getMessageHistory
+            } finally {
+                setIsLoadingOlder(false);
+            }
+        }, 10);
     };
 
     const onEndReached = () => {
@@ -555,10 +608,25 @@ const chat = () => {
                             data={messages}
                             ListFooterComponent={
                                 isLoadingOlder ? (
-                                    <ActivityIndicator
-                                        size='large'
-                                        color='#2B7FFF'
-                                    />
+                                    <View className='py-4'>
+                                        <ActivityIndicator
+                                            size='large'
+                                            color='#2B7FFF'
+                                        />
+                                    </View>
+                                ) : loadOlderError ? (
+                                    <View className='py-4 items-center'>
+                                        <Text className='text-red-500 text-sm mb-2'>
+                                            Failed to load older messages
+                                        </Text>
+                                        <Pressable
+                                            onPress={() => maybeLoadOlder(true)}
+                                            className='bg-red-500 px-4 py-2 rounded-lg active:opacity-70'>
+                                            <Text className='text-white font-semibold'>
+                                                Try Again
+                                            </Text>
+                                        </Pressable>
+                                    </View>
                                 ) : null
                             }
                             keyExtractor={(item) =>
