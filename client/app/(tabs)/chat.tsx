@@ -38,7 +38,7 @@ interface Message {
 }
 
 const chat = () => {
-    const socketUrl = "http://192.168.88.240";
+    const socketUrl = apiUrl.replace(":3000", "");
     const { bands, activeBand } = useBand();
     const { user, idToken, setIdToken } = useAuth();
 
@@ -326,6 +326,7 @@ const chat = () => {
                     return copy;
                 }
 
+                shouldScrollToBottomRef.current = true;
                 // For inverted list, add new messages at the beginning
                 return [{ ...transformedMsg, status: "ok" }, ...prev];
             });
@@ -523,36 +524,41 @@ const chat = () => {
 
         return (
             <View
-                className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}>
+                className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}
+            >
                 <Text
-                    className={`text-base ${colorScheme === "dark" ? "text-silverText" : "text-blue"} px-2`}>
+                    className={`text-base ${colorScheme === "dark" ? "text-silverText" : "text-blue"} px-2`}
+                >
                     {authorUsername} · {prettyTime(sentAt)}
                 </Text>
                 <View
-                    className='bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl'
-                    style={{ maxWidth: "80%" }}>
+                    className="bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl"
+                    style={{ maxWidth: "80%" }}
+                >
                     <Text
                         style={{
                             color:
                                 colorScheme === "dark" ? "#ffffff" : "#000000",
                             fontSize: 16,
                             // width: "100%",
-                        }}>
+                        }}
+                    >
                         {text}
                     </Text>
                 </View>
                 {status === "pending" && (
-                    <View className='flex-row items-center gap-2'>
-                        <ActivityIndicator size='small' color='#2B7FFF' />
+                    <View className="flex-row items-center gap-2">
+                        <ActivityIndicator size="small" color="#2B7FFF" />
                         <Text
-                            className={`${colorScheme === "dark" ? "text-silverText" : "text-blue"} text-xs`}>
+                            className={`${colorScheme === "dark" ? "text-silverText" : "text-blue"} text-xs`}
+                        >
                             Sending...
                         </Text>
                     </View>
                 )}
                 {status === "failed" && (
-                    <View className='flex-row items-center gap-2'>
-                        <Text className='text-red-500 text-xs'>
+                    <View className="flex-row items-center gap-2">
+                        <Text className="text-red-500 text-xs">
                             Failed to send.
                         </Text>
                         <Pressable
@@ -562,8 +568,9 @@ const chat = () => {
                                 } else {
                                     handleMessageSend({ text });
                                 }
-                            }}>
-                            <Text className='text-red-500 underline text-xs'>
+                            }}
+                        >
+                            <Text className="text-red-500 underline text-xs">
                                 Try again.
                             </Text>
                         </Pressable>
@@ -589,7 +596,7 @@ const chat = () => {
                     clientId={item.clientId}
                 />
                 {showDate && (
-                    <Text className='text-silverText text-center text-sm my-2'>
+                    <Text className="text-silverText text-center text-sm my-2">
                         {formattedDate.format(d)}
                     </Text>
                 )}
@@ -603,38 +610,39 @@ const chat = () => {
                 <NoBand />
             ) : (
                 <>
-                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2'>
-                        <View className='flex-col items-start justify-center'>
-                            <Text className='text-black dark:text-white text-2xl font-bold my-1'>
+                    <View className="flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2">
+                        <View className="flex-col items-start justify-center">
+                            <Text className="text-black dark:text-white text-2xl font-bold my-1">
                                 {activeBand?.name} Chat
                             </Text>
-                            <Text className='text-silverText'>
+                            <Text className="text-silverText">
                                 Chat with your bandmates
                             </Text>
                         </View>
                     </View>
                     <KeyboardAvoidingView
-                        className='flex-1 w-full'
+                        className="flex-1 w-full"
                         behavior={Platform.OS === "ios" ? "padding" : "padding"}
                         keyboardVerticalOffset={
                             Platform.OS === "ios" ? headerHeight : 0
-                        }>
+                        }
+                    >
                         {initialRenderRef.current ? (
-                            <View className='flex-1 w-full justify-center items-center'>
+                            <View className="flex-1 w-full justify-center items-center">
                                 <ActivityIndicator
-                                    size='large'
-                                    color='#2B7FFF'
+                                    size="large"
+                                    color="#2B7FFF"
                                 />
-                                <Text className='text-silverText mt-4'>
+                                <Text className="text-silverText mt-4">
                                     Loading messages...
                                 </Text>
                             </View>
                         ) : initialLoadError ? (
-                            <View className='flex-1 w-full justify-center items-center px-8'>
-                                <Text className='text-red-500 text-lg font-semibold mb-2'>
+                            <View className="flex-1 w-full justify-center items-center px-8">
+                                <Text className="text-red-500 text-lg font-semibold mb-2">
                                     Failed to load messages
                                 </Text>
-                                <Text className='text-silverText text-center mb-4'>
+                                <Text className="text-silverText text-center mb-4">
                                     Check your connection and try again
                                 </Text>
                                 <Pressable
@@ -643,8 +651,9 @@ const chat = () => {
                                         initialRenderRef.current = true;
                                         getMessageHistory({ loadOlder: false });
                                     }}
-                                    className='bg-red-500 px-6 py-3 rounded-lg active:opacity-70'>
-                                    <Text className='text-white font-semibold text-base'>
+                                    className="bg-red-500 px-6 py-3 rounded-lg active:opacity-70"
+                                >
+                                    <Text className="text-white font-semibold text-base">
                                         Try Again
                                     </Text>
                                 </Pressable>
@@ -654,23 +663,24 @@ const chat = () => {
                                 data={messages}
                                 ListFooterComponent={
                                     isLoadingOlder ? (
-                                        <View className='py-4'>
+                                        <View className="py-4">
                                             <ActivityIndicator
-                                                size='large'
-                                                color='#2B7FFF'
+                                                size="large"
+                                                color="#2B7FFF"
                                             />
                                         </View>
                                     ) : loadOlderError ? (
-                                        <View className='py-4 items-center'>
-                                            <Text className='text-red-500 text-sm mb-2'>
+                                        <View className="py-4 items-center">
+                                            <Text className="text-red-500 text-sm mb-2">
                                                 Failed to load older messages
                                             </Text>
                                             <Pressable
                                                 onPress={() =>
                                                     maybeLoadOlder(true)
                                                 }
-                                                className='bg-red-500 px-4 py-2 rounded-lg active:opacity-70'>
-                                                <Text className='text-white font-semibold'>
+                                                className="bg-red-500 px-4 py-2 rounded-lg active:opacity-70"
+                                            >
+                                                <Text className="text-white font-semibold">
                                                     Try Again
                                                 </Text>
                                             </Pressable>
@@ -684,12 +694,12 @@ const chat = () => {
                                         "unknown"
                                     ).toString()
                                 }
-                                className='flex-1 w-full px-2'
+                                className="flex-1 w-full px-2"
                                 contentContainerStyle={{
                                     paddingTop: 8,
                                 }}
                                 inverted={true}
-                                keyboardShouldPersistTaps='handled'
+                                keyboardShouldPersistTaps="handled"
                                 ref={flatListRef}
                                 renderItem={renderItem}
                                 onEndReached={onEndReached}
@@ -701,18 +711,19 @@ const chat = () => {
                             />
                         )}
                         <View
-                            className='flex-row w-full gap-3 px-2 items-end'
+                            className="flex-row w-full gap-3 px-2 items-end"
                             style={{
                                 paddingBottom:
                                     keyboardHeight > 0 ? bottomSpacing : 8,
-                            }}>
+                            }}
+                        >
                             <StyledTextInput
-                                variant='rounded'
-                                className='flex-1 bg-darkWhite dark:bg-accent-dark max-h-40'
-                                placeholder='Message'
+                                variant="rounded"
+                                className="flex-1 bg-darkWhite dark:bg-accent-dark max-h-40"
+                                placeholder="Message"
                                 onChangeText={(text) => setMessageInput(text)}
                                 value={messageInput}
-                                keyboardType='default'
+                                keyboardType="default"
                                 multiline={true}
                             />
                             <Pressable
@@ -727,14 +738,15 @@ const chat = () => {
                                     if (messageInput.trim() === "") return;
                                     handleMessageSend({ text: messageInput });
                                     setMessageInput("");
-                                }}>
-                                <Text className='text-base font-bold text-white dark:text-black'>
+                                }}
+                            >
+                                <Text className="text-base font-bold text-white dark:text-black">
                                     Send
                                 </Text>
                             </Pressable>
                         </View>
                         {messageInput.length > maxMessageLength && (
-                            <Text className='text-red-500 text-sm text-center'>
+                            <Text className="text-red-500 text-sm text-center">
                                 Message is too long. Maximum length is{" "}
                                 {maxMessageLength} characters.
                             </Text>
