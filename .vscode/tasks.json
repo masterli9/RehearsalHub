@@ -1,0 +1,56 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start All Services",
+            "dependsOn": ["API Server", "Socket Server", "Expo Client"],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "API Server",
+            "type": "shell",
+            "command": "node index.js",
+            "options": {
+                "cwd": "${workspaceFolder}/server/src"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "group": "dev"
+            }
+        },
+        {
+            "label": "Socket Server",
+            "type": "shell",
+            "command": "node socketServer.js",
+            "options": {
+                "cwd": "${workspaceFolder}/server/src"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "group": "dev"
+            }
+        },
+        {
+            "label": "Expo Client",
+            "type": "shell",
+            "command": "npx expo start",
+            "options": {
+                "cwd": "${workspaceFolder}/client"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "group": "dev"
+            }
+        }
+    ]
+}

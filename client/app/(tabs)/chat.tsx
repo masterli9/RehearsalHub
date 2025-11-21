@@ -1,26 +1,26 @@
-import {
-    View,
-    Text,
-    Pressable,
-    KeyboardAvoidingView,
-    Platform,
-    FlatList,
-    Keyboard,
-    ActivityIndicator,
-    useColorScheme,
-} from "react-native";
-import { useBand } from "@/context/BandContext";
-import { useAuth } from "@/context/AuthContext";
 import NoBand from "@/components/NoBand";
-import { useEffect, useState, useRef } from "react";
 import PageContainer from "@/components/PageContainer";
 import StyledTextInput from "@/components/StyledTextInput";
-import { useHeaderHeight } from "@react-navigation/elements";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import apiUrl from "@/config";
-import { io } from "socket.io-client";
-import { onIdTokenChanged } from "firebase/auth";
+import { useAuth } from "@/context/AuthContext";
+import { useBand } from "@/context/BandContext";
 import { auth } from "@/lib/firebase";
+import { useHeaderHeight } from "@react-navigation/elements";
+import { onIdTokenChanged } from "firebase/auth";
+import { useEffect, useRef, useState } from "react";
+import {
+    ActivityIndicator,
+    FlatList,
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    Text,
+    useColorScheme,
+    View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { io } from "socket.io-client";
 
 interface Message {
     id?: number;
@@ -527,18 +527,22 @@ const chat = () => {
                 className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}
             >
                 <Text
-                    className={`text-base ${colorScheme === "dark" ? "text-silverText" : "text-blue"} px-2`}
+                    className={`text-sm ${colorScheme === "dark" ? "text-silverText" : "text-blue"} px-2`}
                 >
                     {authorUsername} · {prettyTime(sentAt)}
                 </Text>
                 <View
-                    className="bg-darkWhite dark:bg-accent-dark p-3 rounded-2xl"
+                    className={`bg-darkWhite dark:bg-accent-dark ${position === "right" && "bg-violet dark:bg-violet"} p-3 rounded-2xl`}
                     style={{ maxWidth: "80%" }}
                 >
                     <Text
                         style={{
                             color:
-                                colorScheme === "dark" ? "#ffffff" : "#000000",
+                                colorScheme === "dark"
+                                    ? "#ffffff"
+                                    : position === "right"
+                                      ? "#ffffff"
+                                      : "#000000",
                             fontSize: 16,
                             // width: "100%",
                         }}

@@ -90,16 +90,6 @@ export default function TabLayout() {
 
     return (
         <SafeAreaView className="flex-1" edges={["bottom"]}>
-            {/* <LinearGradient
-                colors={
-                    colorScheme === "dark"
-                        ? ["rgba(172, 70, 255, 0.46)", "#0A0A0A"]
-                        : ["rgba(172, 70, 255, 0.46)", "#ffffffff"]
-                }
-                start={{ x: 0, y: 1 }}
-                end={{ x: 0, y: 0 }}
-                className='flex-1 w-full'> */}
-            {/* TODO: Add linear gradient back */}
             <MoreSheetProvider>
                 <Tabs
                     screenOptions={{
@@ -238,7 +228,6 @@ export default function TabLayout() {
                 </Tabs>
                 <MoreSheet />
             </MoreSheetProvider>
-            {/* </LinearGradient> */}
         </SafeAreaView>
     );
 }
