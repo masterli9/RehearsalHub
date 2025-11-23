@@ -511,30 +511,82 @@ const chat = () => {
         sentAt,
         status,
         clientId,
+        messageId,
     }: {
         text: string;
         authorUsername: string;
         sentAt: string;
         status: "ok" | "pending" | "failed";
         clientId?: string;
+        messageId?: number;
     }) => {
         const position =
             authorUsername === user?.displayName ? "right" : "left";
         const colorScheme = useColorScheme();
+        const messageIndex = messages.findIndex((m) => m.id === messageId);
+        // Compare both username and day for show/hide username and grouping
+        const currMsg = messages[messageIndex];
+        const prevMsg = messages[messageIndex + 1];
+        const nextMsg = messages[messageIndex - 1];
+        const currDate = currMsg ? new Date(currMsg.sent_at) : null;
+        const prevDate = prevMsg ? new Date(prevMsg.sent_at) : null;
+        const nextDate = nextMsg ? new Date(nextMsg.sent_at) : null;
+
+        const isSameDayAsPrev =
+            currDate && prevDate ? isSameDay(currDate, prevDate) : false;
+        const isSameDayAsNext =
+            currDate && nextDate ? isSameDay(currDate, nextDate) : false;
+
+        const prevSameUserAndDay =
+            prevMsg?.author?.username === authorUsername && isSameDayAsPrev;
+        const nextSameUserAndDay =
+            nextMsg?.author?.username === authorUsername && isSameDayAsNext;
+
+        // Username is only hidden if the previous message is by the same author AND on the same day
+        const shouldShowUsername = !(
+            messageIndex < messages.length - 1 &&
+            prevMsg?.author?.username === currMsg?.author?.username &&
+            isSameDayAsPrev
+        );
 
         return (
             <View
-                className={`my-2 w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}
-            >
-                <Text
-                    className={`text-sm ${colorScheme === "dark" ? "text-silverText" : "text-blue"} px-2`}
-                >
-                    {authorUsername} · {prettyTime(sentAt)}
-                </Text>
+                className={`${shouldShowUsername ? "mt-2" : "mt-1"} w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}>
+                {shouldShowUsername && (
+                    <Text
+                        className={`text-sm ${colorScheme === "dark" ? "text-silverText" : "text-blue"} px-1`}>
+                        {authorUsername} · {prettyTime(sentAt)}
+                    </Text>
+                )}
                 <View
-                    className={`bg-darkWhite dark:bg-accent-dark ${position === "right" && "bg-violet dark:bg-violet"} p-3 rounded-2xl`}
-                    style={{ maxWidth: "80%" }}
-                >
+                    className={`bg-darkWhite dark:bg-accent-dark ${position === "right" && "bg-violet dark:bg-violet"} p-3 rounded-2xl ${(() => {
+                        const isMe = authorUsername === user?.displayName;
+
+                        if (isMe) {
+                            if (prevSameUserAndDay && nextSameUserAndDay) {
+                                return "rounded-tr-none rounded-br-none";
+                            }
+                            if (prevSameUserAndDay && !nextSameUserAndDay) {
+                                return "rounded-tr-none";
+                            }
+                            if (!prevSameUserAndDay && nextSameUserAndDay) {
+                                return "rounded-br-none";
+                            }
+                            return "rounded-2xl";
+                        } else {
+                            if (prevSameUserAndDay && nextSameUserAndDay) {
+                                return "rounded-tl-none rounded-bl-none";
+                            }
+                            if (prevSameUserAndDay && !nextSameUserAndDay) {
+                                return "rounded-tl-none";
+                            }
+                            if (!prevSameUserAndDay && nextSameUserAndDay) {
+                                return "rounded-bl-none";
+                            }
+                            return "rounded-2xl";
+                        }
+                    })()}`}
+                    style={{ maxWidth: "80%" }}>
                     <Text
                         style={{
                             color:
@@ -545,24 +597,22 @@ const chat = () => {
                                       : "#000000",
                             fontSize: 16,
                             // width: "100%",
-                        }}
-                    >
+                        }}>
                         {text}
                     </Text>
                 </View>
                 {status === "pending" && (
-                    <View className="flex-row items-center gap-2">
-                        <ActivityIndicator size="small" color="#2B7FFF" />
+                    <View className='flex-row items-center gap-2'>
+                        <ActivityIndicator size='small' color='#2B7FFF' />
                         <Text
-                            className={`${colorScheme === "dark" ? "text-silverText" : "text-blue"} text-xs`}
-                        >
+                            className={`${colorScheme === "dark" ? "text-silverText" : "text-blue"} text-xs`}>
                             Sending...
                         </Text>
                     </View>
                 )}
                 {status === "failed" && (
-                    <View className="flex-row items-center gap-2">
-                        <Text className="text-red-500 text-xs">
+                    <View className='flex-row items-center gap-2'>
+                        <Text className='text-red-500 text-xs'>
                             Failed to send.
                         </Text>
                         <Pressable
@@ -572,9 +622,8 @@ const chat = () => {
                                 } else {
                                     handleMessageSend({ text });
                                 }
-                            }}
-                        >
-                            <Text className="text-red-500 underline text-xs">
+                            }}>
+                            <Text className='text-red-500 underline text-xs'>
                                 Try again.
                             </Text>
                         </Pressable>
@@ -598,9 +647,10 @@ const chat = () => {
                     sentAt={item.sent_at}
                     status={item.status || "ok"}
                     clientId={item.clientId}
+                    messageId={item.id}
                 />
                 {showDate && (
-                    <Text className="text-silverText text-center text-sm my-2">
+                    <Text className='text-silverText text-center text-sm my-2'>
                         {formattedDate.format(d)}
                     </Text>
                 )}
@@ -614,39 +664,38 @@ const chat = () => {
                 <NoBand />
             ) : (
                 <>
-                    <View className="flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2">
-                        <View className="flex-col items-start justify-center">
-                            <Text className="text-black dark:text-white text-2xl font-bold my-1">
+                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2'>
+                        <View className='flex-col items-start justify-center'>
+                            <Text className='text-black dark:text-white text-2xl font-bold my-1'>
                                 {activeBand?.name} Chat
                             </Text>
-                            <Text className="text-silverText">
+                            <Text className='text-silverText'>
                                 Chat with your bandmates
                             </Text>
                         </View>
                     </View>
                     <KeyboardAvoidingView
-                        className="flex-1 w-full"
+                        className='flex-1 w-full'
                         behavior={Platform.OS === "ios" ? "padding" : "padding"}
                         keyboardVerticalOffset={
                             Platform.OS === "ios" ? headerHeight : 0
-                        }
-                    >
+                        }>
                         {initialRenderRef.current ? (
-                            <View className="flex-1 w-full justify-center items-center">
+                            <View className='flex-1 w-full justify-center items-center'>
                                 <ActivityIndicator
-                                    size="large"
-                                    color="#2B7FFF"
+                                    size='large'
+                                    color='#2B7FFF'
                                 />
-                                <Text className="text-silverText mt-4">
+                                <Text className='text-silverText mt-4'>
                                     Loading messages...
                                 </Text>
                             </View>
                         ) : initialLoadError ? (
-                            <View className="flex-1 w-full justify-center items-center px-8">
-                                <Text className="text-red-500 text-lg font-semibold mb-2">
+                            <View className='flex-1 w-full justify-center items-center px-8'>
+                                <Text className='text-red-500 text-lg font-semibold mb-2'>
                                     Failed to load messages
                                 </Text>
-                                <Text className="text-silverText text-center mb-4">
+                                <Text className='text-silverText text-center mb-4'>
                                     Check your connection and try again
                                 </Text>
                                 <Pressable
@@ -655,9 +704,8 @@ const chat = () => {
                                         initialRenderRef.current = true;
                                         getMessageHistory({ loadOlder: false });
                                     }}
-                                    className="bg-red-500 px-6 py-3 rounded-lg active:opacity-70"
-                                >
-                                    <Text className="text-white font-semibold text-base">
+                                    className='bg-red-500 px-6 py-3 rounded-lg active:opacity-70'>
+                                    <Text className='text-white font-semibold text-base'>
                                         Try Again
                                     </Text>
                                 </Pressable>
@@ -667,24 +715,23 @@ const chat = () => {
                                 data={messages}
                                 ListFooterComponent={
                                     isLoadingOlder ? (
-                                        <View className="py-4">
+                                        <View className='py-4'>
                                             <ActivityIndicator
-                                                size="large"
-                                                color="#2B7FFF"
+                                                size='large'
+                                                color='#2B7FFF'
                                             />
                                         </View>
                                     ) : loadOlderError ? (
-                                        <View className="py-4 items-center">
-                                            <Text className="text-red-500 text-sm mb-2">
+                                        <View className='py-4 items-center'>
+                                            <Text className='text-red-500 text-sm mb-2'>
                                                 Failed to load older messages
                                             </Text>
                                             <Pressable
                                                 onPress={() =>
                                                     maybeLoadOlder(true)
                                                 }
-                                                className="bg-red-500 px-4 py-2 rounded-lg active:opacity-70"
-                                            >
-                                                <Text className="text-white font-semibold">
+                                                className='bg-red-500 px-4 py-2 rounded-lg active:opacity-70'>
+                                                <Text className='text-white font-semibold'>
                                                     Try Again
                                                 </Text>
                                             </Pressable>
@@ -698,12 +745,12 @@ const chat = () => {
                                         "unknown"
                                     ).toString()
                                 }
-                                className="flex-1 w-full px-2"
+                                className='flex-1 w-full px-2'
                                 contentContainerStyle={{
                                     paddingTop: 8,
                                 }}
                                 inverted={true}
-                                keyboardShouldPersistTaps="handled"
+                                keyboardShouldPersistTaps='handled'
                                 ref={flatListRef}
                                 renderItem={renderItem}
                                 onEndReached={onEndReached}
@@ -715,19 +762,18 @@ const chat = () => {
                             />
                         )}
                         <View
-                            className="flex-row w-full gap-3 px-2 items-end"
+                            className='flex-row w-full gap-3 px-2 items-end'
                             style={{
                                 paddingBottom:
                                     keyboardHeight > 0 ? bottomSpacing : 8,
-                            }}
-                        >
+                            }}>
                             <StyledTextInput
-                                variant="rounded"
-                                className="flex-1 bg-darkWhite dark:bg-accent-dark max-h-40"
-                                placeholder="Message"
+                                variant='rounded'
+                                className='flex-1 bg-darkWhite dark:bg-accent-dark max-h-40'
+                                placeholder='Message'
                                 onChangeText={(text) => setMessageInput(text)}
                                 value={messageInput}
-                                keyboardType="default"
+                                keyboardType='default'
                                 multiline={true}
                             />
                             <Pressable
@@ -742,15 +788,14 @@ const chat = () => {
                                     if (messageInput.trim() === "") return;
                                     handleMessageSend({ text: messageInput });
                                     setMessageInput("");
-                                }}
-                            >
-                                <Text className="text-base font-bold text-white dark:text-black">
+                                }}>
+                                <Text className='text-base font-bold text-white dark:text-black'>
                                     Send
                                 </Text>
                             </Pressable>
                         </View>
                         {messageInput.length > maxMessageLength && (
-                            <Text className="text-red-500 text-sm text-center">
+                            <Text className='text-red-500 text-sm text-center'>
                                 Message is too long. Maximum length is{" "}
                                 {maxMessageLength} characters.
                             </Text>
