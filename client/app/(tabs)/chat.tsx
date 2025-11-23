@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { io } from "socket.io-client";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
 interface Message {
     id?: number;
@@ -41,6 +42,7 @@ const chat = () => {
     const socketUrl = apiUrl.replace(":3000", "");
     const { bands, activeBand } = useBand();
     const { user, idToken, setIdToken } = useAuth();
+    const fontSize = useAccessibleFontSize();
 
     // Create socket instance only once and reuse it
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
@@ -524,7 +526,6 @@ const chat = () => {
             authorUsername === user?.displayName ? "right" : "left";
         const colorScheme = useColorScheme();
         const messageIndex = messages.findIndex((m) => m.id === messageId);
-        // Compare both username and day for show/hide username and grouping
         const currMsg = messages[messageIndex];
         const prevMsg = messages[messageIndex + 1];
         const nextMsg = messages[messageIndex - 1];
@@ -542,7 +543,6 @@ const chat = () => {
         const nextSameUserAndDay =
             nextMsg?.author?.username === authorUsername && isSameDayAsNext;
 
-        // Username is only hidden if the previous message is by the same author AND on the same day
         const shouldShowUsername = !(
             messageIndex < messages.length - 1 &&
             prevMsg?.author?.username === currMsg?.author?.username &&
@@ -554,7 +554,8 @@ const chat = () => {
                 className={`${shouldShowUsername ? "mt-2" : "mt-1"} w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}>
                 {shouldShowUsername && (
                     <Text
-                        className={`text-sm ${colorScheme === "dark" ? "text-silverText" : "text-blue"} px-1`}>
+                        className={`${colorScheme === "dark" ? "text-silverText" : "text-blue"} px-1`}
+                        style={{ fontSize: fontSize.xs }}>
                         {authorUsername} · {prettyTime(sentAt)}
                     </Text>
                 )}
@@ -595,8 +596,7 @@ const chat = () => {
                                     : position === "right"
                                       ? "#ffffff"
                                       : "#000000",
-                            fontSize: 16,
-                            // width: "100%",
+                            fontSize: fontSize.sm,
                         }}>
                         {text}
                     </Text>
@@ -605,14 +605,17 @@ const chat = () => {
                     <View className='flex-row items-center gap-2'>
                         <ActivityIndicator size='small' color='#2B7FFF' />
                         <Text
-                            className={`${colorScheme === "dark" ? "text-silverText" : "text-blue"} text-xs`}>
+                            className={`${colorScheme === "dark" ? "text-silverText" : "text-blue"}`}
+                            style={{ fontSize: fontSize.xs }}>
                             Sending...
                         </Text>
                     </View>
                 )}
                 {status === "failed" && (
                     <View className='flex-row items-center gap-2'>
-                        <Text className='text-red-500 text-xs'>
+                        <Text
+                            className='text-red-500'
+                            style={{ fontSize: fontSize.xs }}>
                             Failed to send.
                         </Text>
                         <Pressable
@@ -623,7 +626,9 @@ const chat = () => {
                                     handleMessageSend({ text });
                                 }
                             }}>
-                            <Text className='text-red-500 underline text-xs'>
+                            <Text
+                                className='text-red-500 underline'
+                                style={{ fontSize: fontSize.xs }}>
                                 Try again.
                             </Text>
                         </Pressable>
@@ -650,7 +655,9 @@ const chat = () => {
                     messageId={item.id}
                 />
                 {showDate && (
-                    <Text className='text-silverText text-center text-sm my-2'>
+                    <Text
+                        className='text-silverText text-center my-2'
+                        style={{ fontSize: fontSize.sm }}>
                         {formattedDate.format(d)}
                     </Text>
                 )}
@@ -666,10 +673,14 @@ const chat = () => {
                 <>
                     <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2'>
                         <View className='flex-col items-start justify-center'>
-                            <Text className='text-black dark:text-white text-2xl font-bold my-1'>
+                            <Text
+                                className='text-black dark:text-white font-bold my-1'
+                                style={{ fontSize: fontSize["2xl"] }}>
                                 {activeBand?.name} Chat
                             </Text>
-                            <Text className='text-silverText'>
+                            <Text
+                                className='text-silverText'
+                                style={{ fontSize: fontSize.base }}>
                                 Chat with your bandmates
                             </Text>
                         </View>
@@ -686,16 +697,22 @@ const chat = () => {
                                     size='large'
                                     color='#2B7FFF'
                                 />
-                                <Text className='text-silverText mt-4'>
+                                <Text
+                                    className='text-silverText mt-4'
+                                    style={{ fontSize: fontSize.base }}>
                                     Loading messages...
                                 </Text>
                             </View>
                         ) : initialLoadError ? (
                             <View className='flex-1 w-full justify-center items-center px-8'>
-                                <Text className='text-red-500 text-lg font-semibold mb-2'>
+                                <Text
+                                    className='text-red-500 font-semibold mb-2'
+                                    style={{ fontSize: fontSize.lg }}>
                                     Failed to load messages
                                 </Text>
-                                <Text className='text-silverText text-center mb-4'>
+                                <Text
+                                    className='text-silverText text-center mb-4'
+                                    style={{ fontSize: fontSize.base }}>
                                     Check your connection and try again
                                 </Text>
                                 <Pressable
@@ -705,7 +722,9 @@ const chat = () => {
                                         getMessageHistory({ loadOlder: false });
                                     }}
                                     className='bg-red-500 px-6 py-3 rounded-lg active:opacity-70'>
-                                    <Text className='text-white font-semibold text-base'>
+                                    <Text
+                                        className='text-white font-semibold'
+                                        style={{ fontSize: fontSize.base }}>
                                         Try Again
                                     </Text>
                                 </Pressable>
@@ -723,7 +742,11 @@ const chat = () => {
                                         </View>
                                     ) : loadOlderError ? (
                                         <View className='py-4 items-center'>
-                                            <Text className='text-red-500 text-sm mb-2'>
+                                            <Text
+                                                className='text-red-500 mb-2'
+                                                style={{
+                                                    fontSize: fontSize.sm,
+                                                }}>
                                                 Failed to load older messages
                                             </Text>
                                             <Pressable
@@ -731,7 +754,11 @@ const chat = () => {
                                                     maybeLoadOlder(true)
                                                 }
                                                 className='bg-red-500 px-4 py-2 rounded-lg active:opacity-70'>
-                                                <Text className='text-white font-semibold'>
+                                                <Text
+                                                    className='text-white font-semibold'
+                                                    style={{
+                                                        fontSize: fontSize.base,
+                                                    }}>
                                                     Try Again
                                                 </Text>
                                             </Pressable>
@@ -789,13 +816,17 @@ const chat = () => {
                                     handleMessageSend({ text: messageInput });
                                     setMessageInput("");
                                 }}>
-                                <Text className='text-base font-bold text-white dark:text-black'>
+                                <Text
+                                    className='font-bold text-white dark:text-black'
+                                    style={{ fontSize: fontSize.base }}>
                                     Send
                                 </Text>
                             </Pressable>
                         </View>
                         {messageInput.length > maxMessageLength && (
-                            <Text className='text-red-500 text-sm text-center'>
+                            <Text
+                                className='text-red-500 text-center'
+                                style={{ fontSize: fontSize.sm }}>
                                 Message is too long. Maximum length is{" "}
                                 {maxMessageLength} characters.
                             </Text>

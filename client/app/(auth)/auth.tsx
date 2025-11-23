@@ -14,10 +14,12 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import StyledTextInput from "@/components/StyledTextInput";
 import ErrorText from "@/components/ErrorText";
 import Card from "@/components/Card";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
 export default function Auth() {
     const [activeTab, setActiveTab] = useState("Login");
     const systemScheme = useColorScheme();
+    const fontSize = useAccessibleFontSize();
 
     const { login, register } = useAuth();
 
@@ -85,10 +87,10 @@ export default function Auth() {
                     <Card
                         key={activeTab}
                         className='flex-col items-center justify-center w-full p-4'>
-                        <Text className='text-2xl font-bold text-black dark:text-white mt-3'>
+                        <Text className='font-bold text-black dark:text-white mt-3' style={{ fontSize: fontSize['2xl'] }}>
                             Welcome to RehearsalHub!
                         </Text>
-                        <Text className='text-silverText font-regular text-base mb-4'>
+                        <Text className='text-silverText font-regular mb-4' style={{ fontSize: fontSize.base }}>
                             Log in to your account or create a new one.
                         </Text>
                         <SwitchTabs

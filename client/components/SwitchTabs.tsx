@@ -1,4 +1,5 @@
 import { View, Text, Pressable } from "react-native";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
 export default function SwitchTabs({
     tabs,
@@ -11,6 +12,8 @@ export default function SwitchTabs({
     setActiveTab: (tab: string) => void;
     className?: string;
 }) {
+    const fontSize = useAccessibleFontSize();
+    
     return (
         <View
             className={`rounded-m w-full flex-row p-2 bg-accent-light dark:bg-accent-dark my-3 ${className}`}
@@ -23,7 +26,8 @@ export default function SwitchTabs({
                     onPress={() => setActiveTab(tab)}
                 >
                     <Text
-                        className={`text-base ${activeTab === tab ? "text-black dark:text-white" : "text-silverText"}`}
+                        className={`${activeTab === tab ? "text-black dark:text-white" : "text-silverText"}`}
+                        style={{ fontSize: fontSize.base }}
                     >
                         {tab}
                     </Text>

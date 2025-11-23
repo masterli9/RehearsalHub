@@ -4,11 +4,13 @@ import { Link } from "expo-router";
 import { useMoreSheet } from "./MoreSheetContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { X, Calendar, CheckSquare, Target, User } from "lucide-react-native";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
 export default function MoreSheet() {
     const { visible, close } = useMoreSheet();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
+    const fontSize = useAccessibleFontSize();
 
     return (
         <>
@@ -26,7 +28,7 @@ export default function MoreSheet() {
                         className='bg-boxBackground-light dark:bg-boxBackground-dark border-t border-accent-light dark:border-accent-dark rounded-t-3xl p-6'>
                         {/* Header with close button */}
                         <View className='flex-row items-center justify-between mb-4'>
-                            <Text className='text-xl font-semibold dark:text-white'>
+                            <Text className='font-semibold dark:text-white' style={{ fontSize: fontSize.xl }}>
                                 More
                             </Text>
                             <Pressable
@@ -51,7 +53,7 @@ export default function MoreSheet() {
                                                 size={20}
                                                 color={isDark ? "#fff" : "#000"}
                                             />
-                                            <Text className='text-base font-medium dark:text-white'>
+                                            <Text className='font-medium dark:text-white' style={{ fontSize: fontSize.base }}>
                                                 Events
                                             </Text>
                                         </View>
@@ -70,7 +72,7 @@ export default function MoreSheet() {
                                                 size={20}
                                                 color={isDark ? "#fff" : "#000"}
                                             />
-                                            <Text className='text-base font-medium dark:text-white'>
+                                            <Text className='font-medium dark:text-white' style={{ fontSize: fontSize.base }}>
                                                 Practice
                                             </Text>
                                         </View>
@@ -92,7 +94,7 @@ export default function MoreSheet() {
                                                 size={20}
                                                 color={isDark ? "#fff" : "#000"}
                                             />
-                                            <Text className='text-base font-medium dark:text-white'>
+                                            <Text className='font-medium dark:text-white' style={{ fontSize: fontSize.base }}>
                                                 Todos
                                             </Text>
                                         </View>
@@ -111,7 +113,7 @@ export default function MoreSheet() {
                                                 size={20}
                                                 color={isDark ? "#fff" : "#000"}
                                             />
-                                            <Text className='text-base font-medium dark:text-white'>
+                                            <Text className='font-medium dark:text-white' style={{ fontSize: fontSize.base }}>
                                                 Profile
                                             </Text>
                                         </View>

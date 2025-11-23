@@ -16,6 +16,7 @@ import {
     useMoreSheet,
 } from "@/components/navigation/MoreSheetContext";
 import MoreSheet from "@/components/navigation/MoreSheet";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
 const Icon = ({
     name,
@@ -48,6 +49,7 @@ function TabIcon({
 }) {
     const scheme = useColorScheme();
     const isDark = (scheme ?? "light") === "dark";
+    const fontSize = useAccessibleFontSize();
 
     return (
         <View className="items-center justify-center" style={{ minWidth: 60 }}>
@@ -61,8 +63,8 @@ function TabIcon({
                 />
             </View>
             <Text
-                style={{ flexShrink: 0 }}
-                className={`text-sm mt-1 ${focused ? "text-black dark:text-white" : "text-silverText"}`}
+                style={{ flexShrink: 0, fontSize: fontSize.sm }}
+                className={`mt-1 ${focused ? "text-black dark:text-white" : "text-silverText"}`}
             >
                 {label}
             </Text>

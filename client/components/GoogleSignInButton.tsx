@@ -6,6 +6,7 @@ import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import * as AuthSession from "expo-auth-session";
 import { useAuth } from "@/context/AuthContext";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -15,6 +16,7 @@ export default function GoogleSignInButton({
     className?: string;
 }) {
     const { googleSignIn } = useAuth();
+    const fontSize = useAccessibleFontSize();
     const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
         clientId:
             "1092570739344-radkahd9us79iiv8enc3im7ucudjtu3s.apps.googleusercontent.com",
@@ -53,7 +55,7 @@ export default function GoogleSignInButton({
                 className="w-10 h-full"
                 resizeMode="contain"
             />
-            <Text className="text-white text-xl">Sign in with Google</Text>
+            <Text className="text-white" style={{ fontSize: fontSize.xl }}>Sign in with Google</Text>
         </Pressable>
     );
 }

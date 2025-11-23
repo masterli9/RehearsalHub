@@ -1,5 +1,6 @@
 import { Modal, Pressable, View, Text } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
 interface StyledModalProps {
     visible: boolean;
@@ -16,6 +17,7 @@ const StyledModal: React.FC<StyledModalProps> = ({
     subtitle,
     children,
 }) => {
+    const fontSize = useAccessibleFontSize();
     return (
         <Modal
             visible={visible}
@@ -35,11 +37,11 @@ const StyledModal: React.FC<StyledModalProps> = ({
                     <Pressable
                         onPress={() => {}}
                         className='bg-darkWhite dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark p-5 flex-col justify-center items-center w-80 rounded-2xl'>
-                        <Text className='text-3xl font-bold text-black dark:text-white my-2'>
+                        <Text className='font-bold text-black dark:text-white my-2' style={{ fontSize: fontSize['3xl'] }}>
                             {title}
                         </Text>
                         {subtitle && (
-                            <Text className='text-base font-regular text-silverText text-center mb-2'>
+                            <Text className='font-regular text-silverText text-center mb-2' style={{ fontSize: fontSize.base }}>
                                 {subtitle}
                             </Text>
                         )}

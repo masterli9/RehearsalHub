@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { BandProvider, useBand } from "@/context/BandContext";
 import { MenuProvider } from "react-native-popup-menu";
 import { KeyboardProvider } from "react-native-keyboard-controller"; // TODO: Add back in when fixing emoji keyboard avoiding issues
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
 export const unstable_settings = {
     anchor: "(tabs)",
@@ -21,10 +22,12 @@ export const unstable_settings = {
 
 function AuthGate() {
     const { user, loading } = useAuth();
+    const fontSize = useAccessibleFontSize();
+    
     if (loading) {
         return (
             <View className='flex-1 items-center justify-center bg-black'>
-                <Text className='text-white text-lg'>
+                <Text className='text-white' style={{ fontSize: fontSize.lg }}>
                     Loading (waiting for firebase)...
                 </Text>
             </View>

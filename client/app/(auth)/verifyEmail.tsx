@@ -7,12 +7,14 @@ import { useEffect } from "react";
 import StyledButton from "@/components/StyledButton";
 import PageContainer from "@/components/PageContainer";
 import Card from "@/components/Card";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
 export default function VerifyEmail() {
     const [resendDisabledUntil, setResendDisabledUntil] = useState<
         number | null
     >(null);
     const { user } = useAuth();
+    const fontSize = useAccessibleFontSize();
 
     const COOLDOWN_MS = 30 * 1000;
     const [isDisabled, setIsDisabled] = useState(false);
@@ -69,7 +71,7 @@ export default function VerifyEmail() {
     return (
         <PageContainer centered>
             <Card className='flex-col items-center justify-center p-3 gap-2'>
-                <Text className='text-dark dark:text-white text-center text-2xl font-regular my-3'>
+                <Text className='text-dark dark:text-white text-center font-regular my-3' style={{ fontSize: fontSize['2xl'] }}>
                     Check your inbox to verify your email.
                 </Text>
                 <StyledButton

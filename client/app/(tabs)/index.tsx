@@ -6,9 +6,11 @@ import ParallaxScrollView from "@/components/parallax-scroll-view";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Link } from "expo-router";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
 export default function HomeScreen() {
     const { logout, user } = useAuth();
+    const fontSize = useAccessibleFontSize();
 
     return (
         <ParallaxScrollView
@@ -31,7 +33,7 @@ export default function HomeScreen() {
                 className="bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95"
                 onPress={() => logout()}
             >
-                <Text className="text-base font-bold text-white dark:text-black">
+                <Text className="font-bold text-white dark:text-black" style={{ fontSize: fontSize.base }}>
                     Log out
                 </Text>
             </Pressable>
