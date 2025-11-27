@@ -1,10 +1,7 @@
 import { Image } from "expo-image";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "@/context/AuthContext";
-import { HelloWave } from "@/components/hello-wave";
 import ParallaxScrollView from "@/components/parallax-scroll-view";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
 import { Link } from "expo-router";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
@@ -20,20 +17,19 @@ export default function HomeScreen() {
                     source={require("@/assets/images/partial-react-logo.png")}
                     style={styles.reactLogo}
                 />
-            }
-        >
-            <ThemedView style={styles.titleContainer}>
-                <ThemedText type="title">
+            }>
+            <View style={styles.titleContainer}>
+                <Text className='text-black dark:text-white'>
                     Welcome{" "}
                     {user != null ? (user.email ?? "no user") : "no user"}!
-                </ThemedText>
-                <HelloWave />
-            </ThemedView>
+                </Text>
+            </View>
             <Pressable
-                className="bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95"
-                onPress={() => logout()}
-            >
-                <Text className="font-bold text-white dark:text-black" style={{ fontSize: fontSize.base }}>
+                className='bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95'
+                onPress={() => logout()}>
+                <Text
+                    className='font-bold text-white dark:text-black'
+                    style={{ fontSize: fontSize.base }}>
                     Log out
                 </Text>
             </Pressable>
