@@ -40,25 +40,37 @@ const songs = () => {
     }) => {
         return (
             <View className='bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3'>
-                <View className='flex-row justify-between items-center'>
-                    <View className='flex-col'>
-                        <View className='flex-row items-center gap-2'>
+                <View
+                    className='flex-row justify-between items-center'
+                    style={{ flexWrap: "wrap" }}>
+                    <View
+                        className='flex-col'
+                        style={{ flexShrink: 1, flex: 1, minWidth: 0 }}>
+                        <View
+                            className='flex-row items-center gap-2'
+                            style={{ flexWrap: "wrap" }}>
                             <Text
                                 className='font-bold text-black dark:text-white'
-                                style={{ fontSize: fontSize.xl }}>
+                                style={{ fontSize: fontSize.xl }}
+                                numberOfLines={1}
+                                maxFontSizeMultiplier={1.3}>
                                 {songName}
                             </Text>
                             <Text
                                 className={`${status === "ready" ? "text-green bg-transparentGreen" : status === "draft" ? "text-violet bg-transparentViolet" : status === "finished" && "text-blue bg-transparentBlue"} my-1 px-3 py-1 rounded-xl mr-2`}
-                                style={{ fontSize: fontSize.base }}>
+                                style={{ fontSize: fontSize.base }}
+                                numberOfLines={1}
+                                maxFontSizeMultiplier={1.3}>
                                 {status}
                             </Text>
                         </View>
-                        <View className='flex-row gap-2'>
+                        <View
+                            className='flex-row gap-2'
+                            style={{ flexWrap: "wrap" }}>
                             <View className='flex-row items-center gap-1'>
                                 <Clock
                                     color={"#A1A1A1"}
-                                    size={fontSize["2xl"]}
+                                    size={Math.min(fontSize["2xl"], 20)}
                                     style={{ marginRight: 2, marginBottom: -2 }}
                                 />
                                 <Text
@@ -66,14 +78,16 @@ const songs = () => {
                                     style={{
                                         fontSize: fontSize.base,
                                         alignItems: "center",
-                                    }}>
+                                    }}
+                                    numberOfLines={1}
+                                    maxFontSizeMultiplier={1.3}>
                                     {length}
                                 </Text>
                             </View>
                             <View className='flex-row items-center gap-1'>
                                 <Hash
                                     color={"#A1A1A1"}
-                                    size={fontSize["2xl"]}
+                                    size={Math.min(fontSize["2xl"], 20)}
                                     style={{ marginRight: 2, marginBottom: -2 }}
                                 />
                                 <Text
@@ -81,14 +95,16 @@ const songs = () => {
                                     style={{
                                         fontSize: fontSize.base,
                                         alignItems: "center",
-                                    }}>
+                                    }}
+                                    numberOfLines={1}
+                                    maxFontSizeMultiplier={1.3}>
                                     {songKey}
                                 </Text>
                             </View>
                             <View className='flex-row items-center gap-1'>
                                 <Calendar
                                     color={"#A1A1A1"}
-                                    size={fontSize["2xl"]}
+                                    size={Math.min(fontSize["2xl"], 20)}
                                     style={{ marginRight: 2, marginBottom: -2 }}
                                 />
                                 <Text
@@ -96,21 +112,27 @@ const songs = () => {
                                     style={{
                                         fontSize: fontSize.base,
                                         alignItems: "center",
-                                    }}>
+                                    }}
+                                    numberOfLines={1}
+                                    maxFontSizeMultiplier={1.3}>
                                     {dateAdded}
                                 </Text>
                             </View>
                         </View>
                     </View>
-                    <View className='flex-row gap-4 items-center'>
+                    <View
+                        className='flex-row gap-4 items-center'
+                        style={{ flexShrink: 0 }}>
                         <Play
                             color={colorScheme === "dark" ? "white" : "black"}
+                            size={20}
                         />
                         <Pressable>
                             <SquarePen
                                 color={
                                     colorScheme === "dark" ? "white" : "black"
                                 }
+                                size={20}
                             />
                         </Pressable>
                         <Pressable>
@@ -118,13 +140,16 @@ const songs = () => {
                                 color={
                                     colorScheme === "dark" ? "white" : "black"
                                 }
+                                size={20}
                             />
                         </Pressable>
                     </View>
                 </View>
                 <Text
                     className='text-silverText my-2'
-                    style={{ fontSize: fontSize.base }}>
+                    style={{ fontSize: fontSize.base }}
+                    numberOfLines={3}
+                    maxFontSizeMultiplier={1.3}>
                     {description}
                 </Text>
             </View>
@@ -164,7 +189,7 @@ const songs = () => {
                                 <Text
                                     className='text-silverText'
                                     style={{ fontSize: fontSize.base }}>
-                                    4 songs • 3 ready
+                                    4 songs • 2 ready
                                 </Text>
                                 <StyledButton
                                     onPress={() => {}}
@@ -176,6 +201,7 @@ const songs = () => {
                                 contentContainerStyle={{
                                     alignItems: "center",
                                     justifyContent: "center",
+                                    paddingBottom: 25,
                                 }}>
                                 <SongCard
                                     songName='Song Name'
