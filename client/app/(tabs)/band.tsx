@@ -629,7 +629,7 @@ export default function Band() {
                                                                   r.title ||
                                                                   i
                                                         }
-                                                        className='text-white my-1 bg-accent-light dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'
+                                                        className='text-white my-1 bg-darkGray dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'
                                                         style={{
                                                             fontSize:
                                                                 fontSize.base,
@@ -642,7 +642,7 @@ export default function Band() {
                                         {member.roles.length > 0 &&
                                             member.roles.length > 1 && (
                                                 <Text
-                                                    className='text-white my-1 bg-accent-light dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'
+                                                    className='text-white my-1 bg-darkGray dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'
                                                     style={{
                                                         fontSize: fontSize.base,
                                                     }}>
