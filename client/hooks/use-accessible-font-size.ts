@@ -1,4 +1,4 @@
-import { PixelRatio } from 'react-native';
+import { PixelRatio } from "react-native";
 
 /**
  * Hook to get font sizes that scale with system accessibility settings
@@ -9,15 +9,14 @@ export function useAccessibleFontSize() {
 
     return {
         fontScale,
-        // Tailwind text size equivalents
-        xs: 12 * fontScale,
-        sm: 14 * fontScale,
-        base: 16 * fontScale,
-        lg: 18 * fontScale,
-        xl: 20 * fontScale,
-        '2xl': 24 * fontScale,
-        '3xl': 30 * fontScale,
-        '4xl': 36 * fontScale,
+        // Adjusted to industry standard sizes (iOS & Android defaults)
+        xs: 11 * fontScale,
+        sm: 12 * fontScale,
+        base: 13 * fontScale,
+        lg: 15 * fontScale,
+        xl: 17 * fontScale,
+        "2xl": 19 * fontScale,
+        "3xl": 21 * fontScale,
+        "4xl": 23 * fontScale,
     };
 }
-

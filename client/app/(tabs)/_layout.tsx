@@ -52,10 +52,9 @@ function TabIcon({
     const fontSize = useAccessibleFontSize();
 
     return (
-        <View className="items-center justify-center" style={{ minWidth: 60 }}>
+        <View className='items-center justify-center' style={{ minWidth: 60 }}>
             <View
-                className={`p-2 rounded-2xl ${focused && "bg-boxBackground-dark dark:bg-boxBackground-light"}`}
-            >
+                className={`p-2 rounded-2xl ${focused && "bg-boxBackground-dark dark:bg-boxBackground-light"}`}>
                 <Icon
                     size={24}
                     name={name}
@@ -63,9 +62,8 @@ function TabIcon({
                 />
             </View>
             <Text
-                style={{ flexShrink: 0, fontSize: fontSize.sm }}
-                className={`mt-1 ${focused ? "text-black dark:text-white" : "text-silverText"}`}
-            >
+                style={{ flexShrink: 0, fontSize: fontSize.xs }}
+                className={`mt-1 ${focused ? "text-black dark:text-white" : "text-silverText"}`}>
                 {label}
             </Text>
         </View>
@@ -91,7 +89,7 @@ export default function TabLayout() {
     const insets = useSafeAreaInsets();
 
     return (
-        <SafeAreaView className="flex-1" edges={["bottom"]}>
+        <SafeAreaView className='flex-1' edges={["bottom"]}>
             <MoreSheetProvider>
                 <Tabs
                     screenOptions={{
@@ -115,16 +113,15 @@ export default function TabLayout() {
                             shadowOffset: { width: 0, height: -2 },
                         },
                         tabBarLabel: () => null,
-                    }}
-                >
+                    }}>
                     <Tabs.Screen
-                        name="index"
+                        name='index'
                         options={{
                             title: "Home",
                             tabBarIcon: ({ color, focused }) => (
                                 <TabIcon
-                                    name="House"
-                                    label="Home"
+                                    name='House'
+                                    label='Home'
                                     color={color}
                                     focused={focused}
                                 />
@@ -132,13 +129,13 @@ export default function TabLayout() {
                         }}
                     />
                     <Tabs.Screen
-                        name="band"
+                        name='band'
                         options={{
                             title: "Band",
                             tabBarIcon: ({ color, focused }) => (
                                 <TabIcon
-                                    name="Users"
-                                    label="Band"
+                                    name='Users'
+                                    label='Band'
                                     color={color}
                                     focused={focused}
                                 />
@@ -146,13 +143,13 @@ export default function TabLayout() {
                         }}
                     />
                     <Tabs.Screen
-                        name="ideas"
+                        name='ideas'
                         options={{
                             title: "Ideas",
                             tabBarIcon: ({ color, focused }) => (
                                 <TabIcon
-                                    name="Lightbulb"
-                                    label="Ideas"
+                                    name='Lightbulb'
+                                    label='Ideas'
                                     color={color}
                                     focused={focused}
                                 />
@@ -160,13 +157,13 @@ export default function TabLayout() {
                         }}
                     />
                     <Tabs.Screen
-                        name="chat"
+                        name='chat'
                         options={{
                             title: "Chat",
                             tabBarIcon: ({ color, focused }) => (
                                 <TabIcon
-                                    name="MessageCircle"
-                                    label="Chat"
+                                    name='MessageCircle'
+                                    label='Chat'
                                     color={color}
                                     focused={focused}
                                 />
@@ -174,13 +171,13 @@ export default function TabLayout() {
                         }}
                     />
                     <Tabs.Screen
-                        name="songs"
+                        name='songs'
                         options={{
                             title: "Songs",
                             tabBarIcon: ({ color, focused }) => (
                                 <TabIcon
-                                    name="Music"
-                                    label="Songs"
+                                    name='Music'
+                                    label='Songs'
                                     color={color}
                                     focused={focused}
                                 />
@@ -188,14 +185,14 @@ export default function TabLayout() {
                         }}
                     />
                     <Tabs.Screen
-                        name="more"
+                        name='more'
                         options={{
                             title: "More",
                             tabBarButton: (props) => <MoreButton {...props} />,
                             tabBarIcon: ({ color, focused }) => (
                                 <TabIcon
-                                    name="Ellipsis"
-                                    label="More"
+                                    name='Ellipsis'
+                                    label='More'
                                     color={color}
                                     focused={focused}
                                 />
@@ -204,25 +201,25 @@ export default function TabLayout() {
                     />
                     {/* Hidden routes - accessible via MoreSheet */}
                     <Tabs.Screen
-                        name="_events"
+                        name='_events'
                         options={{
                             href: null,
                         }}
                     />
                     <Tabs.Screen
-                        name="_practice"
+                        name='_practice'
                         options={{
                             href: null,
                         }}
                     />
                     <Tabs.Screen
-                        name="_todos"
+                        name='_todos'
                         options={{
                             href: null,
                         }}
                     />
                     <Tabs.Screen
-                        name="_profile"
+                        name='_profile'
                         options={{
                             href: null,
                         }}
