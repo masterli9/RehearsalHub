@@ -15,6 +15,7 @@ export type BandRole = {
 type BandContextType = {
     bands: Band[];
     activeBand: Band | null;
+    bandsLoading: boolean;
     switchBand: (id: string) => void;
     createBand: (name: string, roles: BandRole[]) => Promise<void>;
     joinBandByCode: (code: string, role: BandRole[]) => Promise<void>;
@@ -32,11 +33,13 @@ const BandContext = createContext<BandContextType | undefined>(undefined);
 export const BandProvider = ({ children }: { children: React.ReactNode }) => {
     const [bands, setBands] = useState<Band[]>([]);
     const [activeBand, setActiveBand] = useState<Band | null>(null);
+    const [bandsLoading, setBandsLoading] = useState<boolean>(true);
 
     const { user } = useAuth();
     useEffect(() => {
         if (user?.uid) {
             fetchUserBands(user.uid);
+            setBandsLoading(false);
         }
     }, [user?.uid]);
 
@@ -284,6 +287,7 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
             value={{
                 bands,
                 activeBand,
+                bandsLoading,
                 switchBand,
                 createBand,
                 joinBandByCode,
