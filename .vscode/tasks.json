@@ -3,11 +3,45 @@
     "tasks": [
         {
             "label": "Start All Services",
-            "dependsOn": ["API Server", "Socket Server", "Expo Client"],
+            "dependsOn": [
+                "Install Server Dependencies",
+                "Install Client Dependencies",
+                "API Server",
+                "Socket Server",
+                "Expo Client"
+            ],
             "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
                 "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Install Server Dependencies",
+            "type": "shell",
+            "command": "npm i",
+            "options": {
+                "cwd": "${workspaceFolder}/server/src"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "group": "setup"
+            }
+        },
+        {
+            "label": "Install Client Dependencies",
+            "type": "shell",
+            "command": "npm i",
+            "options": {
+                "cwd": "${workspaceFolder}/client"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "group": "setup"
             }
         },
         {

@@ -1,11 +1,14 @@
 import NoBand from "@/components/NoBand";
 import PageContainer from "@/components/PageContainer";
 import StyledButton from "@/components/StyledButton";
+import StyledDropdown from "@/components/StyledDropdown";
+import StyledModal from "@/components/StyledModal";
 import StyledTextInput from "@/components/StyledTextInput";
 import SwitchTabs from "@/components/SwitchTabs";
 import { useAuth } from "@/context/AuthContext";
 import { useBand } from "@/context/BandContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
+import { Formik } from "formik";
 import {
     Calendar,
     Clock,
@@ -16,16 +19,14 @@ import {
 } from "lucide-react-native";
 import { useState } from "react";
 import {
+    ActivityIndicator,
     Pressable,
     ScrollView,
     Text,
     useColorScheme,
     View,
-    ActivityIndicator,
 } from "react-native";
-import StyledModal from "@/components/StyledModal";
 import * as yup from "yup";
-import { Formik } from "formik";
 
 const songs = () => {
     const { user } = useAuth();
@@ -64,31 +65,37 @@ const songs = () => {
             <View className='bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3'>
                 <View
                     className='flex-row justify-between items-center'
-                    style={{ flexWrap: "wrap" }}>
+                    style={{ flexWrap: "wrap" }}
+                >
                     <View
                         className='flex-col'
-                        style={{ flexShrink: 1, flex: 1, minWidth: 0 }}>
+                        style={{ flexShrink: 1, flex: 1, minWidth: 0 }}
+                    >
                         <View
                             className='flex-row items-center gap-2'
-                            style={{ flexWrap: "wrap" }}>
+                            style={{ flexWrap: "wrap" }}
+                        >
                             <Text
                                 className='font-bold text-black dark:text-white'
                                 style={{ fontSize: fontSize.xl }}
                                 numberOfLines={1}
-                                maxFontSizeMultiplier={1.3}>
+                                maxFontSizeMultiplier={1.3}
+                            >
                                 {songName}
                             </Text>
                             <Text
                                 className={`${status === "ready" ? "text-green bg-transparentGreen" : status === "draft" ? "text-violet bg-transparentViolet" : status === "finished" && "text-blue bg-transparentBlue"} my-1 px-3 py-1 rounded-xl mr-2`}
                                 style={{ fontSize: fontSize.base }}
                                 numberOfLines={1}
-                                maxFontSizeMultiplier={1.3}>
+                                maxFontSizeMultiplier={1.3}
+                            >
                                 {status}
                             </Text>
                         </View>
                         <View
                             className='flex-row gap-2'
-                            style={{ flexWrap: "wrap" }}>
+                            style={{ flexWrap: "wrap" }}
+                        >
                             <View className='flex-row items-center gap-1'>
                                 <Clock
                                     color={"#A1A1A1"}
@@ -102,7 +109,8 @@ const songs = () => {
                                         alignItems: "center",
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}>
+                                    maxFontSizeMultiplier={1.3}
+                                >
                                     {length}
                                 </Text>
                             </View>
@@ -119,7 +127,8 @@ const songs = () => {
                                         alignItems: "center",
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}>
+                                    maxFontSizeMultiplier={1.3}
+                                >
                                     {songKey}
                                 </Text>
                             </View>
@@ -136,7 +145,8 @@ const songs = () => {
                                         alignItems: "center",
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}>
+                                    maxFontSizeMultiplier={1.3}
+                                >
                                     {dateAdded}
                                 </Text>
                             </View>
@@ -144,7 +154,8 @@ const songs = () => {
                     </View>
                     <View
                         className='flex-row gap-4 items-center'
-                        style={{ flexShrink: 0 }}>
+                        style={{ flexShrink: 0 }}
+                    >
                         <Play
                             color={colorScheme === "dark" ? "white" : "black"}
                             size={20}
@@ -171,7 +182,8 @@ const songs = () => {
                     className='text-silverText my-2'
                     style={{ fontSize: fontSize.base }}
                     numberOfLines={3}
-                    maxFontSizeMultiplier={1.3}>
+                    maxFontSizeMultiplier={1.3}
+                >
                     {description}
                 </Text>
             </View>
@@ -195,6 +207,21 @@ const songs = () => {
             .string()
             .max(1000, "Description should be less than 1000 characters"),
     });
+    // Dropdown states
+    const [openStatus, setOpenStatus] = useState(false);
+    const [valueStatus, setValueStatus] = useState(null);
+    const [itemsStatus, setItemsStatus] = useState([
+        { label: "Finished", value: "Finished" },
+        { label: "Rehearsed", value: "Rehearsed" },
+        { label: "Draft", value: "Draft" },
+    ]);
+    const [openKey, setOpenKey] = useState(false);
+    const [valueKey, setValueKey] = useState(null);
+    const [itemsKey, setItemsKey] = useState([
+        { label: "Apple", value: "apple" },
+        { label: "Banana", value: "banana" },
+        { label: "Orange", value: "orange" },
+    ]);
 
     return (
         <PageContainer noBandState={bands.length === 0}>
@@ -202,7 +229,8 @@ const songs = () => {
                 visible={newSongModalVisible}
                 onClose={() => setNewSongModalVisible(false)}
                 title='Create a song'
-                subtitle="Add a new song to your band's repertoire and choose its tags and status">
+                subtitle="Add a new song to your band's repertoire and choose its tags and status"
+            >
                 <Formik<NewSongFormValues>
                     validationSchema={newSongSchema}
                     initialValues={{
@@ -214,7 +242,8 @@ const songs = () => {
                     }}
                     onSubmit={(values) => {}}
                     validateOnBlur={false}
-                    validateOnChange={false}>
+                    validateOnChange={false}
+                >
                     {({
                         handleChange,
                         handleBlur,
@@ -226,20 +255,54 @@ const songs = () => {
                         submitCount,
                     }) => (
                         <>
-                            <StyledTextInput
-                                placeholder='Title'
-                                variant='rounded'
-                                value={values.title}
-                            />
-                            <StyledTextInput
-                                placeholder='Length'
-                                variant='rounded'
-                                value={values.length}
-                            />
-                            <StyledTextInput
-                                placeholder='description'
-                                variant='rounded'
-                                value={values.description}
+                            <View className='flex-col w-full gap-4 my-3'>
+                                <StyledTextInput
+                                    placeholder='Title'
+                                    variant='rounded'
+                                    value={values.title}
+                                    onChangeText={handleChange("title")}
+                                    onBlur={handleBlur("title")}
+                                />
+                                <StyledDropdown
+                                    open={openStatus}
+                                    value={valueStatus}
+                                    items={itemsStatus}
+                                    setOpen={setOpenStatus}
+                                    setValue={setValueStatus}
+                                    setItems={setItemsStatus}
+                                    placeholder='Choose status'
+                                    zIndex={3000}
+                                    zIndexInverse={1000}
+                                />
+                                <StyledTextInput
+                                    placeholder='Length'
+                                    variant='rounded'
+                                    value={values.length}
+                                    onChangeText={handleChange("length")}
+                                    onBlur={handleBlur("length")}
+                                />
+                                <StyledDropdown
+                                    open={openKey}
+                                    value={valueKey}
+                                    items={itemsKey}
+                                    setOpen={setOpenKey}
+                                    setValue={setValueKey}
+                                    setItems={setItemsKey}
+                                    placeholder='Choose key'
+                                    zIndex={2000}
+                                    zIndexInverse={2000}
+                                />
+                                <StyledTextInput
+                                    placeholder='Description'
+                                    variant='rounded'
+                                    value={values.description}
+                                    onChangeText={handleChange("description")}
+                                    onBlur={handleBlur("description")}
+                                />
+                            </View>
+                            <StyledButton
+                                title='Create Song'
+                                onPress={() => handleSubmit()}
                             />
                         </>
                     )}
@@ -250,7 +313,8 @@ const songs = () => {
                     <ActivityIndicator size='large' color='#2B7FFF' />
                     <Text
                         className='text-silverText mt-4'
-                        style={{ fontSize: fontSize.base }}>
+                        style={{ fontSize: fontSize.base }}
+                    >
                         Loading bands...
                     </Text>
                 </View>
@@ -263,12 +327,14 @@ const songs = () => {
                         <View className='flex-col items-start justify-center'>
                             <Text
                                 className='text-black dark:text-white font-bold my-1'
-                                style={{ fontSize: fontSize["2xl"] }}>
+                                style={{ fontSize: fontSize["2xl"] }}
+                            >
                                 {activeBand?.name} Songs & Setlists
                             </Text>
                             <Text
                                 className='text-silverText'
-                                style={{ fontSize: fontSize.base }}>
+                                style={{ fontSize: fontSize.base }}
+                            >
                                 Manage your band's songs and setlists
                             </Text>
                         </View>
@@ -286,7 +352,8 @@ const songs = () => {
                                 <View className='flex-row justify-between items-center w-full'>
                                     <Text
                                         className='text-silverText'
-                                        style={{ fontSize: fontSize.base }}>
+                                        style={{ fontSize: fontSize.base }}
+                                    >
                                         4 songs • 2 ready
                                     </Text>
                                     <StyledButton
@@ -309,7 +376,8 @@ const songs = () => {
                                     alignItems: "center",
                                     justifyContent: "center",
                                     paddingBottom: 25,
-                                }}>
+                                }}
+                            >
                                 <SongCard
                                     songName='Song Name'
                                     status='ready'
