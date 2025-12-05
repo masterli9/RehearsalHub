@@ -13,6 +13,7 @@ function StyledDropdown({
     dropDownContainerStyle,
     theme,
     listMode,
+    scrollViewProps,
     ...props
 }: StyledDropdownProps) {
     const colorScheme = useColorScheme();
@@ -59,6 +60,10 @@ function StyledDropdown({
         <DropDownPicker
             theme={theme ?? (isDark ? "DARK" : "LIGHT")}
             listMode={listMode ?? "SCROLLVIEW"}
+            scrollViewProps={{
+                nestedScrollEnabled: true,
+                ...(scrollViewProps || {}),
+            }}
             style={combinedStyle}
             textStyle={combinedTextStyle}
             dropDownContainerStyle={combinedDropDownContainerStyle}

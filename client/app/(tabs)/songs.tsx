@@ -1,3 +1,4 @@
+import ErrorText from "@/components/ErrorText";
 import NoBand from "@/components/NoBand";
 import PageContainer from "@/components/PageContainer";
 import StyledButton from "@/components/StyledButton";
@@ -43,7 +44,7 @@ const songs = () => {
         songKey: string;
         length: string;
         description: string;
-        status: "ready" | "draft" | "finished";
+        status: string;
     };
 
     const SongCard = ({
@@ -206,6 +207,11 @@ const songs = () => {
         description: yup
             .string()
             .max(1000, "Description should be less than 1000 characters"),
+        songKey: yup.string().required("Song key is required"),
+        status: yup
+            .string()
+            .oneOf(["ready", "draft", "finished"])
+            .required("Status is required"),
     });
     // Dropdown states
     const [openStatus, setOpenStatus] = useState(false);
@@ -218,16 +224,43 @@ const songs = () => {
     const [openKey, setOpenKey] = useState(false);
     const [valueKey, setValueKey] = useState(null);
     const [itemsKey, setItemsKey] = useState([
-        { label: "Apple", value: "apple" },
-        { label: "Banana", value: "banana" },
-        { label: "Orange", value: "orange" },
+        { label: "C", value: "C" },
+        { label: "Cm", value: "Cm" },
+        { label: "C#", value: "C#" },
+        { label: "C#m", value: "C#m" },
+        { label: "D", value: "D" },
+        { label: "Dm", value: "Dm" },
+        { label: "D#", value: "D#" },
+        { label: "D#m", value: "D#m" },
+        { label: "E", value: "E" },
+        { label: "Em", value: "Em" },
+        { label: "F", value: "F" },
+        { label: "Fm", value: "Fm" },
+        { label: "F#", value: "F#" },
+        { label: "F#m", value: "F#m" },
+        { label: "G", value: "G" },
+        { label: "Gm", value: "Gm" },
+        { label: "G#", value: "G#" },
+        { label: "G#m", value: "G#m" },
+        { label: "A", value: "A" },
+        { label: "Am", value: "Am" },
+        { label: "A#", value: "A#" },
+        { label: "A#m", value: "A#m" },
+        { label: "B", value: "B" },
+        { label: "Bm", value: "Bm" },
     ]);
 
     return (
         <PageContainer noBandState={bands.length === 0}>
             <StyledModal
                 visible={newSongModalVisible}
-                onClose={() => setNewSongModalVisible(false)}
+                onClose={() => {
+                    setNewSongModalVisible(false);
+                    setOpenKey(false);
+                    setOpenStatus(false);
+                    setValueKey(null);
+                    setValueStatus(null);
+                }}
                 title='Create a song'
                 subtitle="Add a new song to your band's repertoire and choose its tags and status"
             >
@@ -235,7 +268,7 @@ const songs = () => {
                     validationSchema={newSongSchema}
                     initialValues={{
                         title: "",
-                        status: "ready",
+                        status: "",
                         length: "",
                         songKey: "",
                         description: "",
@@ -263,6 +296,11 @@ const songs = () => {
                                     onChangeText={handleChange("title")}
                                     onBlur={handleBlur("title")}
                                 />
+                                {touched.title && errors.title && (
+                                    <View className='w-full flex-row justify-center'>
+                                        <ErrorText>{errors.title}</ErrorText>
+                                    </View>
+                                )}
                                 <StyledDropdown
                                     open={openStatus}
                                     value={valueStatus}
@@ -274,6 +312,11 @@ const songs = () => {
                                     zIndex={3000}
                                     zIndexInverse={1000}
                                 />
+                                {touched.status && errors.status && (
+                                    <View className='w-full flex-row justify-center'>
+                                        <ErrorText>{errors.status}</ErrorText>
+                                    </View>
+                                )}
                                 <StyledTextInput
                                     placeholder='Length'
                                     variant='rounded'
@@ -281,6 +324,11 @@ const songs = () => {
                                     onChangeText={handleChange("length")}
                                     onBlur={handleBlur("length")}
                                 />
+                                {touched.length && errors.length && (
+                                    <View className='w-full flex-row justify-center'>
+                                        <ErrorText>{errors.length}</ErrorText>
+                                    </View>
+                                )}
                                 <StyledDropdown
                                     open={openKey}
                                     value={valueKey}
@@ -292,6 +340,11 @@ const songs = () => {
                                     zIndex={2000}
                                     zIndexInverse={2000}
                                 />
+                                {touched.songKey && errors.songKey && (
+                                    <View className='w-full flex-row justify-center'>
+                                        <ErrorText>{errors.songKey}</ErrorText>
+                                    </View>
+                                )}
                                 <StyledTextInput
                                     placeholder='Description'
                                     variant='rounded'
@@ -299,6 +352,11 @@ const songs = () => {
                                     onChangeText={handleChange("description")}
                                     onBlur={handleBlur("description")}
                                 />
+                                {touched.description && errors.description && (
+                                    <View className='w-full flex-row justify-center'>
+                                        <ErrorText>{errors.title}</ErrorText>
+                                    </View>
+                                )}
                             </View>
                             <StyledButton
                                 title='Create Song'
