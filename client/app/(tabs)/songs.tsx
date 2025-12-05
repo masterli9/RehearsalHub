@@ -31,6 +31,7 @@ import {
 } from "react-native";
 import * as yup from "yup";
 import * as DocumentPicker from "expo-document-picker";
+import { createAudioPlayer } from "expo-audio";
 
 const songs = () => {
     const { user } = useAuth();
@@ -42,8 +43,11 @@ const songs = () => {
     const [newSongModalVisible, setNewSongModalVisible] =
         useState<boolean>(false);
 
+    const [disableSubmitBtn, setDisableSubmitBtn] = useState<boolean>(false);
+
     type NewSongFormValues = {
         title: string;
+        bpm: string;
         songKey: string;
         length: string;
         description: string;
@@ -187,22 +191,33 @@ const songs = () => {
     const newSongSchema = yup.object().shape({
         title: yup
             .string()
+            .trim()
             .min(2, "Title should be at least 2 characters")
             .max(255, "Title should be less than 255 characters")
             .required("Title is required"),
-        // length: yup
-        //     .string()
-        //     .required("Length is required")
-        //     .matches(
-        //         /^(\d{1,2}:)?[0-5]?\d:[0-5]\d$/,
-        //         "Enter length as m:ss or mm:ss or h:mm:ss (e.g. 3:45 or 12:01 or 1:05:22)"
-        //     ),
+        bpm: yup
+            .number()
+            .nullable()
+            .transform((value, originalValue) => {
+                if (originalValue === "" || originalValue == null) return null;
+                const num = Number(originalValue);
+                return isNaN(num) ? null : num;
+            })
+            .min(1, "BPM should be at least 1")
+            .max(32767, "BPM should be at most 32767"),
         description: yup
             .string()
+            .nullable()
+            .transform((value) => (value ? value.trim() : null))
             .max(1000, "Description should be less than 1000 characters"),
-        songKey: yup.string().required("Song key is required"),
+        songKey: yup
+            .string()
+            .trim()
+            .max(4, "Song key should be at most 4 characters")
+            .required("Song key is required"),
         status: yup
             .string()
+            .trim()
             .oneOf(["ready", "draft", "finished"])
             .required("Status is required"),
         file: yup.object().shape({
@@ -308,10 +323,13 @@ const songs = () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 title: songMetadata.title,
-                bandId,
+                bandId: String(bandId).trim(),
                 cloudurl: publicUrl,
                 length: songMetadata.length || null,
-                bpm: songMetadata.bpm || null,
+                bpm:
+                    songMetadata.bpm !== null && songMetadata.bpm !== undefined
+                        ? Number(songMetadata.bpm)
+                        : null,
                 notes: songMetadata.notes || null,
                 songKey: songMetadata.songKey || null,
                 status: songMetadata.status || null,
@@ -338,7 +356,46 @@ const songs = () => {
             });
             if (!result.canceled) {
                 const picked = result.assets[0];
-                setFieldValue("file", picked);
+
+                // Load audio file to get duration
+                try {
+                    const audioPlayer = createAudioPlayer();
+                    await audioPlayer.replace(picked.uri);
+
+                    // Wait a bit for duration to be available
+                    await new Promise((resolve) => setTimeout(resolve, 100));
+
+                    // Get duration from the player (duration is in seconds)
+                    const durationSeconds = audioPlayer.duration;
+
+                    if (durationSeconds && durationSeconds > 0) {
+                        // Convert seconds to PostgreSQL interval format (HH:MM:SS)
+                        const totalSeconds = Math.floor(durationSeconds);
+                        const hours = Math.floor(totalSeconds / 3600);
+                        const minutes = Math.floor((totalSeconds % 3600) / 60);
+                        const seconds = totalSeconds % 60;
+
+                        // Format as HH:MM:SS or MM:SS if less than an hour
+                        const durationString =
+                            hours > 0
+                                ? `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+                                : `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+                        // Store duration in the file object
+                        setFieldValue("file", {
+                            ...picked,
+                            duration: durationString,
+                            durationMillis: totalSeconds * 1000,
+                        });
+                    } else {
+                        // If duration couldn't be loaded, just set the file without duration
+                        setFieldValue("file", picked);
+                    }
+                } catch (audioError) {
+                    console.error("Error loading audio duration:", audioError);
+                    // If we can't get duration, still allow the file to be selected
+                    setFieldValue("file", picked);
+                }
             }
         } catch (err) {
             console.error(err);
@@ -348,23 +405,27 @@ const songs = () => {
         }
     };
 
+    // Helper function to close modal and reset dropdown states
+    const closeModalAndReset = () => {
+        setNewSongModalVisible(false);
+        setOpenKey(false);
+        setOpenStatus(false);
+        setValueKey(null);
+        setValueStatus(null);
+    };
+
     return (
         <PageContainer noBandState={!bandsLoading && bands.length === 0}>
             <StyledModal
                 visible={newSongModalVisible}
-                onClose={() => {
-                    setNewSongModalVisible(false);
-                    setOpenKey(false);
-                    setOpenStatus(false);
-                    setValueKey(null);
-                    setValueStatus(null);
-                }}
+                onClose={closeModalAndReset}
                 title='Create a song'
                 subtitle="Add a new song to your band's repertoire and choose its tags and status">
                 <Formik<NewSongFormValues>
                     validationSchema={newSongSchema}
                     initialValues={{
                         title: "",
+                        bpm: "",
                         status: "",
                         length: "",
                         songKey: "",
@@ -385,6 +446,8 @@ const songs = () => {
                                 return;
                             }
 
+                            setDisableSubmitBtn(true);
+
                             const bandId = activeBand?.id || "";
                             const localUri = values.file.uri;
                             const filename =
@@ -394,23 +457,43 @@ const songs = () => {
                             const contentType =
                                 values.file.mimeType || "audio/mpeg";
 
+                            // Convert bpm to number or null
+                            let bpmValue: number | null = null;
+                            if (values.bpm && values.bpm !== "") {
+                                const bpmNum = Number(values.bpm);
+                                if (
+                                    !isNaN(bpmNum) &&
+                                    bpmNum >= 1 &&
+                                    bpmNum <= 32767
+                                ) {
+                                    bpmValue = Math.round(bpmNum);
+                                }
+                            }
+
                             await uploadFileToSignedUrl({
                                 localUri,
-                                filename,
+                                filename: filename.trim(),
                                 contentType,
-                                bandId,
+                                bandId: bandId,
                                 songMetadata: {
-                                    title: values.title,
-                                    notes: values.description,
+                                    title: values.title.trim(),
+                                    notes: values.description?.trim() || null,
                                     length:
-                                        values.file.duration || values.length,
-                                    status: values.status,
-                                    songKey: values.songKey,
+                                        values.file.duration ||
+                                        values.length ||
+                                        null,
+                                    status: values.status.trim(),
+                                    songKey: values.songKey.trim(),
+                                    bpm: bpmValue,
                                 },
                             });
+
+                            // Only close modal on success
+                            closeModalAndReset();
                         } catch (err) {
                             console.error(err);
                             Alert.alert("Error", "failed to upload file");
+                            // Keep modal open on error so user can retry
                         } finally {
                             setSubmitting(false);
                         }
@@ -440,6 +523,18 @@ const songs = () => {
                                 {touched.title && errors.title && (
                                     <View className='w-full flex-row justify-center'>
                                         <ErrorText>{errors.title}</ErrorText>
+                                    </View>
+                                )}
+                                <StyledTextInput
+                                    placeholder='BPM'
+                                    variant='rounded'
+                                    value={values.bpm}
+                                    onChangeText={handleChange("bpm")}
+                                    onBlur={handleBlur("bpm")}
+                                />
+                                {touched.bpm && errors.bpm && (
+                                    <View className='w-full flex-row justify-center'>
+                                        <ErrorText>{errors.bpm}</ErrorText>
                                     </View>
                                 )}
                                 <StyledDropdown
@@ -516,7 +611,9 @@ const songs = () => {
                                 />
                                 {touched.description && errors.description && (
                                     <View className='w-full flex-row justify-center'>
-                                        <ErrorText>{errors.title}</ErrorText>
+                                        <ErrorText>
+                                            {errors.description}
+                                        </ErrorText>
                                     </View>
                                 )}
                                 <Pressable
@@ -548,8 +645,19 @@ const songs = () => {
                             </View>
                             <StyledButton
                                 title='Create Song'
-                                onPress={() => handleSubmit()}
+                                onPress={() => {
+                                    handleSubmit();
+                                }}
+                                disabled={disableSubmitBtn}
                             />
+                            {disableSubmitBtn && (
+                                <View className='w-full flex-row justify-center'>
+                                    <ActivityIndicator
+                                        size='small'
+                                        color='#2B7FFF'
+                                    />
+                                </View>
+                            )}
                         </>
                     )}
                 </Formik>

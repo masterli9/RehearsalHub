@@ -8,7 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { View, Text } from "react-native";
+import { View, Text, ActivityIndicator } from "react-native";
 import "../global.css";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { BandProvider, useBand } from "@/context/BandContext";
@@ -23,13 +23,14 @@ export const unstable_settings = {
 function AuthGate() {
     const { user, loading } = useAuth();
     const fontSize = useAccessibleFontSize();
-    
+
     if (loading) {
         return (
             <View className='flex-1 items-center justify-center bg-black'>
-                <Text className='text-white' style={{ fontSize: fontSize.lg }}>
-                    Loading (waiting for firebase)...
-                </Text>
+                <ActivityIndicator size='large' color='white' />
+                {/* <Text className='text-white' style={{ fontSize: fontSize.lg }}>
+                    Waiting for firebase...
+                </Text> */}
             </View>
         );
     }
