@@ -39,6 +39,9 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         if (user?.uid) {
             fetchUserBands(user.uid);
+        } else {
+            setBands([]);
+            setActiveBand(null);
             setBandsLoading(false);
         }
     }, [user?.uid]);
@@ -49,6 +52,7 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const fetchUserBands = async (uid: string) => {
+        setBandsLoading(true);
         try {
             const res = await fetch(`${apiUrl}/api/users/${uid}/bands`);
             const data = await res.json();
@@ -78,6 +82,8 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
             console.error("Error in fetchUserBands:", err);
             setBands([]);
             setActiveBand(null);
+        } finally {
+            setBandsLoading(false);
         }
     };
 

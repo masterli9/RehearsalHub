@@ -6,6 +6,7 @@ import StyledDropdown from "@/components/StyledDropdown";
 import StyledModal from "@/components/StyledModal";
 import StyledTextInput from "@/components/StyledTextInput";
 import SwitchTabs from "@/components/SwitchTabs";
+import apiUrl from "@/config";
 import { useAuth } from "@/context/AuthContext";
 import { useBand } from "@/context/BandContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
@@ -18,7 +19,7 @@ import {
     Play,
     SquarePen,
 } from "lucide-react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -26,8 +27,10 @@ import {
     Text,
     useColorScheme,
     View,
+    Alert,
 } from "react-native";
 import * as yup from "yup";
+import * as DocumentPicker from "expo-document-picker";
 
 const songs = () => {
     const { user } = useAuth();
@@ -45,6 +48,7 @@ const songs = () => {
         length: string;
         description: string;
         status: string;
+        file: any;
     };
 
     const SongCard = ({
@@ -66,37 +70,31 @@ const songs = () => {
             <View className='bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3'>
                 <View
                     className='flex-row justify-between items-center'
-                    style={{ flexWrap: "wrap" }}
-                >
+                    style={{ flexWrap: "wrap" }}>
                     <View
                         className='flex-col'
-                        style={{ flexShrink: 1, flex: 1, minWidth: 0 }}
-                    >
+                        style={{ flexShrink: 1, flex: 1, minWidth: 0 }}>
                         <View
                             className='flex-row items-center gap-2'
-                            style={{ flexWrap: "wrap" }}
-                        >
+                            style={{ flexWrap: "wrap" }}>
                             <Text
                                 className='font-bold text-black dark:text-white'
                                 style={{ fontSize: fontSize.xl }}
                                 numberOfLines={1}
-                                maxFontSizeMultiplier={1.3}
-                            >
+                                maxFontSizeMultiplier={1.3}>
                                 {songName}
                             </Text>
                             <Text
                                 className={`${status === "ready" ? "text-green bg-transparentGreen" : status === "draft" ? "text-violet bg-transparentViolet" : status === "finished" && "text-blue bg-transparentBlue"} my-1 px-3 py-1 rounded-xl mr-2`}
                                 style={{ fontSize: fontSize.base }}
                                 numberOfLines={1}
-                                maxFontSizeMultiplier={1.3}
-                            >
+                                maxFontSizeMultiplier={1.3}>
                                 {status}
                             </Text>
                         </View>
                         <View
                             className='flex-row gap-2'
-                            style={{ flexWrap: "wrap" }}
-                        >
+                            style={{ flexWrap: "wrap" }}>
                             <View className='flex-row items-center gap-1'>
                                 <Clock
                                     color={"#A1A1A1"}
@@ -110,8 +108,7 @@ const songs = () => {
                                         alignItems: "center",
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}
-                                >
+                                    maxFontSizeMultiplier={1.3}>
                                     {length}
                                 </Text>
                             </View>
@@ -128,8 +125,7 @@ const songs = () => {
                                         alignItems: "center",
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}
-                                >
+                                    maxFontSizeMultiplier={1.3}>
                                     {songKey}
                                 </Text>
                             </View>
@@ -146,8 +142,7 @@ const songs = () => {
                                         alignItems: "center",
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}
-                                >
+                                    maxFontSizeMultiplier={1.3}>
                                     {dateAdded}
                                 </Text>
                             </View>
@@ -155,8 +150,7 @@ const songs = () => {
                     </View>
                     <View
                         className='flex-row gap-4 items-center'
-                        style={{ flexShrink: 0 }}
-                    >
+                        style={{ flexShrink: 0 }}>
                         <Play
                             color={colorScheme === "dark" ? "white" : "black"}
                             size={20}
@@ -183,8 +177,7 @@ const songs = () => {
                     className='text-silverText my-2'
                     style={{ fontSize: fontSize.base }}
                     numberOfLines={3}
-                    maxFontSizeMultiplier={1.3}
-                >
+                    maxFontSizeMultiplier={1.3}>
                     {description}
                 </Text>
             </View>
@@ -197,13 +190,13 @@ const songs = () => {
             .min(2, "Title should be at least 2 characters")
             .max(255, "Title should be less than 255 characters")
             .required("Title is required"),
-        length: yup
-            .string()
-            .required("Length is required")
-            .matches(
-                /^(\d{1,2}:)?[0-5]?\d:[0-5]\d$/,
-                "Enter length as m:ss or mm:ss or h:mm:ss (e.g. 3:45 or 12:01 or 1:05:22)"
-            ),
+        // length: yup
+        //     .string()
+        //     .required("Length is required")
+        //     .matches(
+        //         /^(\d{1,2}:)?[0-5]?\d:[0-5]\d$/,
+        //         "Enter length as m:ss or mm:ss or h:mm:ss (e.g. 3:45 or 12:01 or 1:05:22)"
+        //     ),
         description: yup
             .string()
             .max(1000, "Description should be less than 1000 characters"),
@@ -212,14 +205,17 @@ const songs = () => {
             .string()
             .oneOf(["ready", "draft", "finished"])
             .required("Status is required"),
+        file: yup.object().shape({
+            uri: yup.string().required("File is required"),
+        }),
     });
     // Dropdown states
     const [openStatus, setOpenStatus] = useState(false);
     const [valueStatus, setValueStatus] = useState(null);
     const [itemsStatus, setItemsStatus] = useState([
-        { label: "Finished", value: "Finished" },
-        { label: "Rehearsed", value: "Rehearsed" },
-        { label: "Draft", value: "Draft" },
+        { label: "Finished", value: "finished" },
+        { label: "Ready", value: "ready" },
+        { label: "Draft", value: "draft" },
     ]);
     const [openKey, setOpenKey] = useState(false);
     const [valueKey, setValueKey] = useState(null);
@@ -250,8 +246,110 @@ const songs = () => {
         { label: "Bm", value: "Bm" },
     ]);
 
+    // Sync dropdown states when modal opens/closes
+    useEffect(() => {
+        if (!newSongModalVisible) {
+            // Reset dropdown states when modal closes
+            setValueStatus(null);
+            setValueKey(null);
+            setOpenStatus(false);
+            setOpenKey(false);
+        }
+    }, [newSongModalVisible]);
+
+    // song file upload
+    const formatFormikError = (err: unknown) => {
+        if (!err) return null;
+        if (typeof err === "string") return err;
+        if (Array.isArray(err)) return err.filter(Boolean).join(", ");
+        return null;
+    };
+
+    async function uploadFileToSignedUrl({
+        localUri,
+        filename,
+        contentType,
+        bandId,
+        songMetadata,
+    }: {
+        localUri: string;
+        filename: string;
+        contentType: string;
+        bandId: string;
+        songMetadata: any;
+    }) {
+        const createResp = await fetch(`${apiUrl}/api/songs/upload-url`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename, contentType, bandId }),
+        });
+
+        if (!createResp.ok) {
+            const err = await createResp.json().catch(() => ({}));
+            throw new Error(err.error || "Failed to get upload url");
+        }
+        const { uploadUrl, publicUrl } = await createResp.json();
+
+        const fileResp = await fetch(localUri);
+        const blob = await fileResp.blob();
+
+        const putResp = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: { "Content-Type": contentType },
+            body: blob,
+        });
+
+        if (!putResp.ok) {
+            throw new Error("Upload to storage failed");
+        }
+
+        const songResp = await fetch(`${apiUrl}/api/songs/create`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                title: songMetadata.title,
+                bandId,
+                cloudurl: publicUrl,
+                length: songMetadata.length || null,
+                bpm: songMetadata.bpm || null,
+                notes: songMetadata.notes || null,
+                songKey: songMetadata.songKey || null,
+                status: songMetadata.status || null,
+            }),
+        });
+
+        if (!songResp.ok) {
+            const err = await songResp.json().catch(() => ({}));
+            // možná chceš rollback (smazat soubor) — zvaž to
+            throw new Error(err.error || "Saving song failed");
+        } else {
+            console.log("ok");
+        }
+
+        return await songResp.json();
+    }
+
+    const onPickBtnPress = async (
+        setFieldValue: (field: string, value: any) => void
+    ) => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: "audio/*",
+            });
+            if (!result.canceled) {
+                const picked = result.assets[0];
+                setFieldValue("file", picked);
+            }
+        } catch (err) {
+            console.error(err);
+            Alert.alert("Error", "failed to choose file");
+        } finally {
+            // hide loader
+        }
+    };
+
     return (
-        <PageContainer noBandState={bands.length === 0}>
+        <PageContainer noBandState={!bandsLoading && bands.length === 0}>
             <StyledModal
                 visible={newSongModalVisible}
                 onClose={() => {
@@ -262,8 +360,7 @@ const songs = () => {
                     setValueStatus(null);
                 }}
                 title='Create a song'
-                subtitle="Add a new song to your band's repertoire and choose its tags and status"
-            >
+                subtitle="Add a new song to your band's repertoire and choose its tags and status">
                 <Formik<NewSongFormValues>
                     validationSchema={newSongSchema}
                     initialValues={{
@@ -272,17 +369,61 @@ const songs = () => {
                         length: "",
                         songKey: "",
                         description: "",
+                        file: null,
                     }}
-                    onSubmit={(values) => {}}
+                    enableReinitialize={false}
+                    onSubmit={async (
+                        values,
+                        { setFieldError, setSubmitting }
+                    ) => {
+                        try {
+                            if (!values.file) {
+                                setFieldError(
+                                    "file",
+                                    "Please select an audio file"
+                                );
+                                return;
+                            }
+
+                            const bandId = activeBand?.id || "";
+                            const localUri = values.file.uri;
+                            const filename =
+                                values.file.name ||
+                                localUri.split("/").pop() ||
+                                "audio-file";
+                            const contentType =
+                                values.file.mimeType || "audio/mpeg";
+
+                            await uploadFileToSignedUrl({
+                                localUri,
+                                filename,
+                                contentType,
+                                bandId,
+                                songMetadata: {
+                                    title: values.title,
+                                    notes: values.description,
+                                    length:
+                                        values.file.duration || values.length,
+                                    status: values.status,
+                                    songKey: values.songKey,
+                                },
+                            });
+                        } catch (err) {
+                            console.error(err);
+                            Alert.alert("Error", "failed to upload file");
+                        } finally {
+                            setSubmitting(false);
+                        }
+                    }}
                     validateOnBlur={false}
-                    validateOnChange={false}
-                >
+                    validateOnChange={false}>
                     {({
                         handleChange,
                         handleBlur,
                         handleSubmit,
                         values,
                         setFieldValue,
+                        setFieldTouched,
                         errors,
                         touched,
                         submitCount,
@@ -307,6 +448,17 @@ const songs = () => {
                                     items={itemsStatus}
                                     setOpen={setOpenStatus}
                                     setValue={setValueStatus}
+                                    onChangeValue={(v) => {
+                                        // Update Formik when a value is selected
+                                        if (
+                                            v !== null &&
+                                            v !== undefined &&
+                                            v !== ""
+                                        ) {
+                                            setFieldValue("status", v);
+                                            setFieldTouched("status", true);
+                                        }
+                                    }}
                                     setItems={setItemsStatus}
                                     placeholder='Choose status'
                                     zIndex={3000}
@@ -317,7 +469,7 @@ const songs = () => {
                                         <ErrorText>{errors.status}</ErrorText>
                                     </View>
                                 )}
-                                <StyledTextInput
+                                {/* <StyledTextInput
                                     placeholder='Length'
                                     variant='rounded'
                                     value={values.length}
@@ -328,13 +480,23 @@ const songs = () => {
                                     <View className='w-full flex-row justify-center'>
                                         <ErrorText>{errors.length}</ErrorText>
                                     </View>
-                                )}
+                                )} */}
                                 <StyledDropdown
                                     open={openKey}
                                     value={valueKey}
                                     items={itemsKey}
                                     setOpen={setOpenKey}
                                     setValue={setValueKey}
+                                    onChangeValue={(v) => {
+                                        if (
+                                            v !== null &&
+                                            v !== undefined &&
+                                            v !== ""
+                                        ) {
+                                            setFieldValue("songKey", v);
+                                            setFieldTouched("songKey", true);
+                                        }
+                                    }}
                                     setItems={setItemsKey}
                                     placeholder='Choose key'
                                     zIndex={2000}
@@ -357,6 +519,32 @@ const songs = () => {
                                         <ErrorText>{errors.title}</ErrorText>
                                     </View>
                                 )}
+                                <Pressable
+                                    className='bg-accent-light dark:bg-accent-dark rounded-xl px-4 py-3 flex-row items-center justify-center mt-2'
+                                    onPress={() =>
+                                        onPickBtnPress(setFieldValue)
+                                    }>
+                                    <Text
+                                        style={{
+                                            color:
+                                                colorScheme === "dark"
+                                                    ? "#fff"
+                                                    : "#222",
+                                            fontWeight: "500",
+                                            fontSize: fontSize.base,
+                                        }}>
+                                        {values.file
+                                            ? `Selected: ${values.file.name ?? values.file.uri.split("/").pop()}`
+                                            : "Pick audio file"}
+                                    </Text>
+                                </Pressable>
+                                {formatFormikError(errors.file) && (
+                                    <View className='w-full flex-row justify-center'>
+                                        <ErrorText>
+                                            {formatFormikError(errors.file)}
+                                        </ErrorText>
+                                    </View>
+                                )}
                             </View>
                             <StyledButton
                                 title='Create Song'
@@ -366,38 +554,34 @@ const songs = () => {
                     )}
                 </Formik>
             </StyledModal>
-            {bandsLoading && (
+            {bandsLoading ? (
                 <View className='flex-1 w-full justify-center items-center'>
                     <ActivityIndicator size='large' color='#2B7FFF' />
                     <Text
                         className='text-silverText mt-4'
-                        style={{ fontSize: fontSize.base }}
-                    >
+                        style={{ fontSize: fontSize.base }}>
                         Loading bands...
                     </Text>
                 </View>
-            )}
-            {bands.length === 0 ? (
+            ) : bands.length === 0 ? (
                 <NoBand />
             ) : (
                 <>
-                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark mt-4 w-full px-3 py-2'>
+                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark mt-4 w-full px-5 py-2'>
                         <View className='flex-col items-start justify-center'>
                             <Text
                                 className='text-black dark:text-white font-bold my-1'
-                                style={{ fontSize: fontSize["2xl"] }}
-                            >
+                                style={{ fontSize: fontSize["2xl"] }}>
                                 {activeBand?.name} Songs & Setlists
                             </Text>
                             <Text
                                 className='text-silverText'
-                                style={{ fontSize: fontSize.base }}
-                            >
+                                style={{ fontSize: fontSize.base }}>
                                 Manage your band's songs and setlists
                             </Text>
                         </View>
                     </View>
-                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark w-full px-3'>
+                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark w-full px-4'>
                         <SwitchTabs
                             activeTab={activeTab}
                             setActiveTab={setActiveTab}
@@ -410,8 +594,7 @@ const songs = () => {
                                 <View className='flex-row justify-between items-center w-full'>
                                     <Text
                                         className='text-silverText'
-                                        style={{ fontSize: fontSize.base }}
-                                    >
+                                        style={{ fontSize: fontSize.base }}>
                                         4 songs • 2 ready
                                     </Text>
                                     <StyledButton
@@ -434,8 +617,7 @@ const songs = () => {
                                     alignItems: "center",
                                     justifyContent: "center",
                                     paddingBottom: 25,
-                                }}
-                            >
+                                }}>
                                 <SongCard
                                     songName='Song Name'
                                     status='ready'
