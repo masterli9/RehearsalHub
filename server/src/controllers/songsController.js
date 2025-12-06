@@ -80,7 +80,6 @@ export const createSong = async (req, res) => {
         }
 
         // Validate status (max 20 chars, must be in valid statuses list)
-        // Note: "ready" from client maps to "finished" or we need to handle it
         if (status) {
             if (status.length > 20) {
                 return res
@@ -156,5 +155,59 @@ export const createSong = async (req, res) => {
     } catch (error) {
         console.error("Error creating song: ", error);
         res.status(500).json({ error: "Server error (song post)" });
+    }
+};
+
+export const getSongs = async (req, res) => {
+    const { bandId, status, tags, search, limit = 20, offset = 0 } = req.query;
+
+    // Validate and parse bandId
+    const bandIdInt = parseInt(bandId, 10);
+    if (isNaN(bandIdInt) || bandIdInt <= 0) {
+        return res.status(400).json({
+            error: "A valid bandId is required and must be a positive integer.",
+        });
+    }
+
+    let query = `
+        SELECT s.*, ARRAY(
+            SELECT t.name
+            FROM song_tags st
+            JOIN tags t USING(tag_id)
+            WHERE st.song_id = s.song_id
+        ) AS tags
+         FROM songs s
+         WHERE s.band_id = $1
+    `;
+
+    const params = [bandIdInt];
+
+    if (status) {
+        params.push(status);
+        query += ` AND s.status = $${params.length}`;
+    }
+    if (search) {
+        params.push(`%${search}%`);
+        query += ` AND s.title ILIKE $${params.length}`;
+    }
+    if (tags && tags.length > 0) {
+        params.push(tags);
+        query += ` AND s.song_id IN (
+            SELECT song_id FROM song_tags WHERE tag_id = ANY($${params.length})
+        )`;
+    }
+
+    query += ` ORDER BY s.song_id DESC`;
+
+    params.push(limit);
+    params.push(offset);
+    query += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
+
+    try {
+        const result = await pool.query(query, params);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error("Error fetching songs: ", error);
+        res.status(500).json({ error: "Server error (get songs)" });
     }
 };

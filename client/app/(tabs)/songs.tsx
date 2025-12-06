@@ -45,6 +45,41 @@ const songs = () => {
 
     const [disableSubmitBtn, setDisableSubmitBtn] = useState<boolean>(false);
 
+    const [songs, setSongs] = useState<any[]>([]);
+
+    const fetchSongs = async () => {
+        if (!activeBand?.id || typeof activeBand.id !== "number") {
+            setSongs([]);
+            return;
+        }
+        try {
+            const response = await fetch(
+                `${apiUrl}/api/songs?bandId=${activeBand?.id}`,
+                {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Error fetching songs, status: ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+            setSongs(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error("Error fetching songs:", error);
+            setSongs([]);
+        }
+    };
+    useEffect(() => {
+        fetchSongs();
+    }, [activeBand]);
+
     type NewSongFormValues = {
         title: string;
         bpm: string;
@@ -70,6 +105,19 @@ const songs = () => {
         dateAdded: string;
         description: string;
     }) => {
+        const formatInterval = (interval: any) => {
+            if (!interval || typeof interval !== "object") {
+                return interval || "N/A";
+            }
+            const minutes = interval.minutes || 0;
+            const seconds = interval.seconds || 0;
+            return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+        };
+
+        const formatDate = (dateString: string) => {
+            if (!dateString) return "N/A";
+            return new Date(dateString).toLocaleDateString();
+        };
         return (
             <View className='bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3'>
                 <View
@@ -113,7 +161,7 @@ const songs = () => {
                                     }}
                                     numberOfLines={1}
                                     maxFontSizeMultiplier={1.3}>
-                                    {length}
+                                    {formatInterval(length)}
                                 </Text>
                             </View>
                             <View className='flex-row items-center gap-1'>
@@ -130,7 +178,7 @@ const songs = () => {
                                     }}
                                     numberOfLines={1}
                                     maxFontSizeMultiplier={1.3}>
-                                    {songKey}
+                                    {songKey || "N/A"}
                                 </Text>
                             </View>
                             <View className='flex-row items-center gap-1'>
@@ -147,7 +195,7 @@ const songs = () => {
                                     }}
                                     numberOfLines={1}
                                     maxFontSizeMultiplier={1.3}>
-                                    {dateAdded}
+                                    {formatDate(dateAdded)}
                                 </Text>
                             </View>
                         </View>
@@ -375,11 +423,7 @@ const songs = () => {
                         const minutes = Math.floor((totalSeconds % 3600) / 60);
                         const seconds = totalSeconds % 60;
 
-                        // Format as HH:MM:SS or MM:SS if less than an hour
-                        const durationString =
-                            hours > 0
-                                ? `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
-                                : `${minutes}:${seconds.toString().padStart(2, "0")}`;
+                        const durationString = `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 
                         // Store duration in the file object
                         setFieldValue("file", {
@@ -726,7 +770,19 @@ const songs = () => {
                                     justifyContent: "center",
                                     paddingBottom: 25,
                                 }}>
-                                <SongCard
+                                {Array.isArray(songs) &&
+                                    songs.map((song, idx) => (
+                                        <SongCard
+                                            key={song.song_id || idx}
+                                            songName={song.title}
+                                            status={song.status}
+                                            length={song.length} // This will be the object { minutes, seconds }
+                                            songKey={song.key} // The column name is `key` in the DB
+                                            dateAdded={song.created_at} // The column name is `created_at`
+                                            description={song.notes}
+                                        />
+                                    ))}
+                                {/* <SongCard
                                     songName='Song Name'
                                     status='ready'
                                     dateAdded='dateAdded'
@@ -757,7 +813,7 @@ const songs = () => {
                                     description='desc'
                                     songKey='Am'
                                     length='3:33'
-                                />
+                                /> */}
                             </ScrollView>
                         </>
                     ) : (
