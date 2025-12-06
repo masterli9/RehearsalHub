@@ -19,7 +19,7 @@ import {
     Play,
     SquarePen,
 } from "lucide-react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -38,6 +38,7 @@ const songs = () => {
     const { bands, activeBand, bandsLoading } = useBand();
     const fontSize = useAccessibleFontSize();
     const colorScheme = useColorScheme();
+    const progressAnimationRef = useRef<null | number>(null);
 
     const [activeTab, setActiveTab] = useState<string>("Songs");
     const [newSongModalVisible, setNewSongModalVisible] =
@@ -46,6 +47,15 @@ const songs = () => {
     const [disableSubmitBtn, setDisableSubmitBtn] = useState<boolean>(false);
 
     const [songs, setSongs] = useState<any[]>([]);
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+    const [isUploading, setIsUploading] = useState<boolean>(false);
+
+    const stopProgressAnimation = () => {
+        if (progressAnimationRef.current) {
+            clearInterval(progressAnimationRef.current);
+            progressAnimationRef.current = null;
+        }
+    };
 
     const fetchSongs = async () => {
         if (!activeBand?.id || typeof activeBand.id !== "number") {
@@ -79,6 +89,12 @@ const songs = () => {
     useEffect(() => {
         fetchSongs();
     }, [activeBand]);
+
+    useEffect(() => {
+        return () => {
+            stopProgressAnimation();
+        };
+    }, []);
 
     type NewSongFormValues = {
         title: string;
@@ -225,13 +241,15 @@ const songs = () => {
                         </Pressable>
                     </View>
                 </View>
-                <Text
-                    className='text-silverText my-2'
-                    style={{ fontSize: fontSize.base }}
-                    numberOfLines={3}
-                    maxFontSizeMultiplier={1.3}>
-                    {description}
-                </Text>
+                {description && (
+                    <Text
+                        className='text-silverText my-2'
+                        style={{ fontSize: fontSize.base }}
+                        numberOfLines={3}
+                        maxFontSizeMultiplier={1.3}>
+                        {description}
+                    </Text>
+                )}
             </View>
         );
     };
@@ -333,13 +351,13 @@ const songs = () => {
         filename,
         contentType,
         bandId,
-        songMetadata,
+        onProgress,
     }: {
         localUri: string;
         filename: string;
         contentType: string;
         bandId: string;
-        songMetadata: any;
+        onProgress: (progress: number) => void;
     }) {
         const createResp = await fetch(`${apiUrl}/api/songs/upload-url`, {
             method: "POST",
@@ -356,43 +374,42 @@ const songs = () => {
         const fileResp = await fetch(localUri);
         const blob = await fileResp.blob();
 
-        const putResp = await fetch(uploadUrl, {
-            method: "PUT",
-            headers: { "Content-Type": contentType },
-            body: blob,
+        // Use XMLHttpRequest to track upload progress
+        const putResp = await new Promise<XMLHttpRequest>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("PUT", uploadUrl);
+            xhr.setRequestHeader("Content-Type", contentType);
+
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentCompleted = Math.round(
+                        (event.loaded * 100) / event.total
+                    );
+                    // The file upload is ~95% of the process
+                    // Clamp percentCompleted at 100 to prevent it from going over
+                    onProgress(
+                        Math.floor(Math.min(percentCompleted, 100) * 0.95)
+                    );
+                }
+            };
+
+            xhr.onload = () => {
+                // File upload is complete, now we save metadata.
+                onProgress(95);
+                resolve(xhr);
+            };
+            xhr.onerror = () => reject(new Error("Upload to storage failed"));
+            xhr.onabort = () => reject(new Error("Upload aborted"));
+
+            xhr.send(blob);
         });
 
-        if (!putResp.ok) {
+        if (putResp.status < 200 || putResp.status >= 300) {
             throw new Error("Upload to storage failed");
         }
 
-        const songResp = await fetch(`${apiUrl}/api/songs/create`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                title: songMetadata.title,
-                bandId: String(bandId).trim(),
-                cloudurl: publicUrl,
-                length: songMetadata.length || null,
-                bpm:
-                    songMetadata.bpm !== null && songMetadata.bpm !== undefined
-                        ? Number(songMetadata.bpm)
-                        : null,
-                notes: songMetadata.notes || null,
-                songKey: songMetadata.songKey || null,
-                status: songMetadata.status || null,
-            }),
-        });
-
-        if (!songResp.ok) {
-            const err = await songResp.json().catch(() => ({}));
-            // možná chceš rollback (smazat soubor) — zvaž to
-            throw new Error(err.error || "Saving song failed");
-        } else {
-            console.log("ok");
-        }
-
-        return await songResp.json();
+        // Return the public URL for the next step (saving metadata)
+        return { publicUrl };
     }
 
     const onPickBtnPress = async (
@@ -453,9 +470,13 @@ const songs = () => {
     const closeModalAndReset = () => {
         setNewSongModalVisible(false);
         setOpenKey(false);
+        setUploadProgress(null);
+        setIsUploading(false);
+        setDisableSubmitBtn(false);
         setOpenStatus(false);
         setValueKey(null);
         setValueStatus(null);
+        stopProgressAnimation();
     };
 
     return (
@@ -463,6 +484,7 @@ const songs = () => {
             <StyledModal
                 visible={newSongModalVisible}
                 onClose={closeModalAndReset}
+                canClose={!isUploading}
                 title='Create a song'
                 subtitle="Add a new song to your band's repertoire and choose its tags and status">
                 <Formik<NewSongFormValues>
@@ -490,7 +512,8 @@ const songs = () => {
                                 return;
                             }
 
-                            setDisableSubmitBtn(true);
+                            setIsUploading(true);
+                            setUploadProgress(0);
 
                             const bandId = activeBand?.id || "";
                             const localUri = values.file.uri;
@@ -514,31 +537,79 @@ const songs = () => {
                                 }
                             }
 
-                            await uploadFileToSignedUrl({
+                            // STEP 1: Upload file to cloud storage
+                            const { publicUrl } = await uploadFileToSignedUrl({
                                 localUri,
                                 filename: filename.trim(),
                                 contentType,
                                 bandId: bandId,
-                                songMetadata: {
-                                    title: values.title.trim(),
-                                    notes: values.description?.trim() || null,
-                                    length:
-                                        values.file.duration ||
-                                        values.length ||
-                                        null,
-                                    status: values.status.trim(),
-                                    songKey: values.songKey.trim(),
-                                    bpm: bpmValue,
-                                },
+                                onProgress: setUploadProgress,
                             });
 
-                            // Only close modal on success
+                            // File upload is done (95%). Start "finalizing" animation.
+                            progressAnimationRef.current = setInterval(() => {
+                                setUploadProgress((prev) => {
+                                    if (prev === null || prev >= 99) {
+                                        stopProgressAnimation();
+                                        return 99; // Cap at 99
+                                    }
+                                    return prev + 1;
+                                });
+                            }, 800);
+
+                            // STEP 2: Save metadata to the database
+                            const songResp = await fetch(
+                                `${apiUrl}/api/songs/create`,
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                        title: values.title.trim(),
+                                        bandId: String(bandId).trim(),
+                                        cloudurl: publicUrl,
+                                        length:
+                                            values.file.duration ||
+                                            values.length ||
+                                            null,
+                                        bpm: bpmValue,
+                                        notes:
+                                            values.description?.trim() || null,
+                                        songKey: values.songKey.trim(),
+                                        status: values.status.trim(),
+                                    }),
+                                }
+                            );
+
+                            stopProgressAnimation();
+
+                            if (!songResp.ok) {
+                                const err = await songResp
+                                    .json()
+                                    .catch(() => ({}));
+                                throw new Error(
+                                    err.error || "Saving song metadata failed"
+                                );
+                            }
+
+                            setUploadProgress(100);
+
+                            // Add a small delay so the user can see the 100% complete state
+                            await new Promise((resolve) =>
+                                setTimeout(resolve, 500)
+                            );
+
                             closeModalAndReset();
+                            fetchSongs(); // Refresh songs list
                         } catch (err) {
                             console.error(err);
                             Alert.alert("Error", "failed to upload file");
+                            setUploadProgress(null);
                             // Keep modal open on error so user can retry
                         } finally {
+                            stopProgressAnimation();
+                            setIsUploading(false);
                             setSubmitting(false);
                         }
                     }}
@@ -575,6 +646,7 @@ const songs = () => {
                                     value={values.bpm}
                                     onChangeText={handleChange("bpm")}
                                     onBlur={handleBlur("bpm")}
+                                    keyboardType='numeric'
                                 />
                                 {touched.bpm && errors.bpm && (
                                     <View className='w-full flex-row justify-center'>
@@ -608,18 +680,6 @@ const songs = () => {
                                         <ErrorText>{errors.status}</ErrorText>
                                     </View>
                                 )}
-                                {/* <StyledTextInput
-                                    placeholder='Length'
-                                    variant='rounded'
-                                    value={values.length}
-                                    onChangeText={handleChange("length")}
-                                    onBlur={handleBlur("length")}
-                                />
-                                {touched.length && errors.length && (
-                                    <View className='w-full flex-row justify-center'>
-                                        <ErrorText>{errors.length}</ErrorText>
-                                    </View>
-                                )} */}
                                 <StyledDropdown
                                     open={openKey}
                                     value={valueKey}
@@ -687,20 +747,34 @@ const songs = () => {
                                     </View>
                                 )}
                             </View>
-                            <StyledButton
-                                title='Create Song'
-                                onPress={() => {
-                                    handleSubmit();
-                                }}
-                                disabled={disableSubmitBtn}
-                            />
-                            {disableSubmitBtn && (
-                                <View className='w-full flex-row justify-center'>
-                                    <ActivityIndicator
-                                        size='small'
-                                        color='#2B7FFF'
-                                    />
+                            {isUploading ? (
+                                <View className='w-full items-center my-2'>
+                                    <Text
+                                        className='text-silverText mb-2'
+                                        style={{ fontSize: fontSize.base }}>
+                                        Uploading... {uploadProgress ?? 0}%
+                                    </Text>
+                                    <View className='w-full h-2 bg-accent-light dark:bg-accent-dark rounded-full'>
+                                        <View
+                                            style={{
+                                                width: `${uploadProgress ?? 0}%`,
+                                            }}
+                                            className='h-2 bg-blue rounded-full'
+                                        />
+                                    </View>
+                                    <View className='w-full flex-row justify-center mt-2'>
+                                        <Text className='text-silverText text-center'>
+                                            Please keep the app open while the
+                                            song is uploading.
+                                        </Text>
+                                    </View>
                                 </View>
+                            ) : (
+                                <StyledButton
+                                    title='Create Song'
+                                    onPress={() => handleSubmit()}
+                                    disabled={isUploading}
+                                />
                             )}
                         </>
                     )}
@@ -767,7 +841,7 @@ const songs = () => {
                                 className='flex-col px-3 py-4 w-full'
                                 contentContainerStyle={{
                                     alignItems: "center",
-                                    justifyContent: "center",
+                                    justifyContent: "flex-start",
                                     paddingBottom: 25,
                                 }}>
                                 {Array.isArray(songs) &&
@@ -782,38 +856,15 @@ const songs = () => {
                                             description={song.notes}
                                         />
                                     ))}
-                                {/* <SongCard
-                                    songName='Song Name'
-                                    status='ready'
-                                    dateAdded='dateAdded'
-                                    description='This is a very long description that will test the expansitivity of the song card and also its legibility'
-                                    songKey='Am'
-                                    length='3:33'
-                                />
-                                <SongCard
-                                    songName='Song Name'
-                                    status='finished'
-                                    dateAdded='dateAdded'
-                                    description='desc'
-                                    songKey='Am'
-                                    length='3:33'
-                                />
-                                <SongCard
-                                    songName='Song Name'
-                                    status='draft'
-                                    dateAdded='dateAdded'
-                                    description='desc'
-                                    songKey='Am'
-                                    length='3:33'
-                                />
-                                <SongCard
-                                    songName='Song Name'
-                                    status='ready'
-                                    dateAdded='dateAdded'
-                                    description='desc'
-                                    songKey='Am'
-                                    length='3:33'
-                                /> */}
+                                {songs.length === 0 && (
+                                    <View className='flex-1 w-full justify-center items-center'>
+                                        <Text
+                                            className='text-silverText'
+                                            style={{ fontSize: fontSize.base }}>
+                                            No songs found.
+                                        </Text>
+                                    </View>
+                                )}
                             </ScrollView>
                         </>
                     ) : (
