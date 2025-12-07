@@ -38,6 +38,13 @@ import {
 import * as yup from "yup";
 import * as DocumentPicker from "expo-document-picker";
 import { createAudioPlayer } from "expo-audio";
+import {
+    Menu,
+    MenuOptions,
+    MenuOption,
+    MenuTrigger,
+    renderers,
+} from "react-native-popup-menu";
 
 const songs = () => {
     const { user } = useAuth();
@@ -57,6 +64,7 @@ const songs = () => {
     const [isUploading, setIsUploading] = useState<boolean>(false);
 
     // filter states
+    const [sort, setSort] = useState("date_desc");
     const [filtersVisible, setFiltersVisible] = useState<boolean>(false);
     const [readyStatusSelected, setReadyStatusSelected] =
         useState<boolean>(true);
@@ -133,7 +141,15 @@ const songs = () => {
             }
 
             const data = await response.json();
-            setSongs(Array.isArray(data) ? data : []);
+            if (Array.isArray(data) && sort === "date_desc") {
+                setSongs(data);
+            } else if (Array.isArray(data) && sort === "date_asc") {
+                setSongs(data.reverse());
+            } else if (Array.isArray(data) && sort === "alphabetical_desc") {
+                setSongs(data.sort((a, b) => a.title.localeCompare(b.title))); // A -> Z
+            } else if (Array.isArray(data) && sort === "alphabetical_asc") {
+                setSongs(data.sort((a, b) => b.title.localeCompare(a.title))); // Z -> A
+            }
         } catch (error) {
             console.error("Error fetching songs:", error);
             setSongs([]);
@@ -1043,15 +1059,106 @@ const songs = () => {
                                             }}
                                         />
                                     </Pressable>
-                                    <Pressable>
-                                        <ArrowUpDown
-                                            size={Math.min(fontSize["3xl"], 20)}
-                                            style={{
-                                                marginRight: 2,
-                                                marginBottom: -2,
-                                            }}
-                                        />
-                                    </Pressable>
+                                    <Menu>
+                                        <MenuTrigger>
+                                            <ArrowUpDown
+                                                size={Math.min(
+                                                    fontSize["3xl"],
+                                                    20
+                                                )}
+                                                style={{
+                                                    marginRight: 2,
+                                                    marginBottom: -2,
+                                                }}
+                                            />
+                                        </MenuTrigger>
+                                        <MenuOptions
+                                            customStyles={{
+                                                optionsContainer: {
+                                                    borderRadius: 10,
+                                                    marginTop: 20,
+                                                    backgroundColor:
+                                                        colorScheme === "dark"
+                                                            ? "#333"
+                                                            : "#fff",
+                                                },
+                                            }}>
+                                            <MenuOption
+                                                onSelect={() => {
+                                                    setSort(
+                                                        "alphabetical_desc"
+                                                    );
+                                                    runFilterAndSearch();
+                                                }}
+                                                text='Alphabetical A-Z'
+                                                customStyles={{
+                                                    optionText: {
+                                                        color:
+                                                            colorScheme ===
+                                                            "dark"
+                                                                ? "#fff"
+                                                                : "#333",
+                                                        paddingVertical: 8,
+                                                        fontSize: fontSize.base,
+                                                    },
+                                                }}
+                                            />
+                                            <MenuOption
+                                                onSelect={() => {
+                                                    setSort("alphabetical_asc");
+                                                    runFilterAndSearch();
+                                                }}
+                                                text='Alphabetical Z-A'
+                                                customStyles={{
+                                                    optionText: {
+                                                        color:
+                                                            colorScheme ===
+                                                            "dark"
+                                                                ? "#fff"
+                                                                : "#333",
+                                                        paddingVertical: 8,
+                                                        fontSize: fontSize.base,
+                                                    },
+                                                }}
+                                            />
+                                            <MenuOption
+                                                onSelect={() => {
+                                                    setSort("date_desc");
+                                                    runFilterAndSearch();
+                                                }}
+                                                text='Date added: latest to oldest'
+                                                customStyles={{
+                                                    optionText: {
+                                                        color:
+                                                            colorScheme ===
+                                                            "dark"
+                                                                ? "#fff"
+                                                                : "#333",
+                                                        paddingVertical: 8,
+                                                        fontSize: fontSize.base,
+                                                    },
+                                                }}
+                                            />
+                                            <MenuOption
+                                                onSelect={() => {
+                                                    setSort("date_asc");
+                                                    runFilterAndSearch();
+                                                }}
+                                                text='Date added: oldest to latest'
+                                                customStyles={{
+                                                    optionText: {
+                                                        color:
+                                                            colorScheme ===
+                                                            "dark"
+                                                                ? "#fff"
+                                                                : "#333",
+                                                        paddingVertical: 8,
+                                                        fontSize: fontSize.base,
+                                                    },
+                                                }}
+                                            />
+                                        </MenuOptions>
+                                    </Menu>
                                     <Pressable
                                         onPress={() => {
                                             setFiltersVisible(true);
