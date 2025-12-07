@@ -890,7 +890,9 @@ const songs = () => {
                             </Pressable>
                         </View>
                         <View className='flex-row items-center gap-2 mb-4'>
-                            <Text style={{ fontSize: fontSize.xl }}>
+                            <Text
+                                className='text-black dark:text-white'
+                                style={{ fontSize: fontSize.xl }}>
                                 Status:
                             </Text>
                             <Pressable
@@ -905,6 +907,7 @@ const songs = () => {
                                         : "bg-transparent border-gray-400"
                                 }`}>
                                 <Text
+                                    className='text-black dark:text-white'
                                     style={{ fontSize: fontSize.base }}
                                     maxFontSizeMultiplier={1.3}>
                                     ready
@@ -922,6 +925,7 @@ const songs = () => {
                                         : "bg-transparent border-gray-400"
                                 }`}>
                                 <Text
+                                    className='text-black dark:text-white'
                                     style={{ fontSize: fontSize.base }}
                                     maxFontSizeMultiplier={1.3}>
                                     finished
@@ -939,6 +943,7 @@ const songs = () => {
                                         : "bg-transparent border-gray-400"
                                 }`}>
                                 <Text
+                                    className='text-black dark:text-white'
                                     style={{ fontSize: fontSize.base }}
                                     maxFontSizeMultiplier={1.3}>
                                     draft
@@ -946,10 +951,16 @@ const songs = () => {
                             </Pressable>
                         </View>
                         <View>
-                            <Text style={{ fontSize: fontSize.xl }}>Tags</Text>
+                            <Text
+                                className='text-black dark:text-white'
+                                style={{ fontSize: fontSize.xl }}>
+                                Tags
+                            </Text>
                         </View>
                         <View>
-                            <Text style={{ fontSize: fontSize.xl }}>
+                            <Text
+                                className='text-black dark:text-white'
+                                style={{ fontSize: fontSize.xl }}>
                                 Additional
                             </Text>
                             {/* <StyledDropdown
@@ -965,8 +976,10 @@ const songs = () => {
                             /> */}
                         </View>
                         <View className='flex-row gap-2 w-full'>
-                            <Pressable className='font-regular rounded rounded-xl bg-accent-light dark:bg-accent-dark p-2 flex-1 items-center justify-center'>
-                                <Text style={{ fontSize: fontSize.xl }}>
+                            <Pressable className='font-regular rounded rounded-xl bg-darkOrange p-2 flex-1 items-center justify-center'>
+                                <Text
+                                    className='text-black'
+                                    style={{ fontSize: fontSize.xl }}>
                                     Reset
                                 </Text>
                             </Pressable>
@@ -1057,6 +1070,11 @@ const songs = () => {
                                                 marginRight: 2,
                                                 marginBottom: -2,
                                             }}
+                                            color={
+                                                colorScheme === "dark"
+                                                    ? "#fff"
+                                                    : "#000"
+                                            }
                                         />
                                     </Pressable>
                                     <Menu>
@@ -1070,6 +1088,11 @@ const songs = () => {
                                                     marginRight: 2,
                                                     marginBottom: -2,
                                                 }}
+                                                color={
+                                                    colorScheme === "dark"
+                                                        ? "#fff"
+                                                        : "#000"
+                                                }
                                             />
                                         </MenuTrigger>
                                         <MenuOptions
@@ -1100,6 +1123,7 @@ const songs = () => {
                                                                 : "#333",
                                                         paddingVertical: 8,
                                                         fontSize: fontSize.base,
+                                                        width: "100%",
                                                     },
                                                 }}
                                             />
@@ -1118,6 +1142,7 @@ const songs = () => {
                                                                 : "#333",
                                                         paddingVertical: 8,
                                                         fontSize: fontSize.base,
+                                                        width: "100%", // TODO: fix length of option
                                                     },
                                                 }}
                                             />
@@ -1169,6 +1194,11 @@ const songs = () => {
                                                 marginRight: 2,
                                                 marginBottom: -2,
                                             }}
+                                            color={
+                                                colorScheme === "dark"
+                                                    ? "#fff"
+                                                    : "#000"
+                                            }
                                         />
                                     </Pressable>
                                 </View>
