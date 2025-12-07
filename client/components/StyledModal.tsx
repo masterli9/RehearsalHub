@@ -17,7 +17,7 @@ const StyledModal: React.FC<StyledModalProps> = ({
     title,
     subtitle,
     children,
-    canClose,
+    canClose = true,
 }) => {
     const fontSize = useAccessibleFontSize();
     return (

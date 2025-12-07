@@ -184,7 +184,11 @@ export const getSongs = async (req, res) => {
 
     if (status) {
         params.push(status);
-        query += ` AND s.status = $${params.length}`;
+        if (Array.isArray(status)) {
+            query += ` AND s.status = ANY($${params.length})`;
+        } else {
+            query += ` AND s.status = $${params.length}`;
+        }
     }
     if (search) {
         params.push(`%${search}%`);

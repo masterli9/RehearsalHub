@@ -18,6 +18,11 @@ import {
     Hash,
     Play,
     SquarePen,
+    ArrowUpDown,
+    DiscAlbum,
+    ListMusic,
+    SlidersHorizontal,
+    X,
 } from "lucide-react-native";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -28,6 +33,7 @@ import {
     useColorScheme,
     View,
     Alert,
+    Modal,
 } from "react-native";
 import * as yup from "yup";
 import * as DocumentPicker from "expo-document-picker";
@@ -50,6 +56,32 @@ const songs = () => {
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [isUploading, setIsUploading] = useState<boolean>(false);
 
+    // filter states
+    const [filtersVisible, setFiltersVisible] = useState<boolean>(false);
+    const [readyStatusSelected, setReadyStatusSelected] =
+        useState<boolean>(true);
+    const [draftStatusSelected, setDraftStatusSelected] =
+        useState<boolean>(true);
+    const [finishedStatusSelected, setFinishedStatusSelected] =
+        useState<boolean>(true);
+
+    const [searchText, setSearchText] = useState("");
+
+    const runFilterAndSearch = () => {
+        const statuses = [
+            readyStatusSelected ? "ready" : null,
+            finishedStatusSelected ? "finished" : null,
+            draftStatusSelected ? "draft" : null,
+        ].filter(Boolean) as string[];
+
+        fetchSongs({ status: statuses, search: searchText });
+    };
+
+    const handleApplyFilters = () => {
+        runFilterAndSearch();
+        closeFiltersModal();
+    };
+
     const stopProgressAnimation = () => {
         if (progressAnimationRef.current) {
             clearInterval(progressAnimationRef.current);
@@ -57,21 +89,42 @@ const songs = () => {
         }
     };
 
-    const fetchSongs = async () => {
-        if (!activeBand?.id || typeof activeBand.id !== "number") {
+    const fetchSongs = async (params?: {
+        status?: string[];
+        tags?: string;
+        search?: string;
+    }) => {
+        if (!activeBand?.id) {
             setSongs([]);
             return;
         }
         try {
-            const response = await fetch(
-                `${apiUrl}/api/songs?bandId=${activeBand?.id}`,
-                {
-                    method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+            let query = `${apiUrl}/api/songs?bandId=${activeBand.id}`;
+
+            if (params) {
+                if (
+                    params.status &&
+                    Array.isArray(params.status) &&
+                    params.status.length > 0
+                ) {
+                    for (const s of params.status) {
+                        query += `&status=${encodeURIComponent(s)}`;
+                    }
                 }
-            );
+                if (params.tags) {
+                    query += `&tags=${encodeURIComponent(params.tags)}`;
+                }
+                if (params.search) {
+                    query += `&search=${encodeURIComponent(params.search)}`;
+                }
+            }
+
+            const response = await fetch(query, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
 
             if (!response.ok) {
                 throw new Error(
@@ -86,9 +139,14 @@ const songs = () => {
             setSongs([]);
         }
     };
+
     useEffect(() => {
-        fetchSongs();
-    }, [activeBand]);
+        // When the active band changes, fetch all songs for that band.
+        // Filtering is applied manually via the search and filter controls.
+        if (activeBand?.id) {
+            fetchSongs();
+        }
+    }, [activeBand?.id]);
 
     useEffect(() => {
         return () => {
@@ -479,6 +537,10 @@ const songs = () => {
         stopProgressAnimation();
     };
 
+    const closeFiltersModal = () => {
+        setFiltersVisible(false);
+    };
+
     return (
         <PageContainer noBandState={!bandsLoading && bands.length === 0}>
             <StyledModal
@@ -780,6 +842,131 @@ const songs = () => {
                     )}
                 </Formik>
             </StyledModal>
+            {filtersVisible && (
+                <View className='absolute top-0 left-0 right-0 bottom-0 bg-black/20 w-full flex-1 z-10'></View>
+            )}
+            <Modal
+                visible={filtersVisible}
+                animationType='slide'
+                transparent
+                onRequestClose={closeFiltersModal}>
+                <Pressable
+                    onPress={closeFiltersModal}
+                    className='flex-1 justify-end'>
+                    <Pressable
+                        onPress={(e) => e.stopPropagation()}
+                        className='bg-boxBackground-light dark:bg-boxBackground-dark border-t border-accent-light dark:border-accent-dark rounded-t-3xl p-6'>
+                        <View className='flex-row items-center justify-between mb-4'>
+                            <Text
+                                className='font-bold dark:text-white'
+                                style={{ fontSize: fontSize.xl }}>
+                                Filters
+                            </Text>
+                            <Pressable
+                                onPress={closeFiltersModal}
+                                className='p-2 rounded-full bg-accent-light dark:bg-accent-dark active:opacity-70'>
+                                <X
+                                    size={20}
+                                    color={
+                                        colorScheme === "dark" ? "#fff" : "#000"
+                                    }
+                                />
+                            </Pressable>
+                        </View>
+                        <View className='flex-row items-center gap-2 mb-4'>
+                            <Text style={{ fontSize: fontSize.xl }}>
+                                Status:
+                            </Text>
+                            <Pressable
+                                onPress={() => {
+                                    setReadyStatusSelected(
+                                        !readyStatusSelected
+                                    );
+                                }}
+                                className={`px-2 py-1 rounded-m border ${
+                                    readyStatusSelected
+                                        ? "bg-transparentGreen border-green"
+                                        : "bg-transparent border-gray-400"
+                                }`}>
+                                <Text
+                                    style={{ fontSize: fontSize.base }}
+                                    maxFontSizeMultiplier={1.3}>
+                                    ready
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={() => {
+                                    setFinishedStatusSelected(
+                                        !finishedStatusSelected
+                                    );
+                                }}
+                                className={`px-2 py-1 rounded-m border ${
+                                    finishedStatusSelected
+                                        ? "bg-transparentGreen border-green"
+                                        : "bg-transparent border-gray-400"
+                                }`}>
+                                <Text
+                                    style={{ fontSize: fontSize.base }}
+                                    maxFontSizeMultiplier={1.3}>
+                                    finished
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={() => {
+                                    setDraftStatusSelected(
+                                        !draftStatusSelected
+                                    );
+                                }}
+                                className={`px-2 py-1 rounded-m border ${
+                                    draftStatusSelected
+                                        ? "bg-transparentGreen border-green"
+                                        : "bg-transparent border-gray-400"
+                                }`}>
+                                <Text
+                                    style={{ fontSize: fontSize.base }}
+                                    maxFontSizeMultiplier={1.3}>
+                                    draft
+                                </Text>
+                            </Pressable>
+                        </View>
+                        <View>
+                            <Text style={{ fontSize: fontSize.xl }}>Tags</Text>
+                        </View>
+                        <View>
+                            <Text style={{ fontSize: fontSize.xl }}>
+                                Additional
+                            </Text>
+                            {/* <StyledDropdown
+                                open={openKey}
+                                value={valueKey}
+                                items={itemsKey}
+                                setOpen={setOpenKey}
+                                setValue={setValueKey}
+                                setItems={setItemsKey}
+                                placeholder='Choose key'
+                                zIndex={2000}
+                                zIndexInverse={2000}
+                            /> */}
+                        </View>
+                        <View className='flex-row gap-2 w-full'>
+                            <Pressable className='font-regular rounded rounded-xl bg-accent-light dark:bg-accent-dark p-2 flex-1 items-center justify-center'>
+                                <Text style={{ fontSize: fontSize.xl }}>
+                                    Reset
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={handleApplyFilters}
+                                className='font-regular rounded rounded-xl bg-blue dark:bg-blue p-2 flex-1 items-center justify-center'>
+                                <Text
+                                    className='text-white'
+                                    style={{ fontSize: fontSize.xl }}>
+                                    Apply filters
+                                </Text>
+                            </Pressable>
+                        </View>
+                    </Pressable>
+                </Pressable>
+            </Modal>
             {bandsLoading ? (
                 <View className='flex-1 w-full justify-center items-center'>
                     <ActivityIndicator size='large' color='#2B7FFF' />
@@ -821,7 +1008,14 @@ const songs = () => {
                                     <Text
                                         className='text-silverText'
                                         style={{ fontSize: fontSize.base }}>
-                                        4 songs • 2 ready
+                                        {songs.length} songs •{" "}
+                                        {
+                                            songs.filter(
+                                                (song) =>
+                                                    song.status === "finished"
+                                            ).length
+                                        }{" "}
+                                        finished
                                     </Text>
                                     <StyledButton
                                         onPress={() =>
@@ -830,11 +1024,46 @@ const songs = () => {
                                         title='+  New Song'
                                     />
                                 </View>
-                                <View className='flex-row justify-between items-center w-full'>
-                                    <StyledTextInput
-                                        placeholder='Search songs'
-                                        variant='rounded'
-                                    />
+                                <View className='flex-row items-center w-full gap-3'>
+                                    <View style={{ flex: 1 }}>
+                                        <StyledTextInput
+                                            placeholder='Search songs'
+                                            variant='rounded'
+                                            value={searchText}
+                                            onChangeText={setSearchText}
+                                            onSubmitEditing={runFilterAndSearch}
+                                        />
+                                    </View>
+                                    <Pressable>
+                                        <ListMusic
+                                            size={Math.min(fontSize["3xl"], 20)}
+                                            style={{
+                                                marginRight: 2,
+                                                marginBottom: -2,
+                                            }}
+                                        />
+                                    </Pressable>
+                                    <Pressable>
+                                        <ArrowUpDown
+                                            size={Math.min(fontSize["3xl"], 20)}
+                                            style={{
+                                                marginRight: 2,
+                                                marginBottom: -2,
+                                            }}
+                                        />
+                                    </Pressable>
+                                    <Pressable
+                                        onPress={() => {
+                                            setFiltersVisible(true);
+                                        }}>
+                                        <SlidersHorizontal
+                                            size={Math.min(fontSize["3xl"], 20)}
+                                            style={{
+                                                marginRight: 2,
+                                                marginBottom: -2,
+                                            }}
+                                        />
+                                    </Pressable>
                                 </View>
                             </View>
                             <ScrollView
