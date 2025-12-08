@@ -5,7 +5,7 @@ import {
     signInWithEmailAndPassword,
     updateProfile,
     signOut,
-    User,
+    User as FirebaseUser,
     sendEmailVerification,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -13,8 +13,16 @@ import apiUrl from "@/config";
 import { Alert } from "react-native";
 import { router } from "expo-router";
 
+export type AppUser = {
+    uid: string;
+    email: string | null;
+    username: string | null;
+    photoURL: string | null;
+    emailVerified: boolean;
+};
+
 type AuthContextType = {
-    user: User | null;
+    user: AppUser | null;
     loading: boolean;
     idToken: string | null;
     setIdToken: (idToken: string | null) => void;
@@ -25,7 +33,7 @@ type AuthContextType = {
     ) => Promise<void>;
     login: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
-    googleSignIn: (firebaseUser?: User) => Promise<void>;
+    googleSignIn: (firebaseUser?: FirebaseUser) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -37,33 +45,71 @@ export const useAuth = () => {
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<AppUser | null>(null);
     const [idToken, setIdToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-            // if (firebaseUser) {
-            //     await firebaseUser.reload();
-            //     if (!firebaseUser.emailVerified) {
-            //         router.replace("/(auth)/verifyEmail");
-            //     }
-            // }
-            setUser(firebaseUser);
-            setLoading(false);
-            const idToken = await auth.currentUser?.getIdToken();
-            setIdToken(idToken ?? null);
-            // If user signed in with Google (has photoURL and providerData), register them
-            if (
-                firebaseUser &&
-                firebaseUser.photoURL &&
-                firebaseUser.providerData.some(
-                    (provider) => provider.providerId === "google.com"
-                )
-            ) {
-                console.log("Google user detected, registering in database...");
-                await googleSignIn(firebaseUser);
+            if (firebaseUser) {
+                try {
+                    // Fetch our custom user data from the backend
+                    const response = await fetch(
+                        `${apiUrl}/api/users/uid/${firebaseUser.uid}`
+                    );
+                    if (response.ok) {
+                        const dbUser = await response.json();
+                        setUser({
+                            uid: firebaseUser.uid,
+                            email: firebaseUser.email,
+                            username: dbUser.username,
+                            photoURL: dbUser.photourl,
+                            emailVerified: firebaseUser.emailVerified,
+                        });
+                    } else if (response.status === 404) {
+                        // User not in our DB, could be a new Google sign-in
+                        if (
+                            firebaseUser.providerData.some(
+                                (p) => p.providerId === "google.com"
+                            )
+                        ) {
+                            await googleSignIn(firebaseUser); // This will now throw on failure
+                        } else {
+                            // Or a new email/pass registration in progress.
+                            // For now, set a temporary user object. `register` will create the DB entry.
+                            setUser({
+                                uid: firebaseUser.uid,
+                                email: firebaseUser.email,
+                                username: firebaseUser.displayName,
+                                photoURL: firebaseUser.photoURL,
+                                emailVerified: firebaseUser.emailVerified,
+                            });
+                        }
+                    } else {
+                        console.error("Failed to fetch user data.");
+                        // Throw to be caught by the outer catch, which will sign out.
+                        throw new Error(
+                            "Server error while fetching user data"
+                        );
+                    }
+
+                    // If we successfully got or created the user, set the token.
+                    const token = await firebaseUser.getIdToken();
+                    setIdToken(token);
+                } catch (error) {
+                    console.error(
+                        "Error during auth state processing, signing out:",
+                        error
+                    );
+                    await signOut(auth);
+                    setUser(null);
+                    setIdToken(null);
+                }
+            } else {
+                setUser(null);
+                setIdToken(null);
             }
+            setLoading(false);
         });
         return () => unsub();
     }, []);
@@ -102,6 +148,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else {
                 throw new Error("REGISTRATION_FAILED");
             }
+        } else {
+            // After successful registration, update the user in context with DB data
+            const dbUser = await response.json();
+            setUser({
+                uid: cred.user.uid,
+                email: cred.user.email,
+                username: dbUser.username,
+                photoURL: dbUser.photourl,
+                emailVerified: cred.user.emailVerified,
+            });
         }
     };
     const login = async (email: string, password: string) => {
@@ -123,8 +179,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
         }
     };
-    const googleSignIn = async (firebaseUser?: User) => {
-        const userToUse = firebaseUser || user;
+    const googleSignIn = async (firebaseUser?: FirebaseUser) => {
+        const userToUse = firebaseUser || auth.currentUser;
         if (!userToUse) {
             console.log("No user found, skipping database registration");
             return;
@@ -157,11 +213,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 );
             }
 
-            const result = await response.json();
-            console.log("Google user registered successfully:", result);
+            const dbUser = await response.json();
+            console.log("Google user registered/fetched successfully:", dbUser);
+            // Update user state with combined data
+            setUser({
+                uid: userToUse.uid,
+                email: userToUse.email,
+                username: dbUser.username,
+                photoURL: dbUser.photourl,
+                emailVerified: userToUse.emailVerified,
+            });
         } catch (error) {
             console.error("Error registering Google user: ", error);
-            // Don't throw the error to prevent breaking the auth flow
+            // Re-throw to allow the caller (onAuthStateChanged) to handle the failure.
+            throw error;
         }
     };
 

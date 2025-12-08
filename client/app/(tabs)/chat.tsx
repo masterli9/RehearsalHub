@@ -398,7 +398,7 @@ const chat = () => {
                         bandId: activeBand.id,
                         author: {
                             bandMemberId: -1,
-                            username: user?.displayName ?? "You",
+                            username: user?.username ?? "You",
                             photourl: null,
                         },
                     },
@@ -522,8 +522,7 @@ const chat = () => {
         clientId?: string;
         messageId?: number;
     }) => {
-        const position =
-            authorUsername === user?.displayName ? "right" : "left";
+        const position = authorUsername === user?.username ? "right" : "left";
         const colorScheme = useColorScheme();
         const messageIndex = messages.findIndex((m) => m.id === messageId);
         const currMsg = messages[messageIndex];
@@ -561,7 +560,7 @@ const chat = () => {
                 )}
                 <View
                     className={`bg-darkWhite dark:bg-accent-dark ${position === "right" && "bg-violet dark:bg-violet"} p-3 rounded-2xl ${(() => {
-                        const isMe = authorUsername === user?.displayName;
+                        const isMe = authorUsername === user?.username;
 
                         if (isMe) {
                             if (prevSameUserAndDay && nextSameUserAndDay) {
