@@ -90,40 +90,55 @@ const profile = () => {
                         </Text>
                     </Pressable>
                 </View>
-                <View>
-                    <Text className='font-bold text-black dark:text-white'>
+                <View className='w-full mt-4'>
+                    <Text
+                        className='font-bold text-black dark:text-white mb-3'
+                        style={{ fontSize: fontSize.xl }}>
                         Appearance
                     </Text>
-                </View>
-                <View>
-                    <Text className='font-bold text-black dark:text-white'>
-                        Switch bands
-                    </Text>
-                    <View className='flex-row'>
-                        {options.map((opt) => (
-                            <Pressable
-                                key={opt.value}
-                                onPress={() => setThemePreference(opt.value)}
-                                className={`flex-1 py-2 rounded-lg items-center justify-center ${
-                                    themePreference === opt.value
-                                        ? "bg-accent-light dark:bg-accent-dark"
-                                        : "bg-transparent"
-                                }`}>
-                                <Text
-                                    className={`font-medium ${
+                    <View className='flex-row p-3 rounded-2xl border border-accent-light dark:border-accent-dark items-center justify-between'>
+                        <Text
+                            className='text-black dark:text-white'
+                            style={{ fontSize: fontSize.lg }}>
+                            Color theme
+                        </Text>
+                        <View className='flex-row gap-2 items-center'>
+                            {options.map((opt) => (
+                                <Pressable
+                                    key={opt.value}
+                                    onPress={() =>
+                                        setThemePreference(opt.value)
+                                    }
+                                    className={`flex-row py-2 px-3 rounded-xl items-center justify-center ${
                                         themePreference === opt.value
-                                            ? "text-white"
-                                            : "text-black dark:text-silverText"
-                                    }`}
-                                    style={{ fontSize: fontSize.base }}>
-                                    {opt.label}
-                                </Text>
-                            </Pressable>
-                        ))}
+                                            ? "bg-accent-light dark:bg-accent-dark"
+                                            : "bg-transparent"
+                                    }`}>
+                                    <Text
+                                        className={`font-medium ${
+                                            themePreference === opt.value
+                                                ? "text-white"
+                                                : "text-black dark:text-silverText"
+                                        }`}
+                                        style={{ fontSize: fontSize.base }}>
+                                        {opt.label}
+                                    </Text>
+                                </Pressable>
+                            ))}
+                        </View>
                     </View>
                 </View>
-                <View>
-                    <Text className='font-bold text-black dark:text-white'>
+                <View className='w-full flex-row mt-4'>
+                    <Text
+                        className='font-bold text-black dark:text-white'
+                        style={{ fontSize: fontSize.xl }}>
+                        Switch bands
+                    </Text>
+                </View>
+                <View className='w-full flex-row mt-4'>
+                    <Text
+                        className='font-bold text-black dark:text-white'
+                        style={{ fontSize: fontSize.xl }}>
                         Quick settings
                     </Text>
                 </View>
