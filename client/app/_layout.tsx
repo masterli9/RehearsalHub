@@ -13,7 +13,7 @@ import "../global.css";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { BandProvider, useBand } from "@/context/BandContext";
 import { MenuProvider } from "react-native-popup-menu";
-import { KeyboardProvider } from "react-native-keyboard-controller"; // TODO: Add back in when fixing emoji keyboard avoiding issues
+import { ThemeProvider as AppThemeProvider } from "@/context/ThemeContext"; // Import our new provider
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
 export const unstable_settings = {
@@ -59,19 +59,21 @@ export default function RootLayout() {
 
     return (
         <MenuProvider>
-            {/* <KeyboardProvider> */}
             <AuthProvider>
                 <BandProvider>
-                    <ThemeProvider
-                        value={
-                            colorScheme === "dark" ? DarkTheme : DefaultTheme
-                        }>
-                        <AuthGate />
-                        <StatusBar style='auto' />
-                    </ThemeProvider>
+                    <AppThemeProvider>
+                        <ThemeProvider
+                            value={
+                                colorScheme === "dark"
+                                    ? DarkTheme
+                                    : DefaultTheme
+                            }>
+                            <AuthGate />
+                            <StatusBar style='auto' />
+                        </ThemeProvider>
+                    </AppThemeProvider>
                 </BandProvider>
             </AuthProvider>
-            {/* </KeyboardProvider> */}
         </MenuProvider>
     );
 }

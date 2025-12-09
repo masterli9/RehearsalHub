@@ -5,12 +5,21 @@ import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import { LogOut, SquarePen } from "lucide-react-native";
 import { useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "@/context/ThemeContext";
 
 const profile = () => {
     const { activeBand } = useBand();
     const { user, logout } = useAuth();
     const fontSize = useAccessibleFontSize();
     const colorScheme = useColorScheme();
+
+    const { themePreference, setThemePreference } = useTheme();
+
+    const options = [
+        { label: "Light", value: "light" },
+        { label: "Dark", value: "dark" },
+        { label: "System", value: "system" },
+    ] as const;
 
     return (
         <SafeAreaView className='flex-1'>
@@ -90,6 +99,28 @@ const profile = () => {
                     <Text className='font-bold text-black dark:text-white'>
                         Switch bands
                     </Text>
+                    <View className='flex-row'>
+                        {options.map((opt) => (
+                            <Pressable
+                                key={opt.value}
+                                onPress={() => setThemePreference(opt.value)}
+                                className={`flex-1 py-2 rounded-lg items-center justify-center ${
+                                    themePreference === opt.value
+                                        ? "bg-accent-light dark:bg-accent-dark"
+                                        : "bg-transparent"
+                                }`}>
+                                <Text
+                                    className={`font-medium ${
+                                        themePreference === opt.value
+                                            ? "text-white"
+                                            : "text-black dark:text-silverText"
+                                    }`}
+                                    style={{ fontSize: fontSize.base }}>
+                                    {opt.label}
+                                </Text>
+                            </Pressable>
+                        ))}
+                    </View>
                 </View>
                 <View>
                     <Text className='font-bold text-black dark:text-white'>
