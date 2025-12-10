@@ -34,6 +34,7 @@ type AuthContextType = {
     login: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
     googleSignIn: (firebaseUser?: FirebaseUser) => Promise<void>;
+    updateUser: (data: Partial<AppUser>) => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -113,6 +114,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         return () => unsub();
     }, []);
+
+    const updateUser = (data: Partial<AppUser>) => {
+        setUser((prevUser) => {
+            if (!prevUser) return null;
+            return { ...prevUser, ...data };
+        });
+    };
 
     const register = async (
         email: string,
@@ -246,6 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 login,
                 logout,
                 googleSignIn,
+                updateUser,
             }}>
             {children}
         </AuthContext.Provider>

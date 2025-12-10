@@ -1,4 +1,11 @@
-import { View, Text, Image, Pressable } from "react-native";
+import {
+    View,
+    Text,
+    Image,
+    Pressable,
+    ActivityIndicator,
+    Alert,
+} from "react-native";
 import { useBand } from "@/context/BandContext";
 import { useAuth } from "@/context/AuthContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
@@ -6,20 +13,196 @@ import { LogOut, SquarePen } from "lucide-react-native";
 import { useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/context/ThemeContext";
+import { useState } from "react";
+import StyledModal from "@/components/StyledModal";
+import StyledTextInput from "@/components/StyledTextInput";
+import { Formik } from "formik";
+import * as Yup from "yup";
+import apiUrl from "@/config";
+import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 
-const profile = () => {
+const EditSchema = Yup.object().shape({
+    username: Yup.string()
+        .matches(
+            /^[a-zA-Z0-9_.-]{3,20}$/,
+            "Username can use letters, numbers, ., _ and -"
+        )
+        .required("Username is required"),
+});
+
+const Profile = () => {
     const { activeBand } = useBand();
-    const { user, logout } = useAuth();
+    const { user, logout, idToken, updateUser } = useAuth();
     const fontSize = useAccessibleFontSize();
     const colorScheme = useColorScheme();
-
     const { themePreference, setThemePreference } = useTheme();
+
+    const [editVisible, setEditVisible] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
     const options = [
         { label: "Light", value: "light" },
         { label: "Dark", value: "dark" },
         { label: "System", value: "system" },
     ] as const;
+
+    if (!user) return null;
+
+    const pickAndUploadAvatar = async (onSuccess: (url: string) => void) => {
+        try {
+            setUploading(true);
+
+            const permission =
+                await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permission.granted) {
+                Alert.alert(
+                    "Permission needed",
+                    "We need photo library access."
+                );
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                quality: 1,
+                allowsEditing: false,
+            });
+
+            if (result.canceled) {
+                return;
+            }
+
+            const asset = result.assets[0];
+            if (!asset.uri) {
+                Alert.alert("Error", "Image not found.");
+                return;
+            }
+
+            const w = asset.width ?? 512;
+            const h = asset.height ?? 512;
+            const side = Math.min(w, h);
+
+            const manip = await ImageManipulator.manipulateAsync(
+                asset.uri,
+                [
+                    {
+                        crop: {
+                            originX: (w - side) / 2,
+                            originY: (h - side) / 2,
+                            width: side,
+                            height: side,
+                        },
+                    },
+                    { resize: { width: 512, height: 512 } },
+                ],
+                { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+            );
+
+            // 1) ask backend for signed URL
+            const filename = `avatar_${user.uid}_${Date.now()}.jpg`;
+
+            const signedResp = await fetch(
+                `${apiUrl}/api/users/avatar-upload-url`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${idToken}`,
+                    },
+                    body: JSON.stringify({
+                        filename,
+                        contentType: "image/jpeg",
+                        uid: user.uid,
+                    }),
+                }
+            );
+
+            const signedData = await signedResp.json();
+            if (!signedResp.ok)
+                throw new Error(
+                    signedData.error || "Failed to create upload URL."
+                );
+
+            const { uploadUrl, path } = signedData;
+
+            // 2) upload to storage
+            const blob = await (await fetch(manip.uri)).blob();
+
+            const putResp = await fetch(uploadUrl, {
+                method: "PUT",
+                headers: { "Content-Type": "image/jpeg" },
+                body: blob,
+            });
+
+            if (!putResp.ok) throw new Error("Upload failed.");
+
+            // 3) Finalize upload by making file public and getting URL
+            const finalizeResp = await fetch(
+                `${apiUrl}/api/users/finalize-avatar-upload`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${idToken}`,
+                    },
+                    body: JSON.stringify({ path }),
+                }
+            );
+
+            const finalizeData = await finalizeResp.json();
+            if (!finalizeResp.ok) {
+                throw new Error(
+                    finalizeData.error || "Failed to finalize upload."
+                );
+            }
+
+            onSuccess(finalizeData.publicUrl);
+        } catch (err: any) {
+            Alert.alert("Upload Error", "error uploading your image");
+            throw new Error(err?.message);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const saveProfile = async (values: {
+        username: string;
+        photoURL: string | null;
+    }) => {
+        try {
+            const resp = await fetch(`${apiUrl}/api/users/me`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ ...values, uid: user.uid }),
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error ?? "Failed to save.");
+            }
+
+            const updatedUser = await resp.json();
+
+            updateUser({
+                username: updatedUser.username,
+                photoURL: updatedUser.photourl,
+            });
+
+            Alert.alert("Saved", "Profile updated.");
+            setEditVisible(false);
+        } catch (err: any) {
+            Alert.alert(
+                "Error",
+                err?.message === "USERNAME_TAKEN"
+                    ? "This username is already taken"
+                    : "Failed to save."
+            );
+        }
+    };
 
     return (
         <SafeAreaView className='flex-1'>
@@ -37,33 +220,33 @@ const profile = () => {
                     </Text>
                 </View>
             </View>
+
             <View className='flex-1 items-center my-5 px-5'>
-                <View className='flex-col bg-darkWhite dark:bg-darkGray rounded rounded-xl w-full'>
+                <View className='flex-col bg-darkWhite dark:bg-darkGray rounded-xl w-full'>
                     <View className='flex-row items-center px-3 gap-3 border-b border-accent-light dark:border-accent-dark py-3'>
                         <Image
-                            source={{ uri: user?.photoURL || "" }}
+                            source={{ uri: user.photoURL || "" }}
                             className='w-12 h-12 rounded-full'
                         />
-                        <View className='flex-col'>
+                        <View>
                             <Text
                                 className='text-black dark:text-white font-bold'
                                 style={{ fontSize: fontSize["2xl"] }}>
-                                {user?.username}
+                                {user.username}
                             </Text>
                             <Text
                                 className='text-silverText'
                                 style={{ fontSize: fontSize.base }}>
-                                {user?.email}
+                                {user.email}
                             </Text>
                         </View>
                     </View>
-                    <Pressable className='px-3 py-5 flex-row items-center gap-3 w-full border-b border-accent-light dark:border-accent-dark'>
+
+                    <Pressable
+                        onPress={() => setEditVisible(true)}
+                        className='px-3 py-5 flex-row items-center gap-3 w-full border-b border-accent-light dark:border-accent-dark'>
                         <SquarePen
                             size={Math.min(fontSize["3xl"], 20)}
-                            style={{
-                                marginRight: 2,
-                                marginBottom: -2,
-                            }}
                             color={colorScheme === "dark" ? "#fff" : "#000"}
                         />
                         <Text
@@ -72,15 +255,12 @@ const profile = () => {
                             Edit profile
                         </Text>
                     </Pressable>
+
                     <Pressable
                         className='px-3 py-5 flex-row items-center gap-3 w-full'
                         onPress={() => logout()}>
                         <LogOut
                             size={Math.min(fontSize["3xl"], 20)}
-                            style={{
-                                marginRight: 2,
-                                marginBottom: -2,
-                            }}
                             color={colorScheme === "dark" ? "#fff" : "#000"}
                         />
                         <Text
@@ -90,6 +270,7 @@ const profile = () => {
                         </Text>
                     </Pressable>
                 </View>
+
                 <View className='w-full mt-4'>
                     <Text
                         className='font-bold text-black dark:text-white mb-3'
@@ -109,7 +290,7 @@ const profile = () => {
                                     onPress={() =>
                                         setThemePreference(opt.value)
                                     }
-                                    className={`flex-row py-2 px-3 rounded-xl items-center justify-center ${
+                                    className={`flex-row py-2 px-3 rounded-xl ${
                                         themePreference === opt.value
                                             ? "bg-accent-light dark:bg-accent-dark"
                                             : "bg-transparent"
@@ -128,23 +309,81 @@ const profile = () => {
                         </View>
                     </View>
                 </View>
-                <View className='w-full flex-row mt-4'>
-                    <Text
-                        className='font-bold text-black dark:text-white'
-                        style={{ fontSize: fontSize.xl }}>
-                        Switch bands
-                    </Text>
-                </View>
-                <View className='w-full flex-row mt-4'>
-                    <Text
-                        className='font-bold text-black dark:text-white'
-                        style={{ fontSize: fontSize.xl }}>
-                        Quick settings
-                    </Text>
-                </View>
             </View>
+
+            <StyledModal
+                visible={editVisible}
+                onClose={() => setEditVisible(false)}
+                title='Edit Profile'
+                subtitle='Update your username or profile photo'>
+                <Formik
+                    initialValues={{
+                        username: user.username ?? "",
+                        photoURL: user.photoURL ?? "",
+                    }}
+                    validationSchema={EditSchema}
+                    onSubmit={saveProfile}>
+                    {({
+                        handleChange,
+                        handleBlur,
+                        handleSubmit,
+                        values,
+                        errors,
+                        touched,
+                        setFieldValue,
+                    }) => (
+                        <View className='w-full flex-col items-center'>
+                            {/* Avatar preview */}
+                            <Image
+                                source={{ uri: values.photoURL || "" }}
+                                className='w-24 h-24 rounded-full bg-gray-200 mt-2'
+                            />
+
+                            {/* Change photo */}
+                            <Pressable
+                                className='mt-2 mb-4 px-4 py-2 bg-accent-light dark:bg-accent-dark rounded-xl'
+                                onPress={() =>
+                                    pickAndUploadAvatar((url) =>
+                                        setFieldValue("photoURL", url)
+                                    )
+                                }>
+                                {uploading ? (
+                                    <ActivityIndicator color='#fff' />
+                                ) : (
+                                    <Text className='text-white'>
+                                        Change photo
+                                    </Text>
+                                )}
+                            </Pressable>
+
+                            {/* Username */}
+                            <StyledTextInput
+                                placeholder='Username'
+                                value={values.username}
+                                onChangeText={handleChange("username")}
+                                onBlur={handleBlur("username")}
+                                className='mt-3'
+                            />
+                            {touched.username && errors.username && (
+                                <Text className='text-red-500 mt-1'>
+                                    {errors.username}
+                                </Text>
+                            )}
+
+                            {/* SAVE BUTTON */}
+                            <Pressable
+                                onPress={() => handleSubmit()}
+                                className='mt-5 px-5 py-3 bg-accent-light dark:bg-accent-dark rounded-xl w-full items-center'>
+                                <Text className='text-white font-semibold'>
+                                    Save
+                                </Text>
+                            </Pressable>
+                        </View>
+                    )}
+                </Formik>
+            </StyledModal>
         </SafeAreaView>
     );
 };
 
-export default profile;
+export default Profile;
