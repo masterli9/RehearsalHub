@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState } from "react";
 import apiUrl from "@/config";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
 
 type Band = {
@@ -16,7 +16,7 @@ type BandContextType = {
     bands: Band[];
     activeBand: Band | null;
     bandsLoading: boolean;
-    switchBand: (id: string) => void;
+    switchBand: (id: string) => Band | null;
     createBand: (name: string, roles: BandRole[]) => Promise<void>;
     joinBandByCode: (code: string, role: BandRole[]) => Promise<void>;
     fetchUserBands: (uid: string) => Promise<void>;
@@ -46,9 +46,10 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [user?.uid]);
 
-    const switchBand = (id: string) => {
+    const switchBand = (id: string): Band | null => {
         const found = bands.find((b) => b.id === id) || null;
         setActiveBand(found);
+        return found;
     };
 
     const fetchUserBands = async (uid: string) => {
@@ -302,7 +303,8 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 removeBand,
                 removeBandMember,
                 makeLeader,
-            }}>
+            }}
+        >
             {children}
         </BandContext.Provider>
     );

@@ -1,26 +1,27 @@
-import {
-    View,
-    Text,
-    Image,
-    Pressable,
-    ActivityIndicator,
-    Alert,
-} from "react-native";
-import { useBand } from "@/context/BandContext";
-import { useAuth } from "@/context/AuthContext";
-import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
-import { LogOut, SquarePen } from "lucide-react-native";
-import { useColorScheme } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useTheme } from "@/context/ThemeContext";
-import { useState } from "react";
+import StyledDropdown from "@/components/StyledDropdown";
 import StyledModal from "@/components/StyledModal";
 import StyledTextInput from "@/components/StyledTextInput";
-import { Formik } from "formik";
-import * as Yup from "yup";
 import apiUrl from "@/config";
-import * as ImagePicker from "expo-image-picker";
+import { useAuth } from "@/context/AuthContext";
+import { useBand } from "@/context/BandContext";
+import { useTheme } from "@/context/ThemeContext";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import * as ImageManipulator from "expo-image-manipulator";
+import * as ImagePicker from "expo-image-picker";
+import { Formik } from "formik";
+import { LogOut, SquarePen } from "lucide-react-native";
+import { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    Pressable,
+    Text,
+    useColorScheme,
+    View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as Yup from "yup";
 
 const EditSchema = Yup.object().shape({
     username: Yup.string()
@@ -32,7 +33,7 @@ const EditSchema = Yup.object().shape({
 });
 
 const Profile = () => {
-    const { activeBand } = useBand();
+    const { activeBand, bands, bandsLoading, switchBand } = useBand();
     const { user, logout, idToken, updateUser } = useAuth();
     const fontSize = useAccessibleFontSize();
     const colorScheme = useColorScheme();
@@ -46,6 +47,41 @@ const Profile = () => {
         { label: "Dark", value: "dark" },
         { label: "System", value: "system" },
     ] as const;
+
+    const [openSwitch, setOpenSwitch] = useState(false);
+    const [valueSwitch, setValueSwitch] = useState("");
+    const [itemsSwitch, setItemsSwitch] = useState<any[]>(
+        bands.map((band) => ({
+            label: band.name,
+            value: band.id,
+        })) || []
+    );
+
+    useEffect(() => {
+        if (activeBand) {
+            setValueSwitch(activeBand.id);
+        }
+        if (bands) {
+            setItemsSwitch(
+                bands.map((band) => ({
+                    label: band.name,
+                    value: band.id,
+                }))
+            );
+        }
+    }, [bands]);
+
+    const handleBandSwitch = (bandId: string | null) => {
+        if (!bandId || bandId === activeBand?.id) {
+            return;
+        }
+
+        const switchedBand = switchBand(bandId);
+        setOpenSwitch(false);
+        if (switchedBand) {
+            Alert.alert("Success", "Band switched to " + switchedBand.name);
+        }
+    };
 
     if (!user) return null;
 
@@ -210,12 +246,14 @@ const Profile = () => {
                 <View className='flex-col items-start justify-center'>
                     <Text
                         className='text-black dark:text-white font-bold my-1'
-                        style={{ fontSize: fontSize["2xl"] }}>
+                        style={{ fontSize: fontSize["2xl"] }}
+                    >
                         Profile
                     </Text>
                     <Text
                         className='text-silverText'
-                        style={{ fontSize: fontSize.base }}>
+                        style={{ fontSize: fontSize.base }}
+                    >
                         Your personal settings
                     </Text>
                 </View>
@@ -231,12 +269,14 @@ const Profile = () => {
                         <View>
                             <Text
                                 className='text-black dark:text-white font-bold'
-                                style={{ fontSize: fontSize["2xl"] }}>
+                                style={{ fontSize: fontSize["2xl"] }}
+                            >
                                 {user.username}
                             </Text>
                             <Text
                                 className='text-silverText'
-                                style={{ fontSize: fontSize.base }}>
+                                style={{ fontSize: fontSize.base }}
+                            >
                                 {user.email}
                             </Text>
                         </View>
@@ -244,28 +284,32 @@ const Profile = () => {
 
                     <Pressable
                         onPress={() => setEditVisible(true)}
-                        className='px-3 py-5 flex-row items-center gap-3 w-full border-b border-accent-light dark:border-accent-dark'>
+                        className='px-3 py-5 flex-row items-center gap-3 w-full border-b border-accent-light dark:border-accent-dark'
+                    >
                         <SquarePen
                             size={Math.min(fontSize["3xl"], 20)}
                             color={colorScheme === "dark" ? "#fff" : "#000"}
                         />
                         <Text
                             className='text-black dark:text-white'
-                            style={{ fontSize: fontSize.base }}>
+                            style={{ fontSize: fontSize.base }}
+                        >
                             Edit profile
                         </Text>
                     </Pressable>
 
                     <Pressable
                         className='px-3 py-5 flex-row items-center gap-3 w-full'
-                        onPress={() => logout()}>
+                        onPress={() => logout()}
+                    >
                         <LogOut
                             size={Math.min(fontSize["3xl"], 20)}
                             color={colorScheme === "dark" ? "#fff" : "#000"}
                         />
                         <Text
                             className='text-black dark:text-white'
-                            style={{ fontSize: fontSize.base }}>
+                            style={{ fontSize: fontSize.base }}
+                        >
                             Log Out
                         </Text>
                     </Pressable>
@@ -274,13 +318,15 @@ const Profile = () => {
                 <View className='w-full mt-4'>
                     <Text
                         className='font-bold text-black dark:text-white mb-3'
-                        style={{ fontSize: fontSize.xl }}>
+                        style={{ fontSize: fontSize.xl }}
+                    >
                         Appearance
                     </Text>
                     <View className='flex-row p-3 rounded-2xl border border-accent-light dark:border-accent-dark items-center justify-between'>
                         <Text
                             className='text-black dark:text-white'
-                            style={{ fontSize: fontSize.lg }}>
+                            style={{ fontSize: fontSize.lg }}
+                        >
                             Color theme
                         </Text>
                         <View className='flex-row gap-2 items-center'>
@@ -291,17 +337,21 @@ const Profile = () => {
                                         setThemePreference(opt.value)
                                     }
                                     className={`flex-row py-2 px-3 rounded-xl ${
-                                        themePreference === opt.value
-                                            ? "bg-accent-light dark:bg-accent-dark"
+                                        themePreference ===
+                                        opt.value.toLowerCase()
+                                            ? "bg-accent-dark"
                                             : "bg-transparent"
-                                    }`}>
+                                    }`}
+                                >
                                     <Text
                                         className={`font-medium ${
-                                            themePreference === opt.value
+                                            themePreference ===
+                                            opt.value.toLowerCase()
                                                 ? "text-white"
                                                 : "text-black dark:text-silverText"
                                         }`}
-                                        style={{ fontSize: fontSize.base }}>
+                                        style={{ fontSize: fontSize.base }}
+                                    >
                                         {opt.label}
                                     </Text>
                                 </Pressable>
@@ -309,20 +359,39 @@ const Profile = () => {
                         </View>
                     </View>
                 </View>
+                <View className='w-full mt-4'>
+                    <Text
+                        className='font-bold text-black dark:text-white mb-3'
+                        style={{ fontSize: fontSize.xl }}
+                    >
+                        Switch band context
+                    </Text>
+                    <StyledDropdown
+                        items={itemsSwitch}
+                        value={valueSwitch}
+                        setValue={setValueSwitch}
+                        open={openSwitch}
+                        setOpen={setOpenSwitch}
+                        multiple={false}
+                        onChangeValue={handleBandSwitch}
+                    />
+                </View>
             </View>
 
             <StyledModal
                 visible={editVisible}
                 onClose={() => setEditVisible(false)}
                 title='Edit Profile'
-                subtitle='Update your username or profile photo'>
+                subtitle='Update your username or profile photo'
+            >
                 <Formik
                     initialValues={{
                         username: user.username ?? "",
                         photoURL: user.photoURL ?? "",
                     }}
                     validationSchema={EditSchema}
-                    onSubmit={saveProfile}>
+                    onSubmit={saveProfile}
+                >
                     {({
                         handleChange,
                         handleBlur,
@@ -346,11 +415,15 @@ const Profile = () => {
                                     pickAndUploadAvatar((url) =>
                                         setFieldValue("photoURL", url)
                                     )
-                                }>
+                                }
+                            >
                                 {uploading ? (
                                     <ActivityIndicator color='#fff' />
                                 ) : (
-                                    <Text className='text-white'>
+                                    <Text
+                                        className='text-black dark:text-white'
+                                        style={{ fontSize: fontSize.base }}
+                                    >
                                         Change photo
                                     </Text>
                                 )}
@@ -373,8 +446,12 @@ const Profile = () => {
                             {/* SAVE BUTTON */}
                             <Pressable
                                 onPress={() => handleSubmit()}
-                                className='mt-5 px-5 py-3 bg-accent-light dark:bg-accent-dark rounded-xl w-full items-center'>
-                                <Text className='text-white font-semibold'>
+                                className='mt-5 px-5 py-3 bg-accent-light dark:bg-accent-dark rounded-xl w-full items-center'
+                            >
+                                <Text
+                                    className='text-black dark:text-white'
+                                    style={{ fontSize: fontSize.base }}
+                                >
                                     Save
                                 </Text>
                             </Pressable>
