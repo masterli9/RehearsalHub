@@ -1,35 +1,34 @@
+import Card from "@/components/Card";
+import ErrorText from "@/components/ErrorText";
+import PageContainer from "@/components/PageContainer";
+import StyledButton from "@/components/StyledButton";
+import StyledModal from "@/components/StyledModal";
+import StyledTextInput from "@/components/StyledTextInput";
+import { SwitchBandModal } from "@/components/SwitchBandModal";
+import apiUrl from "@/config";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
+import * as Clipboard from "expo-clipboard";
+import { Formik } from "formik";
+import { useEffect, useState } from "react";
 import {
+    Alert,
+    Pressable,
+    ScrollView,
     Text,
     useColorScheme,
     View,
-    Pressable,
-    ScrollView,
-    Alert,
 } from "react-native";
-import { useBand } from "../../context/BandContext";
-import { useAuth } from "../../context/AuthContext";
-import { useEffect } from "react";
-import StyledButton from "@/components/StyledButton";
-import { useState } from "react";
-import { Formik } from "formik";
-import * as Yup from "yup";
-import apiUrl from "@/config";
-import { BandRole } from "../../context/BandContext";
-import * as Clipboard from "expo-clipboard";
-import Toast from "react-native-root-toast";
 import {
     Menu,
-    MenuOptions,
     MenuOption,
+    MenuOptions,
     MenuTrigger,
     renderers,
 } from "react-native-popup-menu";
-import PageContainer from "@/components/PageContainer";
-import StyledModal from "@/components/StyledModal";
-import StyledTextInput from "@/components/StyledTextInput";
-import ErrorText from "@/components/ErrorText";
-import Card from "@/components/Card";
-import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
+import Toast from "react-native-root-toast";
+import * as Yup from "yup";
+import { useAuth } from "../../context/AuthContext";
+import { BandRole, useBand } from "../../context/BandContext";
 
 export default function Band() {
     const { SlideInMenu } = renderers;
@@ -204,12 +203,15 @@ export default function Band() {
         roles: BandRole[];
     };
 
+    const [showSwitchModal, setShowSwitchModal] = useState(false);
+
     return (
         <PageContainer noBandState={bands.length === 0}>
             <StyledModal
                 visible={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
-                title='Create a band'>
+                title='Create a band'
+            >
                 <Formik<CreateFormValues>
                     validationSchema={createBandSchema}
                     initialValues={{
@@ -221,7 +223,8 @@ export default function Band() {
                         setShowCreateModal(false);
                     }}
                     validateOnBlur={false}
-                    validateOnChange={false}>
+                    validateOnChange={false}
+                >
                     {({
                         handleChange,
                         handleBlur,
@@ -246,7 +249,8 @@ export default function Band() {
                                 )}
                             <Text
                                 className='font-regular text-silverText text-center mb-2'
-                                style={{ fontSize: fontSize.base }}>
+                                style={{ fontSize: fontSize.base }}
+                            >
                                 Select your role(s) in the band:
                             </Text>
                             <View className='flex-row flex-wrap gap-2 w-full justify-center items-center my-2'>
@@ -279,13 +283,15 @@ export default function Band() {
                                                 isSelected
                                                     ? "bg-transparentGreen border-green"
                                                     : "bg-transparent border-gray-400"
-                                            }`}>
+                                            }`}
+                                        >
                                             <Text
                                                 className={`${
                                                     isSelected
                                                         ? "text-black dark:text-white font-semibold"
                                                         : "text-gray-700 dark:text-gray-200"
-                                                }`}>
+                                                }`}
+                                            >
                                                 {role.title}
                                             </Text>
                                         </Pressable>
@@ -311,7 +317,8 @@ export default function Band() {
                 visible={showJoinModal}
                 onClose={() => setShowJoinModal(false)}
                 title='Join a band'
-                subtitle='Your band leader should provide you a join code.'>
+                subtitle='Your band leader should provide you a join code.'
+            >
                 <Formik<JoinFormValues>
                     validationSchema={joinBandSchema}
                     initialValues={{
@@ -326,7 +333,8 @@ export default function Band() {
                         setShowJoinModal(false);
                     }}
                     validateOnBlur={false}
-                    validateOnChange={false}>
+                    validateOnChange={false}
+                >
                     {({
                         handleChange,
                         handleBlur,
@@ -351,7 +359,8 @@ export default function Band() {
                                 )}
                             <Text
                                 className='font-regular text-silverText text-center mb-2'
-                                style={{ fontSize: fontSize.base }}>
+                                style={{ fontSize: fontSize.base }}
+                            >
                                 Select your role(s) in the band:
                             </Text>
                             <View className='flex-row flex-wrap gap-2 w-full justify-center items-center my-2'>
@@ -384,13 +393,15 @@ export default function Band() {
                                                 isSelected
                                                     ? "bg-transparentGreen border-green"
                                                     : "bg-transparent border-gray-400"
-                                            }`}>
+                                            }`}
+                                        >
                                             <Text
                                                 className={`${
                                                     isSelected
                                                         ? "text-black dark:text-white font-semibold"
                                                         : "text-gray-700 dark:text-gray-200"
-                                                }`}>
+                                                }`}
+                                            >
                                                 {role.title}
                                             </Text>
                                         </Pressable>
@@ -420,17 +431,24 @@ export default function Band() {
                     )}
                 </Formik>
             </StyledModal>
+            {/* Band switch */}
+            <SwitchBandModal
+                onClose={() => setShowSwitchModal(false)}
+                visible={showSwitchModal}
+            />
             {bands.length === 0 ? (
                 <>
                     <Card className='flex-col w-full items-center justify-center'>
                         <Text
                             className='font-bold text-black dark:text-white my-2 text-center'
-                            style={{ fontSize: fontSize["3xl"] }}>
+                            style={{ fontSize: fontSize["3xl"] }}
+                        >
                             You don't have a band yet!
                         </Text>
                         <Text
                             className='text-silverText mb-2 text-center'
-                            style={{ fontSize: fontSize.base }}>
+                            style={{ fontSize: fontSize.base }}
+                        >
                             Create a new band or join an existing one.
                         </Text>
                         <View className='flex-row gap-4 w-full justify-center items-center my-3'>
@@ -451,23 +469,27 @@ export default function Band() {
                         <View className='flex-col items-start justify-center'>
                             <Text
                                 className='text-black dark:text-white font-bold my-1'
-                                style={{ fontSize: fontSize["2xl"] }}>
+                                style={{ fontSize: fontSize["2xl"] }}
+                            >
                                 {activeBand?.name}
                             </Text>
                             <Text
                                 className='text-silverText'
-                                style={{ fontSize: fontSize.base }}>
+                                style={{ fontSize: fontSize.base }}
+                            >
                                 {memberCount} members
                             </Text>
                         </View>
                         <View className='flex-row items-center justify-center'>
                             <Menu
                                 renderer={SlideInMenu}
-                                rendererProps={{ transitionDuration: 200 }}>
+                                rendererProps={{ transitionDuration: 200 }}
+                            >
                                 <MenuTrigger>
                                     <Text
                                         className='text-black dark:text-white p-4'
-                                        style={{ fontSize: fontSize["2xl"] }}>
+                                        style={{ fontSize: fontSize["2xl"] }}
+                                    >
                                         ⋯
                                     </Text>
                                 </MenuTrigger>
@@ -480,7 +502,8 @@ export default function Band() {
                                                     ? "#333"
                                                     : "#fff",
                                         },
-                                    }}>
+                                    }}
+                                >
                                     <MenuOption
                                         onSelect={() => {
                                             setShowJoinModal(false);
@@ -517,9 +540,9 @@ export default function Band() {
                                     />
                                     <MenuOption
                                         onSelect={() => {
-                                            switchBand(activeBand?.id || "");
+                                            setShowSwitchModal(true);
                                         }}
-                                        text='Switch band' // TODO: Add functionality
+                                        text='Switch band'
                                         customStyles={{
                                             optionText: {
                                                 color:
@@ -553,17 +576,20 @@ export default function Band() {
                         contentContainerStyle={{
                             alignItems: "center",
                             justifyContent: "center",
-                        }}>
+                        }}
+                    >
                         <Card className='bg-darkWhite dark:bg-darkGray w-full flex-row items-center justify-between mb-5'>
                             <View className='flex-col items-start justify-center w-2/3'>
                                 <Text
                                     className='text-black dark:text-white font-bold my-1'
-                                    style={{ fontSize: fontSize.xl }}>
+                                    style={{ fontSize: fontSize.xl }}
+                                >
                                     Invite Code
                                 </Text>
                                 <Text
                                     className='text-silverText'
-                                    style={{ fontSize: fontSize.base }}>
+                                    style={{ fontSize: fontSize.base }}
+                                >
                                     Share this invite code with your members
                                 </Text>
                             </View>
@@ -603,14 +629,16 @@ export default function Band() {
                                     idx
                                 }
                                 variant='boxBackground'
-                                className='w-full flex-row items-center justify-between my-1'>
+                                className='w-full flex-row items-center justify-between my-1'
+                            >
                                 <View className='flex-col items-start justify-center flex-1'>
                                     <View className='flex-row flex-wrap items-center'>
                                         <Text
                                             className='text-black dark:text-white font-bold my-1 mr-2'
                                             numberOfLines={1}
                                             ellipsizeMode='tail'
-                                            style={{ fontSize: fontSize.xl }}>
+                                            style={{ fontSize: fontSize.xl }}
+                                        >
                                             {member.username}
                                         </Text>
                                         {member.roles.length > 0 &&
@@ -633,7 +661,8 @@ export default function Band() {
                                                         style={{
                                                             fontSize:
                                                                 fontSize.base,
-                                                        }}>
+                                                        }}
+                                                    >
                                                         {typeof r === "string"
                                                             ? r
                                                             : r?.title || ""}
@@ -645,14 +674,16 @@ export default function Band() {
                                                     className='text-white my-1 bg-darkGray dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'
                                                     style={{
                                                         fontSize: fontSize.base,
-                                                    }}>
+                                                    }}
+                                                >
                                                     +{member.roles.length - 1}
                                                 </Text>
                                             )}
                                     </View>
                                     <Text
                                         className='text-silverText'
-                                        style={{ fontSize: fontSize.base }}>
+                                        style={{ fontSize: fontSize.base }}
+                                    >
                                         {member.email}
                                     </Text>
                                 </View>
@@ -665,7 +696,8 @@ export default function Band() {
                                                     style={{
                                                         fontSize:
                                                             fontSize["2xl"],
-                                                    }}>
+                                                    }}
+                                                >
                                                     ⋮
                                                 </Text>
                                             </MenuTrigger>
@@ -680,7 +712,8 @@ export default function Band() {
                                                                 ? "#333"
                                                                 : "#fff",
                                                     },
-                                                }}>
+                                                }}
+                                            >
                                                 <MenuOption
                                                     onSelect={() =>
                                                         handleRemoveMember(
