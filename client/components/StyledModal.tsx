@@ -9,6 +9,7 @@ interface StyledModalProps {
     subtitle?: string;
     children: React.ReactNode;
     canClose?: boolean;
+    wide?: boolean;
 }
 
 const StyledModal: React.FC<StyledModalProps> = ({
@@ -18,6 +19,7 @@ const StyledModal: React.FC<StyledModalProps> = ({
     subtitle,
     children,
     canClose = true,
+    wide = false,
 }) => {
     const fontSize = useAccessibleFontSize();
     return (
@@ -38,7 +40,7 @@ const StyledModal: React.FC<StyledModalProps> = ({
                     }}>
                     <Pressable
                         onPress={() => {}}
-                        className='bg-darkWhite dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark p-5 flex-col justify-center items-center w-80 rounded-2xl'>
+                        className={`bg-darkWhite dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark p-5 flex-col justify-center ${wide ? "w-96" : "w-80"} items-center rounded-2xl`}>
                         <Text
                             className='font-bold text-black dark:text-white my-2'
                             style={{ fontSize: fontSize["3xl"] }}>
