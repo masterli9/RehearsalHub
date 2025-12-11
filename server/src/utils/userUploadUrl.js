@@ -1,6 +1,7 @@
-import { storage } from "./firebaseAdmin.js";
-import { getUserIdByFirebaseUid } from "../utils/getUserId.js";
+import crypto from "crypto";
 import dotenv from "dotenv";
+import { getUserIdByFirebaseUid } from "../utils/getUserId.js";
+import { storage } from "./firebaseAdmin.js";
 
 dotenv.config();
 
@@ -20,7 +21,10 @@ export const userUploadUrl = async (req, res) => {
         const sanitized = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
         const userId = await getUserIdByFirebaseUid(uid);
 
-        const dest = `users/user_${userId}/avatars/${Date.now()}_${sanitized}`;
+        // Add a unique component to avoid filename collision
+        const uniqueSuffix =
+            Date.now().toString() + "_" + crypto.randomBytes(8).toString("hex");
+        const dest = `users/user_${userId}/avatars/${uniqueSuffix}_${sanitized}`;
         const file = bucket.file(dest);
 
         const [uploadUrl] = await file.getSignedUrl({

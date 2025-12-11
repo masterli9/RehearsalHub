@@ -1,5 +1,4 @@
 import pool from "../db/pool.js";
-import { getUserIdByFirebaseUid } from "../utils/getUserId.js";
 
 // Valid song keys from database CHECK constraint
 const VALID_SONG_KEYS = [
@@ -213,5 +212,29 @@ export const getSongs = async (req, res) => {
     } catch (error) {
         console.error("Error fetching songs: ", error);
         res.status(500).json({ error: "Server error (get songs)" });
+    }
+};
+
+export const getTags = async (req, res) => {
+    const { bandId } = req.params;
+
+    if (!bandId) {
+        return res.status(400).json({ error: "Band ID is required" });
+    }
+    try {
+        const result = await pool.query(
+            "SELECT t.name, t.tag_id, t.color FROM tags t WHERE t.band_id = $1 OR t.band_id IS NULL",
+            [bandId]
+        );
+        if (result.rows.length === 0) {
+            return res
+                .status(404)
+                .json({ error: "No tags found for this band" });
+        }
+
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error("Error fetching tags: ", error);
+        res.status(500).json({ error: "Server error (get tags)" });
     }
 };

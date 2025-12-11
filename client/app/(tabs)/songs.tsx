@@ -61,6 +61,8 @@ const songs = () => {
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [isUploading, setIsUploading] = useState<boolean>(false);
 
+    const [tags, setTags] = useState<any[]>([]);
+
     // filter states
     const [sort, setSort] = useState("date_desc");
     const [filtersVisible, setFiltersVisible] = useState<boolean>(false);
@@ -170,11 +172,36 @@ const songs = () => {
                 );
         }
     }, [songs, sort]);
+
+    const fetchTags = async () => {
+        try {
+            const response = await fetch(
+                `${apiUrl}/api/songs/tags/${activeBand?.id}`,
+                {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+            if (!response.ok) {
+                throw new Error(
+                    `Error fetching tags, status: ${response.status}`
+                );
+            }
+            const data = await response.json();
+            setTags(data);
+        } catch (error) {
+            console.error("Error setting tags:", error);
+        }
+    };
+
     useEffect(() => {
         // When the active band changes, fetch all songs for that band.
         // Filtering is applied manually via the search and filter controls.
         if (activeBand?.id) {
             fetchSongs();
+            fetchTags();
         }
     }, [activeBand?.id]);
 
@@ -191,6 +218,7 @@ const songs = () => {
         length: string;
         description: string;
         status: string;
+        tags: string[];
         file: any;
     };
 
@@ -385,6 +413,7 @@ const songs = () => {
             .trim()
             .oneOf(["ready", "draft", "finished"])
             .required("Status is required"),
+        tags: yup.array().of(yup.string().trim()),
         file: yup.object().shape({
             uri: yup.string().required("File is required"),
         }),
@@ -425,6 +454,21 @@ const songs = () => {
         { label: "B", value: "B" },
         { label: "Bm", value: "Bm" },
     ]);
+
+    const [openTags, setOpenTags] = useState(false);
+    const [valueTags, setValueTags] = useState(null);
+    const [itemsTags, setItemsTags] = useState([
+        { label: "Add tag", value: "add_tag" },
+    ]);
+    useEffect(() => {
+        setItemsTags([
+            ...tags.map((t) => ({
+                label: t.name,
+                value: t.name,
+            })),
+            { label: "Add tag", value: "add_tag" },
+        ]);
+    }, [tags]);
 
     // Sync dropdown states when modal opens/closes
     useEffect(() => {
@@ -600,6 +644,7 @@ const songs = () => {
                         length: "",
                         songKey: "",
                         description: "",
+                        tags: [],
                         file: null,
                     }}
                     enableReinitialize={false}
@@ -809,6 +854,29 @@ const songs = () => {
                                 {touched.songKey && errors.songKey && (
                                     <View className='w-full flex-row justify-center'>
                                         <ErrorText>{errors.songKey}</ErrorText>
+                                    </View>
+                                )}
+                                <StyledDropdown
+                                    open={openTags}
+                                    value={valueTags}
+                                    items={itemsTags}
+                                    setOpen={setOpenTags}
+                                    setValue={setValueTags}
+                                    onChangeValue={(v) => {
+                                        if (v !== null && v !== undefined) {
+                                            setFieldValue("tags", v);
+                                            setFieldTouched("tags", true);
+                                        }
+                                    }}
+                                    setItems={setItemsTags}
+                                    placeholder='Choose tags'
+                                    zIndex={2000}
+                                    zIndexInverse={2000}
+                                    multiple={true}
+                                />
+                                {touched.tags && errors.tags && (
+                                    <View className='w-full flex-row justify-center'>
+                                        <ErrorText>{errors.tags}</ErrorText>
                                     </View>
                                 )}
                                 <StyledTextInput
