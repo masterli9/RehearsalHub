@@ -238,3 +238,31 @@ export const getTags = async (req, res) => {
         res.status(500).json({ error: "Server error (get tags)" });
     }
 };
+
+export const addTag = async (req, res) => {
+    const { bandId, color, name } = req.body;
+
+    if (!bandId || !color || !name)
+        return res
+            .status(400)
+            .json({ error: "Band ID, color, and name are required" });
+    try {
+        const exists = await pool.query(
+            "SELECT * FROM tags WHERE name = $1 AND band_id = $2",
+            [name, bandId]
+        );
+        if (exists.rows.length > 0) {
+            console.error("This tag already exists.");
+            return res.status(400).json({ error: "This tag already exists." });
+        }
+        const insert = await pool.query(
+            "INSERT INTO tags (name, color, band_id) VALUES ($1, $2, $3) RETURNING *",
+            [name, color, bandId]
+        );
+        const tag = insert.rows[0];
+        res.status(201).json(tag);
+    } catch (error) {
+        console.error("Error adding tag: ", error);
+        res.status(500).json({ error: "Server error (add tag)" });
+    }
+};

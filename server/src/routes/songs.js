@@ -1,5 +1,6 @@
 import express from "express";
 import {
+    addTag,
     createSong,
     getSongs,
     getTags,
@@ -12,5 +13,6 @@ router.post("/upload-url", songUploadUrl);
 router.post("/create", createSong);
 router.get("/", getSongs);
 router.get("/tags/:bandId", getTags);
+router.post("/tags/add", addTag);
 
 export default router;

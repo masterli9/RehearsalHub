@@ -1,23 +1,51 @@
-import { Pressable, Text } from "react-native";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
+import { Pressable, Text } from "react-native";
+
+type StyledButtonProps = {
+    title: string;
+    onPress: () => void;
+    disabled?: boolean;
+    className?: string;
+    variant?: "default" | "accent";
+};
+
+const variantClassNames: Record<"default" | "accent", string> = {
+    default:
+        "bg-black dark:bg-white rounded-m p-2 flex-row items-center justify-center active:bg-accent-dark dark:active:bg-accent-light active:scale-95",
+    accent: "bg-accent-light dark:bg-accent-dark rounded-m p-2 flex-row items-center justify-center active:scale-95",
+};
+
+const variantTextClassNames: Record<"default" | "accent", string> = {
+    default: "font-bold text-white dark:text-black",
+    accent: "font-bold text-black dark:text-white",
+};
 
 export default function StyledButton({
     title,
     onPress,
     disabled,
-}: {
-    title: string;
-    onPress: () => void;
-    disabled?: boolean;
-}) {
+    className,
+    variant = "default",
+}: StyledButtonProps) {
     const fontSize = useAccessibleFontSize();
-    
+
+    const disabledClass =
+        variant === "default"
+            ? "bg-black/70 dark:bg-white/80"
+            : "bg-accent-light/60 dark:bg-accent-dark/60";
+
     return (
         <Pressable
-            className={`bg-black dark:bg-white rounded-m p-2 active:bg-accent-dark dark:active:bg-accent-light active:scale-95 ${disabled ? "bg-black/70 dark:bg-white/80" : ""}`}
+            className={`${variantClassNames[variant]} ${
+                disabled ? disabledClass : ""
+            } ${className ?? ""}`}
             onPress={onPress}
-            disabled={disabled}>
-            <Text className='font-bold text-white dark:text-black' style={{ fontSize: fontSize.base }}>
+            disabled={disabled}
+        >
+            <Text
+                className={variantTextClassNames[variant]}
+                style={{ fontSize: fontSize.base }}
+            >
                 {title}
             </Text>
         </Pressable>

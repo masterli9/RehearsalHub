@@ -21,7 +21,6 @@ import {
     Hash,
     ListMusic,
     Play,
-    Rows,
     SlidersHorizontal,
     SquarePen,
     X,
@@ -223,6 +222,10 @@ const songs = () => {
         tags: string[];
         file: any;
     };
+    type addTagFormValues = {
+        name: string;
+        color: string;
+    };
 
     const SongCard = ({
         songName,
@@ -256,31 +259,37 @@ const songs = () => {
             <View className='bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3'>
                 <View
                     className='flex-row justify-between items-center'
-                    style={{ flexWrap: "wrap" }}>
+                    style={{ flexWrap: "wrap" }}
+                >
                     <View
                         className='flex-col'
-                        style={{ flexShrink: 1, flex: 1, minWidth: 0 }}>
+                        style={{ flexShrink: 1, flex: 1, minWidth: 0 }}
+                    >
                         <View
                             className='flex-row items-center gap-2'
-                            style={{ flexWrap: "wrap" }}>
+                            style={{ flexWrap: "wrap" }}
+                        >
                             <Text
                                 className='font-bold text-black dark:text-white'
                                 style={{ fontSize: fontSize.xl }}
                                 numberOfLines={1}
-                                maxFontSizeMultiplier={1.3}>
+                                maxFontSizeMultiplier={1.3}
+                            >
                                 {songName}
                             </Text>
                             <Text
                                 className={`${status === "ready" ? "text-green bg-transparentGreen" : status === "draft" ? "text-violet bg-transparentViolet" : status === "finished" && "text-blue bg-transparentBlue"} my-1 px-3 py-1 rounded-xl mr-2`}
                                 style={{ fontSize: fontSize.base }}
                                 numberOfLines={1}
-                                maxFontSizeMultiplier={1.3}>
+                                maxFontSizeMultiplier={1.3}
+                            >
                                 {status}
                             </Text>
                         </View>
                         <View
                             className='flex-row gap-2'
-                            style={{ flexWrap: "wrap" }}>
+                            style={{ flexWrap: "wrap" }}
+                        >
                             <View className='flex-row items-center gap-1'>
                                 <Clock
                                     color={"#A1A1A1"}
@@ -294,7 +303,8 @@ const songs = () => {
                                         alignItems: "center",
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}>
+                                    maxFontSizeMultiplier={1.3}
+                                >
                                     {formatInterval(length)}
                                 </Text>
                             </View>
@@ -311,7 +321,8 @@ const songs = () => {
                                         alignItems: "center",
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}>
+                                    maxFontSizeMultiplier={1.3}
+                                >
                                     {songKey || "N/A"}
                                 </Text>
                             </View>
@@ -328,7 +339,8 @@ const songs = () => {
                                         alignItems: "center",
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}>
+                                    maxFontSizeMultiplier={1.3}
+                                >
                                     {formatDate(dateAdded)}
                                 </Text>
                             </View>
@@ -336,7 +348,8 @@ const songs = () => {
                     </View>
                     <View
                         className='flex-row gap-4 items-center'
-                        style={{ flexShrink: 0 }}>
+                        style={{ flexShrink: 0 }}
+                    >
                         <Play
                             color={colorScheme === "dark" ? "white" : "black"}
                             size={20}
@@ -364,7 +377,8 @@ const songs = () => {
                         className='text-silverText my-2'
                         style={{ fontSize: fontSize.base }}
                         numberOfLines={3}
-                        maxFontSizeMultiplier={1.3}>
+                        maxFontSizeMultiplier={1.3}
+                    >
                         {description}
                     </Text>
                 )}
@@ -408,6 +422,14 @@ const songs = () => {
         file: yup.object().shape({
             uri: yup.string().required("File is required"),
         }),
+    });
+    const addTagSchema = yup.object().shape({
+        name: yup
+            .string()
+            .min(1, "Atleast one char.")
+            .max(30, "Max length is 30 chars.")
+            .required("name is required"),
+        color: yup.string().required("color is required"),
     });
     // Dropdown states
     const [openStatus, setOpenStatus] = useState(false);
@@ -610,7 +632,8 @@ const songs = () => {
                 canClose={!isUploading}
                 wide={true}
                 title='Create a song'
-                subtitle="Add a new song to your band's repertoire and choose its tags and status">
+                subtitle="Add a new song to your band's repertoire and choose its tags and status"
+            >
                 <Formik<NewSongFormValues>
                     validationSchema={newSongSchema}
                     initialValues={{
@@ -739,7 +762,8 @@ const songs = () => {
                         }
                     }}
                     validateOnBlur={false}
-                    validateOnChange={false}>
+                    validateOnChange={false}
+                >
                     {({
                         handleChange,
                         handleBlur,
@@ -856,7 +880,8 @@ const songs = () => {
                                 )} */}
                                 <ScrollView
                                     horizontal={true}
-                                    className='flex-row gap-2 w-full'>
+                                    className='flex-row gap-2 w-full'
+                                >
                                     {tags.map((tag) => {
                                         return (
                                             <Pressable
@@ -864,12 +889,14 @@ const songs = () => {
                                                 className='rounded rounded-xl p-2 mr-2'
                                                 style={{
                                                     backgroundColor: tag.color,
-                                                }}>
+                                                }}
+                                            >
                                                 <Text
                                                     className='text-white'
                                                     style={{
                                                         fontSize: fontSize.base,
-                                                    }}>
+                                                    }}
+                                                >
                                                     {tag.name}
                                                 </Text>
                                             </Pressable>
@@ -879,7 +906,10 @@ const songs = () => {
                                 {!isAddingTag ? (
                                     <Pressable
                                         className='bg-accent-light dark:bg-accent-dark rounded-xl px-4 py-3 flex-row items-center justify-center'
-                                        onPress={() => {}}>
+                                        onPress={() => {
+                                            setIsAddingTag(true);
+                                        }}
+                                    >
                                         <Text
                                             style={{
                                                 color:
@@ -888,12 +918,132 @@ const songs = () => {
                                                         : "#222",
                                                 fontWeight: "500",
                                                 fontSize: fontSize.base,
-                                            }}>
+                                            }}
+                                        >
                                             Add a new tag
                                         </Text>
                                     </Pressable>
                                 ) : (
-                                    <View className='flex-row items-center'></View>
+                                    <Formik<addTagFormValues>
+                                        validationSchema={addTagSchema}
+                                        initialValues={{
+                                            name: "",
+                                            color: "",
+                                        }}
+                                        enableReinitialize={false}
+                                        onSubmit={async (values) => {
+                                            const addTag = await fetch(
+                                                `${apiUrl}/api/songs/tags/add`,
+                                                {
+                                                    method: "POST",
+                                                    headers: {
+                                                        "Content-Type":
+                                                            "application/json",
+                                                    },
+                                                    body: JSON.stringify({
+                                                        name: values.name,
+                                                        color: values.color,
+                                                        bandId: activeBand?.id,
+                                                    }),
+                                                }
+                                            );
+                                            if (!addTag.ok) {
+                                                const err = await addTag
+                                                    .json()
+                                                    .catch(() => ({}));
+                                                throw new Error(
+                                                    err.error ||
+                                                        "Saving song metadata failed"
+                                                );
+                                            }
+                                            fetchTags();
+                                            setIsAddingTag(false);
+                                        }}
+                                    >
+                                        {({
+                                            handleChange,
+                                            handleBlur,
+                                            handleSubmit,
+                                            values,
+                                            setFieldValue,
+                                            setFieldTouched,
+                                            errors,
+                                            touched,
+                                            submitCount,
+                                        }) => (
+                                            <View className='flex-col w-full'>
+                                                <View className='flex-row items-center gap-2 w-full'>
+                                                    <View className='flex-col flex-1'>
+                                                        <StyledTextInput
+                                                            placeholder='name'
+                                                            className='flex-1'
+                                                            value={values.name}
+                                                            onChangeText={handleChange(
+                                                                "name"
+                                                            )}
+                                                            onBlur={handleBlur(
+                                                                "name"
+                                                            )}
+                                                        />
+                                                        {touched.name &&
+                                                            errors.name && (
+                                                                <View className='w-full flex-row justify-center'>
+                                                                    <ErrorText>
+                                                                        {
+                                                                            errors.name
+                                                                        }
+                                                                    </ErrorText>
+                                                                </View>
+                                                            )}
+                                                    </View>
+                                                    <View className='flex-col flex-1'>
+                                                        <StyledTextInput
+                                                            placeholder='color'
+                                                            className='flex-1'
+                                                            value={values.color}
+                                                            onChangeText={handleChange(
+                                                                "color"
+                                                            )}
+                                                            onBlur={handleBlur(
+                                                                "color"
+                                                            )}
+                                                        />
+                                                        {touched.color &&
+                                                            errors.color && (
+                                                                <View className='w-full flex-row justify-center'>
+                                                                    <ErrorText>
+                                                                        {
+                                                                            errors.color
+                                                                        }
+                                                                    </ErrorText>
+                                                                </View>
+                                                            )}
+                                                    </View>
+                                                </View>
+                                                <View className='flex-row w-full gap-2 justify-center items-center mt-2'>
+                                                    <StyledButton
+                                                        title='Cancel'
+                                                        className='flex-1 px-0'
+                                                        variant='accent'
+                                                        disabled={false}
+                                                        onPress={() =>
+                                                            setIsAddingTag(
+                                                                false
+                                                            )
+                                                        }
+                                                    />
+                                                    <StyledButton
+                                                        title='Add'
+                                                        className='flex-1 px-0'
+                                                        disabled={false}
+                                                        onPress={() => {
+                                                            handleSubmit();
+                                                        }}
+                                                    />
+                                                </View>
+                                            </View>
+                                        )}
+                                    </Formik>
                                 )}
                                 <StyledTextInput
                                     placeholder='Description'
@@ -913,7 +1063,8 @@ const songs = () => {
                                     className='bg-accent-light dark:bg-accent-dark rounded-xl px-4 py-3 flex-row items-center justify-center mt-2'
                                     onPress={() =>
                                         onPickBtnPress(setFieldValue)
-                                    }>
+                                    }
+                                >
                                     <Text
                                         style={{
                                             color:
@@ -922,7 +1073,8 @@ const songs = () => {
                                                     : "#222",
                                             fontWeight: "500",
                                             fontSize: fontSize.base,
-                                        }}>
+                                        }}
+                                    >
                                         {values.file
                                             ? `Selected: ${values.file.name ?? values.file.uri.split("/").pop()}`
                                             : "Pick audio file"}
@@ -940,7 +1092,8 @@ const songs = () => {
                                 <View className='w-full items-center my-2'>
                                     <Text
                                         className='text-silverText mb-2'
-                                        style={{ fontSize: fontSize.base }}>
+                                        style={{ fontSize: fontSize.base }}
+                                    >
                                         Uploading... {uploadProgress ?? 0}%
                                     </Text>
                                     <View className='w-full h-2 bg-accent-light dark:bg-accent-dark rounded-full'>
@@ -976,22 +1129,27 @@ const songs = () => {
                 visible={filtersVisible}
                 animationType='slide'
                 transparent
-                onRequestClose={closeFiltersModal}>
+                onRequestClose={closeFiltersModal}
+            >
                 <Pressable
                     onPress={closeFiltersModal}
-                    className='flex-1 justify-end'>
+                    className='flex-1 justify-end'
+                >
                     <Pressable
                         onPress={(e) => e.stopPropagation()}
-                        className='bg-boxBackground-light dark:bg-boxBackground-dark border-t border-accent-light dark:border-accent-dark rounded-t-3xl p-6'>
+                        className='bg-boxBackground-light dark:bg-boxBackground-dark border-t border-accent-light dark:border-accent-dark rounded-t-3xl p-6'
+                    >
                         <View className='flex-row items-center justify-between mb-4'>
                             <Text
                                 className='font-bold dark:text-white'
-                                style={{ fontSize: fontSize.xl }}>
+                                style={{ fontSize: fontSize.xl }}
+                            >
                                 Filters
                             </Text>
                             <Pressable
                                 onPress={closeFiltersModal}
-                                className='p-2 rounded-full bg-accent-light dark:bg-accent-dark active:opacity-70'>
+                                className='p-2 rounded-full bg-accent-light dark:bg-accent-dark active:opacity-70'
+                            >
                                 <X
                                     size={20}
                                     color={
@@ -1003,7 +1161,8 @@ const songs = () => {
                         <View className='flex-row items-center gap-2 mb-4'>
                             <Text
                                 className='text-black dark:text-white'
-                                style={{ fontSize: fontSize.xl }}>
+                                style={{ fontSize: fontSize.xl }}
+                            >
                                 Status:
                             </Text>
                             <Pressable
@@ -1016,11 +1175,13 @@ const songs = () => {
                                     readyStatusSelected
                                         ? "bg-transparentGreen border-green"
                                         : "bg-transparent border-gray-400"
-                                }`}>
+                                }`}
+                            >
                                 <Text
                                     className='text-black dark:text-white'
                                     style={{ fontSize: fontSize.base }}
-                                    maxFontSizeMultiplier={1.3}>
+                                    maxFontSizeMultiplier={1.3}
+                                >
                                     ready
                                 </Text>
                             </Pressable>
@@ -1034,11 +1195,13 @@ const songs = () => {
                                     finishedStatusSelected
                                         ? "bg-transparentGreen border-green"
                                         : "bg-transparent border-gray-400"
-                                }`}>
+                                }`}
+                            >
                                 <Text
                                     className='text-black dark:text-white'
                                     style={{ fontSize: fontSize.base }}
-                                    maxFontSizeMultiplier={1.3}>
+                                    maxFontSizeMultiplier={1.3}
+                                >
                                     finished
                                 </Text>
                             </Pressable>
@@ -1052,11 +1215,13 @@ const songs = () => {
                                     draftStatusSelected
                                         ? "bg-transparentGreen border-green"
                                         : "bg-transparent border-gray-400"
-                                }`}>
+                                }`}
+                            >
                                 <Text
                                     className='text-black dark:text-white'
                                     style={{ fontSize: fontSize.base }}
-                                    maxFontSizeMultiplier={1.3}>
+                                    maxFontSizeMultiplier={1.3}
+                                >
                                     draft
                                 </Text>
                             </Pressable>
@@ -1064,14 +1229,16 @@ const songs = () => {
                         <View>
                             <Text
                                 className='text-black dark:text-white'
-                                style={{ fontSize: fontSize.xl }}>
+                                style={{ fontSize: fontSize.xl }}
+                            >
                                 Tags
                             </Text>
                         </View>
                         <View>
                             <Text
                                 className='text-black dark:text-white'
-                                style={{ fontSize: fontSize.xl }}>
+                                style={{ fontSize: fontSize.xl }}
+                            >
                                 Additional
                             </Text>
                             {/* <StyledDropdown
@@ -1090,16 +1257,19 @@ const songs = () => {
                             <Pressable className='font-regular rounded rounded-xl bg-darkOrange p-2 flex-1 items-center justify-center'>
                                 <Text
                                     className='text-black'
-                                    style={{ fontSize: fontSize.xl }}>
+                                    style={{ fontSize: fontSize.xl }}
+                                >
                                     Reset
                                 </Text>
                             </Pressable>
                             <Pressable
                                 onPress={handleApplyFilters}
-                                className='font-regular rounded rounded-xl bg-blue dark:bg-blue p-2 flex-1 items-center justify-center'>
+                                className='font-regular rounded rounded-xl bg-blue dark:bg-blue p-2 flex-1 items-center justify-center'
+                            >
                                 <Text
                                     className='text-white'
-                                    style={{ fontSize: fontSize.xl }}>
+                                    style={{ fontSize: fontSize.xl }}
+                                >
                                     Apply filters
                                 </Text>
                             </Pressable>
@@ -1112,7 +1282,8 @@ const songs = () => {
                     <ActivityIndicator size='large' color='#2B7FFF' />
                     <Text
                         className='text-silverText mt-4'
-                        style={{ fontSize: fontSize.base }}>
+                        style={{ fontSize: fontSize.base }}
+                    >
                         Loading bands...
                     </Text>
                 </View>
@@ -1124,12 +1295,14 @@ const songs = () => {
                         <View className='flex-col items-start justify-center'>
                             <Text
                                 className='text-black dark:text-white font-bold my-1'
-                                style={{ fontSize: fontSize["2xl"] }}>
+                                style={{ fontSize: fontSize["2xl"] }}
+                            >
                                 {activeBand?.name} Songs & Setlists
                             </Text>
                             <Text
                                 className='text-silverText'
-                                style={{ fontSize: fontSize.base }}>
+                                style={{ fontSize: fontSize.base }}
+                            >
                                 Manage your band's songs and setlists
                             </Text>
                         </View>
@@ -1147,7 +1320,8 @@ const songs = () => {
                                 <View className='flex-row justify-between items-center w-full'>
                                     <Text
                                         className='text-silverText'
-                                        style={{ fontSize: fontSize.base }}>
+                                        style={{ fontSize: fontSize.base }}
+                                    >
                                         {sortedSongs.length} songs •{" "}
                                         {
                                             sortedSongs.filter(
@@ -1219,7 +1393,8 @@ const songs = () => {
                                                             ? "#333"
                                                             : "#fff",
                                                 },
-                                            }}>
+                                            }}
+                                        >
                                             <MenuOption
                                                 onSelect={() => {
                                                     setSort("alphabetical_asc");
@@ -1297,7 +1472,8 @@ const songs = () => {
                                     <Pressable
                                         onPress={() => {
                                             setFiltersVisible(true);
-                                        }}>
+                                        }}
+                                    >
                                         <SlidersHorizontal
                                             size={Math.min(fontSize["3xl"], 20)}
                                             style={{
@@ -1319,7 +1495,8 @@ const songs = () => {
                                     alignItems: "center",
                                     justifyContent: "flex-start",
                                     paddingBottom: 25,
-                                }}>
+                                }}
+                            >
                                 {Array.isArray(sortedSongs) &&
                                     sortedSongs.map((song, idx) => (
                                         <SongCard
@@ -1336,7 +1513,8 @@ const songs = () => {
                                     <View className='flex-1 w-full justify-center items-center'>
                                         <Text
                                             className='text-silverText'
-                                            style={{ fontSize: fontSize.base }}>
+                                            style={{ fontSize: fontSize.base }}
+                                        >
                                             No songs found.
                                         </Text>
                                     </View>
