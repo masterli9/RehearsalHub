@@ -33,11 +33,18 @@ const VALID_STATUSES = ["draft", "finished", "ready"];
 
 export const createSong = async (req, res) => {
     try {
-        // Extract and trim string fields
-        let { title, songKey, length, bpm, status, bandId, notes, cloudurl } =
-            req.body;
+        let {
+            title,
+            songKey,
+            length,
+            bpm,
+            status,
+            bandId,
+            notes,
+            cloudurl,
+            tags,
+        } = req.body;
 
-        // Validate required fields
         if (!title || typeof title !== "string") {
             return res
                 .status(400)
@@ -48,7 +55,6 @@ export const createSong = async (req, res) => {
             return res.status(400).json({ error: "bandId is required" });
         }
 
-        // Trim string fields
         title = title.trim();
         if (songKey && typeof songKey === "string") songKey = songKey.trim();
         if (status && typeof status === "string") status = status.trim();
@@ -56,7 +62,6 @@ export const createSong = async (req, res) => {
         if (cloudurl && typeof cloudurl === "string")
             cloudurl = cloudurl.trim();
 
-        // Validate title (max 255 chars, not empty after trim)
         if (title.length === 0) {
             return res.status(400).json({ error: "Title cannot be empty" });
         }
@@ -66,7 +71,6 @@ export const createSong = async (req, res) => {
                 .json({ error: "Title must be 255 characters or less" });
         }
 
-        // Validate songKey (max 4 chars, must be in valid keys list)
         if (songKey) {
             if (songKey.length > 4) {
                 return res
@@ -78,7 +82,6 @@ export const createSong = async (req, res) => {
             }
         }
 
-        // Validate status (max 20 chars, must be in valid statuses list)
         if (status) {
             if (status.length > 20) {
                 return res
@@ -90,7 +93,6 @@ export const createSong = async (req, res) => {
             }
         }
 
-        // Validate and convert bandId to integer
         const bandIdInt = parseInt(bandId, 10);
         if (isNaN(bandIdInt) || bandIdInt <= 0) {
             return res
@@ -106,15 +108,16 @@ export const createSong = async (req, res) => {
                 return res.status(400).json({ error: "BPM must be a number" });
             }
             const bpmInt = Math.round(bpmNum);
-            if (bpmInt < -32768 || bpmInt > 32767) {
-                return res
-                    .status(400)
-                    .json({ error: "BPM must be between -32768 and 32767" });
-            }
+            // Enforce integer bounds for PostgreSQL smallint, but user should only enter 1..32767 (app enforced)
             if (bpmInt < 1) {
                 return res
                     .status(400)
                     .json({ error: "BPM should be at least 1" });
+            }
+            if (bpmInt > 32767) {
+                return res
+                    .status(400)
+                    .json({ error: "BPM should be at most 32767" });
             }
             bpmValue = bpmInt;
         }
@@ -149,6 +152,41 @@ export const createSong = async (req, res) => {
                 bandIdInt,
             ]
         );
+        const songId = insertSong.rows[0].song_id;
+
+        // Handle tags
+        let tagIds = [];
+        if (tags && Array.isArray(tags) && tags.length > 0) {
+            for (const tagName of tags) {
+                // Check if tag exists for the band or is a global tag
+                let tagResult = await pool.query(
+                    "SELECT tag_id FROM tags WHERE name = $1 AND (band_id = $2 OR band_id IS NULL)",
+                    [tagName, bandIdInt]
+                );
+
+                if (tagResult.rows.length === 0) {
+                    // If tag doesn't exist, create it as a band-specific tag
+                    tagResult = await pool.query(
+                        "INSERT INTO tags (name, band_id) VALUES ($1, $2) RETURNING tag_id",
+                        [tagName, bandIdInt]
+                    );
+                }
+                tagIds.push(tagResult.rows[0].tag_id);
+            }
+        }
+        // insert record into song_tags
+        for (const tagId of tagIds) {
+            const check = await pool.query(
+                "INSERT INTO song_tags (song_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *",
+                [songId, tagId]
+            );
+            if (check.rows.length === 0) {
+                return res
+                    .status(400)
+                    .json({ error: "Failed to add tag to song" });
+            }
+        }
+
         const song = insertSong.rows[0];
         res.status(201).json(song);
     } catch (error) {
@@ -157,6 +195,14 @@ export const createSong = async (req, res) => {
     }
 };
 
+/**
+ * Issue (see @file_context_0): The previous query attempts to select a multi-column array using:
+ *   ARRAY(SELECT t.name, t.color, t.tag_id ...)
+ * This returns a "subquery must return only one column" error in PostgreSQL because ARRAY(SELECT ...)
+ * can only be used with a single column.
+ *
+ * Fix: Instead, aggregate the tags using json_agg and json_build_object, which works as an array of objects in JS and PostgreSQL.
+ */
 export const getSongs = async (req, res) => {
     const { bandId, status, tags, search, limit = 20, offset = 0 } = req.query;
 
@@ -168,15 +214,49 @@ export const getSongs = async (req, res) => {
         });
     }
 
+    // Build up query
+    /*
+        Explanation of the query syntax below:
+
+        - COALESCE(expr1, expr2):
+            Returns the first non-null value in the list. Here, if the subquery returns null,
+            COALESCE ensures we get an empty array ('[]') instead of null.
+
+        - json_agg(expression):
+            Aggregates row values into a JSON array. For example, json_agg(json_build_object(...)) turns multiple tag rows into a JSON array of tag objects.
+
+        - json_build_object(key, value, ...):
+            Constructs a new JSON object for each row with given key/value pairs. In this case,
+            it creates an object with 'name', 'color', and 'tag_id' for each tag.
+
+        - FILTER (WHERE ...):
+            This is a PostgreSQL extension to apply a WHERE-like filter to aggregates
+            (such as json_agg). Only rows satisfying this condition are included in the aggregate.
+
+        The subquery below gathers all tags for the song s (the outer query's row) as
+        an array of objects [{name, color, tag_id}, ...]. If there are no tags, 
+        COALESCE outputs an empty array.
+    */
     let query = `
-        SELECT s.*, ARRAY(
-            SELECT t.name
-            FROM song_tags st
-            JOIN tags t USING(tag_id)
-            WHERE st.song_id = s.song_id
-        ) AS tags
-         FROM songs s
-         WHERE s.band_id = $1
+        SELECT
+            s.*,
+            COALESCE(
+                (
+                    SELECT json_agg(
+                        json_build_object(
+                            'name', t.name,
+                            'color', t.color,
+                            'tag_id', t.tag_id
+                        )
+                    ) FILTER (WHERE t.tag_id IS NOT NULL)
+                    FROM song_tags st
+                    JOIN tags t ON st.tag_id = t.tag_id
+                    WHERE st.song_id = s.song_id
+                ),
+                '[]'
+            ) AS tags
+        FROM songs s
+        WHERE s.band_id = $1
     `;
 
     const params = [bandIdInt];
@@ -194,7 +274,9 @@ export const getSongs = async (req, res) => {
         query += ` AND s.title ILIKE $${params.length}`;
     }
     if (tags && tags.length > 0) {
-        params.push(tags);
+        // Ensure tags is an array, as a single tag comes as a string from query params
+        const tagIds = Array.isArray(tags) ? tags : [tags];
+        params.push(tagIds);
         query += ` AND s.song_id IN (
             SELECT song_id FROM song_tags WHERE tag_id = ANY($${params.length})
         )`;

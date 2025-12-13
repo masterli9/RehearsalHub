@@ -10,7 +10,7 @@ import StyledTextInput from "@/components/StyledTextInput";
 import SwitchTabs from "@/components/SwitchTabs";
 import apiUrl from "@/config";
 import { useAuth } from "@/context/AuthContext";
-import { useBand } from "@/context/BandContext";
+import { useBand, BandSongTag } from "@/context/BandContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import { createAudioPlayer } from "expo-audio";
 import * as DocumentPicker from "expo-document-picker";
@@ -65,7 +65,6 @@ const songs = () => {
 
     const [tags, setTags] = useState<any[]>([]);
     const [isAddingTag, setIsAddingTag] = useState<boolean>(false);
-    const [showPicker, setShowPicker] = useState<boolean>(false);
 
     // filter states
     const [sort, setSort] = useState("date_desc");
@@ -76,8 +75,29 @@ const songs = () => {
         useState<boolean>(true);
     const [finishedStatusSelected, setFinishedStatusSelected] =
         useState<boolean>(true);
+    const [selectedFilterTags, setSelectedFilterTags] = useState<number[]>([]);
 
     const [searchText, setSearchText] = useState("");
+
+    const isInitialMount = useRef(true);
+
+    // This useEffect debounces the search input.
+    // It waits for 300ms after the user stops typing before triggering a search.
+    useEffect(() => {
+        // Don't run on initial mount. The initial load is handled by the `activeBand` effect.
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
+        const handler = setTimeout(() => {
+            runFilterAndSearch();
+        }, 300);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchText]); // The effect runs only when searchText changes.
 
     const runFilterAndSearch = () => {
         const statuses = [
@@ -86,12 +106,11 @@ const songs = () => {
             draftStatusSelected ? "draft" : null,
         ].filter(Boolean) as string[];
 
-        fetchSongs({ status: statuses, search: searchText });
-    };
-
-    const handleApplyFilters = () => {
-        runFilterAndSearch();
-        closeFiltersModal();
+        fetchSongs({
+            status: statuses,
+            search: searchText,
+            tags: selectedFilterTags,
+        });
     };
 
     const stopProgressAnimation = () => {
@@ -101,9 +120,14 @@ const songs = () => {
         }
     };
 
+    const handleApplyFilters = () => {
+        runFilterAndSearch();
+        closeFiltersModal();
+    };
+
     const fetchSongs = async (params?: {
         status?: string[];
-        tags?: string;
+        tags?: number[];
         search?: string;
     }) => {
         if (!activeBand?.id) {
@@ -123,8 +147,14 @@ const songs = () => {
                         query += `&status=${encodeURIComponent(s)}`;
                     }
                 }
-                if (params.tags) {
-                    query += `&tags=${encodeURIComponent(params.tags)}`;
+                if (
+                    params.tags &&
+                    Array.isArray(params.tags) &&
+                    params.tags.length > 0
+                ) {
+                    for (const t of params.tags) {
+                        query += `&tags=${encodeURIComponent(t)}`;
+                    }
                 }
                 if (params.search) {
                     query += `&search=${encodeURIComponent(params.search)}`;
@@ -204,7 +234,7 @@ const songs = () => {
         // When the active band changes, fetch all songs for that band.
         // Filtering is applied manually via the search and filter controls.
         if (activeBand?.id) {
-            fetchSongs();
+            runFilterAndSearch(); // This will now be the only initial trigger
             fetchTags();
         }
     }, [activeBand?.id]);
@@ -222,7 +252,7 @@ const songs = () => {
         length: string;
         description: string;
         status: string;
-        tags: string[];
+        tags: BandSongTag[];
         file: any;
     };
     type addTagFormValues = {
@@ -237,6 +267,7 @@ const songs = () => {
         songKey,
         dateAdded,
         description,
+        songTags,
     }: {
         songName: string;
         status: "ready" | "draft" | "finished";
@@ -244,6 +275,7 @@ const songs = () => {
         songKey: string;
         dateAdded: string;
         description: string;
+        songTags: any[];
     }) => {
         const formatInterval = (interval: any) => {
             if (!interval || typeof interval !== "object") {
@@ -374,6 +406,26 @@ const songs = () => {
                         {description}
                     </Text>
                 )}
+                <View className='flex-row items-center gap-2 flex-wrap'>
+                    {songTags.length > 0 &&
+                        songTags.map((t) => (
+                            <View
+                                key={t.tag_id}
+                                className='px-3 py-1 rounded-xl'
+                                style={{
+                                    backgroundColor: t.color,
+                                }}>
+                                <Text
+                                    className='text-base text-black dark:text-white'
+                                    // style={{
+                                    //     fontSize: fontSize.base,
+                                    // }}
+                                >
+                                    {t.name}
+                                </Text>
+                            </View>
+                        ))}
+                </View>
             </View>
         );
     };
@@ -398,7 +450,11 @@ const songs = () => {
         description: yup
             .string()
             .nullable()
-            .transform((value) => (value ? value.trim() : null))
+            .transform((value, originalValue) =>
+                typeof originalValue === "string" && originalValue.trim() !== ""
+                    ? originalValue.trim()
+                    : null
+            )
             .max(1000, "Description should be less than 1000 characters"),
         songKey: yup
             .string()
@@ -410,7 +466,14 @@ const songs = () => {
             .trim()
             .oneOf(["ready", "draft", "finished"])
             .required("Status is required"),
-        tags: yup.array().of(yup.string().trim()),
+        tags: yup
+            .array()
+            .of(
+                yup.object().shape({
+                    name: yup.string().trim().required(),
+                })
+            )
+            .nullable(),
         file: yup.object().shape({
             uri: yup.string().required("File is required"),
         }),
@@ -717,6 +780,7 @@ const songs = () => {
                                             values.description?.trim() || null,
                                         songKey: values.songKey.trim(),
                                         status: values.status.trim(),
+                                        tags: values.tags.map((t) => t.name),
                                     }),
                                 }
                             );
@@ -847,19 +911,55 @@ const songs = () => {
                                 )}
                                 <ScrollView
                                     horizontal={true}
+                                    contentContainerClassName='items-center'
                                     className='flex-row gap-2 w-full'>
-                                    {tags.map((tag) => {
+                                    {tags.map((tag: BandSongTag) => {
+                                        const isSelected = values.tags.some(
+                                            (t) => t.name === tag.name
+                                        );
+
                                         return (
                                             <Pressable
                                                 key={tag.tag_id}
                                                 className='rounded rounded-xl p-2 mr-2'
+                                                onPress={() => {
+                                                    if (isSelected) {
+                                                        setFieldValue(
+                                                            "tags",
+                                                            values.tags.filter(
+                                                                (t) =>
+                                                                    t.tag_id !==
+                                                                    tag.tag_id
+                                                            )
+                                                        );
+                                                    } else {
+                                                        setFieldValue("tags", [
+                                                            ...values.tags,
+                                                            tag,
+                                                        ]);
+                                                    }
+                                                }}
                                                 style={{
                                                     backgroundColor: tag.color,
+                                                    borderWidth: isSelected
+                                                        ? 1
+                                                        : 0,
+                                                    borderColor: isSelected
+                                                        ? colorScheme === "dark"
+                                                            ? "#fff"
+                                                            : "#000"
+                                                        : "#ddd",
+                                                    opacity: isSelected
+                                                        ? 1
+                                                        : 0.88,
                                                 }}>
                                                 <Text
                                                     className='text-white'
                                                     style={{
                                                         fontSize: fontSize.base,
+                                                        fontWeight: isSelected
+                                                            ? "bold"
+                                                            : "normal",
                                                     }}>
                                                     {tag.name}
                                                 </Text>
@@ -934,7 +1034,6 @@ const songs = () => {
                                                 }
                                                 await fetchTags();
                                                 setIsAddingTag(false);
-                                                setShowPicker(false);
                                             } catch (error) {
                                                 console.error(
                                                     "Tag Submit Error:",
@@ -1270,6 +1369,65 @@ const songs = () => {
                                 style={{ fontSize: fontSize.xl }}>
                                 Tags
                             </Text>
+                            <View className='flex-row items-center flex-wrap'>
+                                {tags.map((tag: BandSongTag) => (
+                                    <Pressable
+                                        key={tag.tag_id}
+                                        className='rounded rounded-xl p-2 mr-2 mb-2'
+                                        onPress={() => {
+                                            const isSelected =
+                                                selectedFilterTags.includes(
+                                                    tag.tag_id
+                                                );
+                                            if (isSelected) {
+                                                setSelectedFilterTags(
+                                                    selectedFilterTags.filter(
+                                                        (id) =>
+                                                            id !== tag.tag_id
+                                                    )
+                                                );
+                                            } else {
+                                                setSelectedFilterTags([
+                                                    ...selectedFilterTags,
+                                                    tag.tag_id,
+                                                ]);
+                                            }
+                                        }}
+                                        style={{
+                                            backgroundColor: tag.color,
+                                            borderWidth:
+                                                selectedFilterTags.includes(
+                                                    tag.tag_id
+                                                )
+                                                    ? 2
+                                                    : 0,
+                                            borderColor:
+                                                colorScheme === "dark"
+                                                    ? "#fff"
+                                                    : "#000",
+                                            opacity:
+                                                selectedFilterTags.includes(
+                                                    tag.tag_id
+                                                )
+                                                    ? 1
+                                                    : 0.7,
+                                        }}>
+                                        <Text
+                                            className='text-white'
+                                            style={{
+                                                fontSize: fontSize.base,
+                                                fontWeight:
+                                                    selectedFilterTags.includes(
+                                                        tag.tag_id
+                                                    )
+                                                        ? "bold"
+                                                        : "normal",
+                                            }}>
+                                            {tag.name}
+                                        </Text>
+                                    </Pressable>
+                                ))}
+                            </View>
                         </View>
                         <View>
                             <Text
@@ -1290,7 +1448,16 @@ const songs = () => {
                             /> */}
                         </View>
                         <View className='flex-row gap-2 w-full'>
-                            <Pressable className='font-regular rounded rounded-xl bg-darkOrange p-2 flex-1 items-center justify-center'>
+                            <Pressable
+                                onPress={() => {
+                                    setReadyStatusSelected(true);
+                                    setDraftStatusSelected(true);
+                                    setFinishedStatusSelected(true);
+                                    setSelectedFilterTags([]);
+                                    // This will trigger the debounced useEffect to re-fetch with cleared filters
+                                    setSearchText("");
+                                }}
+                                className='font-regular rounded rounded-xl bg-darkOrange p-2 flex-1 items-center justify-center'>
                                 <Text
                                     className='text-black'
                                     style={{ fontSize: fontSize.xl }}>
@@ -1373,10 +1540,7 @@ const songs = () => {
                                             placeholder='Search songs'
                                             variant='rounded'
                                             value={searchText}
-                                            onChangeText={(text) => {
-                                                setSearchText(text);
-                                                runFilterAndSearch(); // TODO: Refine, the searching has some bugs
-                                            }}
+                                            onChangeText={setSearchText}
                                             onSubmitEditing={runFilterAndSearch}
                                         />
                                     </View>
@@ -1533,6 +1697,7 @@ const songs = () => {
                                             songKey={song.key} // The column name is `key` in the DB
                                             dateAdded={song.created_at} // The column name is `created_at`
                                             description={song.notes}
+                                            songTags={song.tags}
                                         />
                                     ))}
                                 {sortedSongs.length === 0 && (

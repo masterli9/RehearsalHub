@@ -11,6 +11,11 @@ export type BandRole = {
     role_id: number;
     title: string;
 };
+export type BandSongTag = {
+    tag_id: number;
+    name: string;
+    color: string;
+};
 
 type BandContextType = {
     bands: Band[];
@@ -303,8 +308,7 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 removeBand,
                 removeBandMember,
                 makeLeader,
-            }}
-        >
+            }}>
             {children}
         </BandContext.Provider>
     );
