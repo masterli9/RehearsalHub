@@ -6,6 +6,7 @@ import {
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
+import MiniPlayer from "@/components/MiniPlayer";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { View, Text, ActivityIndicator } from "react-native";
@@ -45,9 +46,13 @@ function AuthGate() {
     }
 
     return user ? (
-        <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name='(tabs)' />
-        </Stack>
+        <View className='flex-1'>
+            <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name='(tabs)' />
+            </Stack>
+
+            <MiniPlayer />
+        </View>
     ) : (
         <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name='(auth)/auth' />

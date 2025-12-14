@@ -15,6 +15,8 @@ type PlayerState = {
     pause: () => void;
     stop: () => void;
     resume: () => void;
+    player: any;
+    clearCurrent: () => void;
 };
 
 const PlayerContext = createContext<PlayerState | null>(null);
@@ -58,6 +60,7 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
                 // console.log("Status update:", status);
                 if (status.didJustFinish) {
                     stop();
+                    // clearCurrent();
                 }
             }
         );
@@ -101,6 +104,13 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
         setIsPlaying(false);
     };
 
+    const clearCurrent = () => {
+        player.pause();
+        player.seekTo(0);
+        setIsPlaying(false);
+        setCurrentAudio(null); // This effectively "closes" the player UI
+    };
+
     return (
         <PlayerContext.Provider
             value={{
@@ -110,6 +120,8 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
                 stop,
                 resume,
                 isPlaying,
+                player,
+                clearCurrent,
             }}>
             {children}
         </PlayerContext.Provider>
