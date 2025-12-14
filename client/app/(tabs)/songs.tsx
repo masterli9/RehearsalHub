@@ -1,5 +1,5 @@
 import "react-native-gesture-handler";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import * as FileSystem from "expo-file-system/legacy";
 import ErrorText from "@/components/ErrorText";
 import NoBand from "@/components/NoBand";
 import PageContainer from "@/components/PageContainer";
@@ -22,6 +22,7 @@ import {
     EllipsisVertical,
     Hash,
     ListMusic,
+    Pause,
     Play,
     SlidersHorizontal,
     SquarePen,
@@ -45,8 +46,10 @@ import {
     MenuTrigger,
 } from "react-native-popup-menu";
 import * as yup from "yup";
+import { usePlayer } from "@/context/AudioPlayerContext";
 
 const songs = () => {
+    const { play, pause, stop, resume, current, isPlaying } = usePlayer();
     const { user } = useAuth();
     const { bands, activeBand, bandsLoading } = useBand();
     const fontSize = useAccessibleFontSize();
@@ -70,12 +73,14 @@ const songs = () => {
     const [sort, setSort] = useState("date_desc");
     const [filtersVisible, setFiltersVisible] = useState<boolean>(false);
     const [readyStatusSelected, setReadyStatusSelected] =
-        useState<boolean>(true);
+        useState<boolean>(false);
     const [draftStatusSelected, setDraftStatusSelected] =
-        useState<boolean>(true);
+        useState<boolean>(false);
     const [finishedStatusSelected, setFinishedStatusSelected] =
-        useState<boolean>(true);
+        useState<boolean>(false);
     const [selectedFilterTags, setSelectedFilterTags] = useState<number[]>([]);
+
+    const [selectedFilterKeys, setSelectedFilterKeys] = useState<string[]>([]);
 
     const [searchText, setSearchText] = useState("");
 
@@ -110,6 +115,7 @@ const songs = () => {
             status: statuses,
             search: searchText,
             tags: selectedFilterTags,
+            keys: selectedFilterKeys,
         });
     };
 
@@ -129,6 +135,7 @@ const songs = () => {
         status?: string[];
         tags?: number[];
         search?: string;
+        keys?: string[];
     }) => {
         if (!activeBand?.id) {
             setSongs([]);
@@ -154,6 +161,15 @@ const songs = () => {
                 ) {
                     for (const t of params.tags) {
                         query += `&tags=${encodeURIComponent(t)}`;
+                    }
+                }
+                if (
+                    params.keys &&
+                    Array.isArray(params.keys) &&
+                    params.keys.length > 0
+                ) {
+                    for (const k of params.keys) {
+                        query += `&songKey=${encodeURIComponent(k)}`;
                     }
                 }
                 if (params.search) {
@@ -261,6 +277,8 @@ const songs = () => {
     };
 
     const SongCard = ({
+        songId,
+        audioUrl,
         songName,
         status,
         length,
@@ -269,6 +287,8 @@ const songs = () => {
         description,
         songTags,
     }: {
+        songId: number;
+        audioUrl: string;
         songName: string;
         status: "ready" | "draft" | "finished";
         length: string;
@@ -290,6 +310,21 @@ const songs = () => {
             if (!dateString) return "N/A";
             return new Date(dateString).toLocaleDateString();
         };
+
+        const handlePlay = () => {
+            if (!audioUrl) {
+                Alert.alert("Error", "No audio file available for this song");
+                return;
+            }
+            play({
+                song_id: songId,
+                title: songName,
+                url: audioUrl,
+                type: "song",
+            });
+        };
+        const isCurrentSong = current?.song_id === songId;
+        const showPause = isCurrentSong && isPlaying;
         return (
             <View className='bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3'>
                 <View
@@ -375,10 +410,27 @@ const songs = () => {
                     <View
                         className='flex-row gap-4 items-center'
                         style={{ flexShrink: 0 }}>
-                        <Play
-                            color={colorScheme === "dark" ? "white" : "black"}
-                            size={20}
-                        />
+                        <Pressable onPress={showPause ? pause : handlePlay}>
+                            {showPause ? (
+                                <Pause
+                                    color={
+                                        colorScheme === "dark"
+                                            ? "white"
+                                            : "black"
+                                    }
+                                    size={20}
+                                />
+                            ) : (
+                                <Play
+                                    color={
+                                        colorScheme === "dark"
+                                            ? "white"
+                                            : "black"
+                                    }
+                                    size={20}
+                                />
+                            )}
+                        </Pressable>
                         <Pressable>
                             <SquarePen
                                 color={
@@ -416,10 +468,8 @@ const songs = () => {
                                     backgroundColor: t.color,
                                 }}>
                                 <Text
-                                    className='text-base text-black dark:text-white'
-                                    // style={{
-                                    //     fontSize: fontSize.base,
-                                    // }}
+                                    className='text-white text-sm'
+                                    // style={{ fontSize: fontSize.base }} // TODO: FIX ERROR
                                 >
                                     {t.name}
                                 </Text>
@@ -555,57 +605,56 @@ const songs = () => {
         bandId: string;
         onProgress: (progress: number) => void;
     }) {
+        // 1. Get the Signed URL (same as before)
         const createResp = await fetch(`${apiUrl}/api/songs/upload-url`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ filename, contentType, bandId }),
         });
 
-        if (!createResp.ok) {
-            const err = await createResp.json().catch(() => ({}));
-            throw new Error(err.error || "Failed to get upload url");
-        }
-        const { uploadUrl, publicUrl } = await createResp.json();
+        if (!createResp.ok) throw new Error("Failed to get upload url");
 
-        const fileResp = await fetch(localUri);
-        const blob = await fileResp.blob();
+        const { uploadUrl, path } = await createResp.json();
 
-        // Use XMLHttpRequest to track upload progress
-        const putResp = await new Promise<XMLHttpRequest>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open("PUT", uploadUrl);
-            xhr.setRequestHeader("Content-Type", contentType);
+        // 2. Create Upload Task
+        // We use the direct integer 0 for BINARY_CONTENT to avoid type import issues.
+        // 0 = BINARY_CONTENT, 1 = MULTIPART
+        const uploadTask = FileSystem.createUploadTask(
+            uploadUrl,
+            localUri,
+            {
+                httpMethod: "PUT",
+                uploadType: 0 as any, // 0 maps to BINARY_CONTENT. Cast 'as any' silences the strict type check if needed.
+                headers: {
+                    "Content-Type": contentType,
+                },
+            },
+            (uploadProgress) => {
+                const totalBytesSent = uploadProgress.totalBytesSent;
+                const totalBytesExpectedToSend =
+                    uploadProgress.totalBytesExpectedToSend;
 
-            xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) {
-                    const percentCompleted = Math.round(
-                        (event.loaded * 100) / event.total
-                    );
-                    // The file upload is ~95% of the process
-                    // Clamp percentCompleted at 100 to prevent it from going over
-                    onProgress(
-                        Math.floor(Math.min(percentCompleted, 100) * 0.95)
-                    );
+                if (totalBytesExpectedToSend > 0) {
+                    const percent =
+                        (totalBytesSent / totalBytesExpectedToSend) * 100;
+                    onProgress(Math.min(Math.round(percent), 95));
                 }
-            };
+            }
+        );
 
-            xhr.onload = () => {
-                // File upload is complete, now we save metadata.
-                onProgress(95);
-                resolve(xhr);
-            };
-            xhr.onerror = () => reject(new Error("Upload to storage failed"));
-            xhr.onabort = () => reject(new Error("Upload aborted"));
+        // 3. Start the upload
+        const result = await uploadTask.uploadAsync();
 
-            xhr.send(blob);
-        });
-
-        if (putResp.status < 200 || putResp.status >= 300) {
-            throw new Error("Upload to storage failed");
+        // 4. Validate Result
+        // Google Cloud Storage returns 200 or 201 on success
+        if (result && result.status >= 200 && result.status < 300) {
+            onProgress(100);
+            return { path };
+        } else {
+            throw new Error(
+                `Upload failed. Cloud Storage Status: ${result?.status}`
+            );
         }
-
-        // Return the public URL for the next step (saving metadata)
-        return { publicUrl };
     }
 
     const onPickBtnPress = async (
@@ -619,8 +668,9 @@ const songs = () => {
                 const picked = result.assets[0];
 
                 // Load audio file to get duration
+                let audioPlayer: any = null;
                 try {
-                    const audioPlayer = createAudioPlayer();
+                    audioPlayer = createAudioPlayer();
                     await audioPlayer.replace(picked.uri);
 
                     // Wait a bit for duration to be available
@@ -652,6 +702,27 @@ const songs = () => {
                     console.error("Error loading audio duration:", audioError);
                     // If we can't get duration, still allow the file to be selected
                     setFieldValue("file", picked);
+                } finally {
+                    // Clean up the audio player if it exposes a delete/dispose/unload method.
+                    if (
+                        audioPlayer &&
+                        typeof audioPlayer.delete === "function"
+                    ) {
+                        try {
+                            audioPlayer.delete();
+                        } catch (cleanupError) {
+                            // Fails silently, this is just a best-effort cleanup
+                        }
+                    } else if (
+                        audioPlayer &&
+                        typeof audioPlayer.unloadAsync === "function"
+                    ) {
+                        try {
+                            await audioPlayer.unloadAsync();
+                        } catch (cleanupError) {
+                            // Fails silently, this is just a best-effort cleanup
+                        }
+                    }
                 }
             }
         } catch (err) {
@@ -740,7 +811,7 @@ const songs = () => {
                             }
 
                             // STEP 1: Upload file to cloud storage
-                            const { publicUrl } = await uploadFileToSignedUrl({
+                            const { path } = await uploadFileToSignedUrl({
                                 localUri,
                                 filename: filename.trim(),
                                 contentType,
@@ -770,7 +841,7 @@ const songs = () => {
                                     body: JSON.stringify({
                                         title: values.title.trim(),
                                         bandId: String(bandId).trim(),
-                                        cloudurl: publicUrl,
+                                        cloudurl: path,
                                         length:
                                             values.file.duration ||
                                             values.length ||
@@ -1302,6 +1373,54 @@ const songs = () => {
                                 />
                             </Pressable>
                         </View>
+                        <View className='mb-4'>
+                            <Text
+                                className='text-black dark:text-white mb-2'
+                                style={{ fontSize: fontSize.xl }}>
+                                Key:
+                            </Text>
+                            <View className='flex-row items-center flex-wrap gap-2'>
+                                {itemsKey.map((keyItem) => {
+                                    const isSelected =
+                                        selectedFilterKeys.includes(
+                                            keyItem.value as string
+                                        );
+                                    return (
+                                        <Pressable
+                                            key={keyItem.value}
+                                            onPress={() => {
+                                                if (isSelected) {
+                                                    setSelectedFilterKeys(
+                                                        selectedFilterKeys.filter(
+                                                            (k) =>
+                                                                k !==
+                                                                keyItem.value
+                                                        )
+                                                    );
+                                                } else {
+                                                    setSelectedFilterKeys([
+                                                        ...selectedFilterKeys,
+                                                        keyItem.value as string,
+                                                    ]);
+                                                }
+                                            }}
+                                            className={`px-3 py-1 rounded-md border ${
+                                                isSelected
+                                                    ? "bg-transparentGreen border-green"
+                                                    : "bg-transparent border-gray-400"
+                                            }`}>
+                                            <Text
+                                                className='text-black dark:text-white'
+                                                style={{
+                                                    fontSize: fontSize.base,
+                                                }}>
+                                                {keyItem.label}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+                        </View>
                         <View className='flex-row items-center gap-2 mb-4'>
                             <Text
                                 className='text-black dark:text-white'
@@ -1314,7 +1433,7 @@ const songs = () => {
                                         !readyStatusSelected
                                     );
                                 }}
-                                className={`px-2 py-1 rounded-m border ${
+                                className={`px-2 py-1 rounded-md border ${
                                     readyStatusSelected
                                         ? "bg-transparentGreen border-green"
                                         : "bg-transparent border-gray-400"
@@ -1332,7 +1451,7 @@ const songs = () => {
                                         !finishedStatusSelected
                                     );
                                 }}
-                                className={`px-2 py-1 rounded-m border ${
+                                className={`px-2 py-1 rounded-md border ${
                                     finishedStatusSelected
                                         ? "bg-transparentGreen border-green"
                                         : "bg-transparent border-gray-400"
@@ -1350,7 +1469,7 @@ const songs = () => {
                                         !draftStatusSelected
                                     );
                                 }}
-                                className={`px-2 py-1 rounded-m border ${
+                                className={`px-2 py-1 rounded-md border ${
                                     draftStatusSelected
                                         ? "bg-transparentGreen border-green"
                                         : "bg-transparent border-gray-400"
@@ -1363,7 +1482,7 @@ const songs = () => {
                                 </Text>
                             </Pressable>
                         </View>
-                        <View>
+                        <View className='mb-4'>
                             <Text
                                 className='text-black dark:text-white'
                                 style={{ fontSize: fontSize.xl }}>
@@ -1429,31 +1548,14 @@ const songs = () => {
                                 ))}
                             </View>
                         </View>
-                        <View>
-                            <Text
-                                className='text-black dark:text-white'
-                                style={{ fontSize: fontSize.xl }}>
-                                Additional
-                            </Text>
-                            {/* <StyledDropdown
-                                open={openKey}
-                                value={valueKey}
-                                items={itemsKey}
-                                setOpen={setOpenKey}
-                                setValue={setValueKey}
-                                setItems={setItemsKey}
-                                placeholder='Choose key'
-                                zIndex={2000}
-                                zIndexInverse={2000}
-                            /> */}
-                        </View>
                         <View className='flex-row gap-2 w-full'>
                             <Pressable
                                 onPress={() => {
-                                    setReadyStatusSelected(true);
-                                    setDraftStatusSelected(true);
-                                    setFinishedStatusSelected(true);
+                                    setReadyStatusSelected(false);
+                                    setDraftStatusSelected(false);
+                                    setFinishedStatusSelected(false);
                                     setSelectedFilterTags([]);
+                                    setSelectedFilterKeys([]);
                                     // This will trigger the debounced useEffect to re-fetch with cleared filters
                                     setSearchText("");
                                 }}
@@ -1525,7 +1627,14 @@ const songs = () => {
                                                     song.status === "finished"
                                             ).length
                                         }{" "}
-                                        finished
+                                        finished,{" "}
+                                        {
+                                            sortedSongs.filter(
+                                                (song) =>
+                                                    song.status === "ready"
+                                            ).length
+                                        }{" "}
+                                        ready
                                     </Text>
                                     <StyledButton
                                         onPress={() =>
@@ -1690,12 +1799,14 @@ const songs = () => {
                                 {Array.isArray(sortedSongs) &&
                                     sortedSongs.map((song, idx) => (
                                         <SongCard
+                                            songId={song.song_id}
+                                            audioUrl={song.cloudurl}
                                             key={song.song_id || idx}
                                             songName={song.title}
                                             status={song.status}
-                                            length={song.length} // This will be the object { minutes, seconds }
-                                            songKey={song.key} // The column name is `key` in the DB
-                                            dateAdded={song.created_at} // The column name is `created_at`
+                                            length={song.length}
+                                            songKey={song.key}
+                                            dateAdded={song.created_at}
                                             description={song.notes}
                                             songTags={song.tags}
                                         />

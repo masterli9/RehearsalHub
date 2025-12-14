@@ -13,6 +13,7 @@ import "../global.css";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { BandProvider, useBand } from "@/context/BandContext";
 import { MenuProvider } from "react-native-popup-menu";
+import { PlayerProvider } from "@/context/AudioPlayerContext";
 import { ThemeProvider as AppThemeProvider } from "@/context/ThemeContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 
@@ -68,8 +69,10 @@ export default function RootLayout() {
                                     ? DarkTheme
                                     : DefaultTheme
                             }>
-                            <AuthGate />
-                            <StatusBar style='auto' />
+                            <PlayerProvider>
+                                <AuthGate />
+                                <StatusBar style='auto' />
+                            </PlayerProvider>
                         </ThemeProvider>
                     </AppThemeProvider>
                 </BandProvider>

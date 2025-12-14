@@ -1,4 +1,5 @@
 import pool from "../db/pool.js";
+import { storage } from "../utils/firebaseAdmin.js";
 
 // Valid song keys from database CHECK constraint
 const VALID_SONG_KEYS = [
@@ -195,16 +196,16 @@ export const createSong = async (req, res) => {
     }
 };
 
-/**
- * Issue (see @file_context_0): The previous query attempts to select a multi-column array using:
- *   ARRAY(SELECT t.name, t.color, t.tag_id ...)
- * This returns a "subquery must return only one column" error in PostgreSQL because ARRAY(SELECT ...)
- * can only be used with a single column.
- *
- * Fix: Instead, aggregate the tags using json_agg and json_build_object, which works as an array of objects in JS and PostgreSQL.
- */
 export const getSongs = async (req, res) => {
-    const { bandId, status, tags, search, limit = 20, offset = 0 } = req.query;
+    const {
+        bandId,
+        status,
+        tags,
+        search,
+        songKey,
+        limit = 20,
+        offset = 0,
+    } = req.query;
 
     // Validate and parse bandId
     const bandIdInt = parseInt(bandId, 10);
@@ -281,6 +282,12 @@ export const getSongs = async (req, res) => {
             SELECT song_id FROM song_tags WHERE tag_id = ANY($${params.length})
         )`;
     }
+    if (songKey && songKey.length > 0) {
+        // Ensure songKey is an array, as a single key comes as a string
+        const keys = Array.isArray(songKey) ? songKey : [songKey];
+        params.push(keys);
+        query += ` AND s.key = ANY($${params.length})`;
+    }
 
     query += ` ORDER BY s.song_id DESC`;
 
@@ -290,7 +297,37 @@ export const getSongs = async (req, res) => {
 
     try {
         const result = await pool.query(query, params);
-        res.status(200).json(result.rows);
+
+        const songsWithUrls = await Promise.all(
+            result.rows.map(async (song) => {
+                // If there is no cloudurl, or it already looks like a full URL (legacy data), skip
+                if (!song.cloudurl || song.cloudurl.startsWith("http")) {
+                    return song;
+                }
+
+                try {
+                    // Generate a fresh URL valid for 1 hour
+                    const [signedUrl] = await storage
+                        .bucket(process.env.FIREBASE_STORAGE_BUCKET)
+                        .file(song.cloudurl)
+                        .getSignedUrl({
+                            version: "v4",
+                            action: "read",
+                            expires: Date.now() + 60 * 60 * 1000, // 1 hour
+                        });
+
+                    return { ...song, cloudurl: signedUrl };
+                } catch (e) {
+                    console.error(
+                        `Failed to sign url for song ${song.song_id}`,
+                        e
+                    );
+                    return song;
+                }
+            })
+        );
+
+        res.status(200).json(songsWithUrls);
     } catch (error) {
         console.error("Error fetching songs: ", error);
         res.status(500).json({ error: "Server error (get songs)" });

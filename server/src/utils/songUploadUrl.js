@@ -56,7 +56,13 @@ export const songUploadUrl = async (req, res) => {
             dest
         )}`;
 
-        res.json({ uploadUrl: url, publicUrl, path: dest });
+        const [readUrl] = await file.getSignedUrl({
+            version: "v4",
+            action: "read",
+            expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+        });
+
+        res.json({ uploadUrl: url, publicUrl: readUrl, path: dest });
     } catch (error) {
         console.error("Error generating upload URL:", error);
         res.status(500).json({ error: "Failed to generate upload URL" });
