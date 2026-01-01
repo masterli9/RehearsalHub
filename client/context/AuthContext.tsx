@@ -7,6 +7,7 @@ import {
     signOut,
     User as FirebaseUser,
     sendEmailVerification,
+    deleteUser,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import apiUrl from "@/config";
@@ -132,40 +133,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email,
             password
         );
-        await sendEmailVerification(cred.user);
-        await updateProfile(cred.user, { displayName: username });
 
-        const response = await fetch(apiUrl + "/api/users", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                uid: cred.user.uid,
-                email: email,
-                username: username,
-            }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            if (errorData.error === "Username is already taken") {
-                throw new Error("USERNAME_TAKEN");
-            } else if (errorData.error === "User already exists") {
-                throw new Error("USER_EXISTS");
-            } else {
-                throw new Error("REGISTRATION_FAILED");
+        try {
+            // Send email verification - if this fails, we should still try to save to DB
+            // but we'll handle the error gracefully
+            try {
+                await sendEmailVerification(cred.user);
+            } catch (emailError) {
+                console.error("Failed to send email verification:", emailError);
+                // Continue with registration even if email send fails
+                // The user can resend from the verification page
             }
-        } else {
-            // After successful registration, update the user in context with DB data
-            const dbUser = await response.json();
-            setUser({
-                uid: cred.user.uid,
-                email: cred.user.email,
-                username: dbUser.username,
-                photoURL: dbUser.photourl,
-                emailVerified: cred.user.emailVerified,
+
+            await updateProfile(cred.user, { displayName: username });
+
+            const response = await fetch(apiUrl + "/api/users", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    uid: cred.user.uid,
+                    email: email,
+                    username: username,
+                }),
             });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                // Rollback: delete Firebase user if DB save fails
+                try {
+                    await deleteUser(cred.user);
+                } catch (deleteError) {
+                    console.error(
+                        "Failed to delete Firebase user after DB error:",
+                        deleteError
+                    );
+                }
+
+                if (errorData.error === "Username is already taken") {
+                    throw new Error("USERNAME_TAKEN");
+                } else if (errorData.error === "User already exists") {
+                    throw new Error("USER_EXISTS");
+                } else {
+                    throw new Error("REGISTRATION_FAILED");
+                }
+            } else {
+                // After successful registration, update the user in context with DB data
+                const dbUser = await response.json();
+                setUser({
+                    uid: cred.user.uid,
+                    email: cred.user.email,
+                    username: dbUser.username,
+                    photoURL: dbUser.photourl,
+                    emailVerified: cred.user.emailVerified,
+                });
+            }
+        } catch (error) {
+            // If any error occurs after Firebase user creation, try to clean up
+            // (This handles cases where the error wasn't caught above)
+            if (
+                error instanceof Error &&
+                error.message !== "USERNAME_TAKEN" &&
+                error.message !== "USER_EXISTS" &&
+                error.message !== "REGISTRATION_FAILED"
+            ) {
+                try {
+                    await deleteUser(cred.user);
+                } catch (deleteError) {
+                    console.error(
+                        "Failed to delete Firebase user after error:",
+                        deleteError
+                    );
+                }
+            }
+            // Re-throw the error for UI handling
+            throw error;
         }
     };
     const login = async (email: string, password: string) => {

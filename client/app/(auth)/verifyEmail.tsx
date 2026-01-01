@@ -8,12 +8,13 @@ import StyledButton from "@/components/StyledButton";
 import PageContainer from "@/components/PageContainer";
 import Card from "@/components/Card";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
+import { auth } from "@/lib/firebase";
 
 export default function VerifyEmail() {
     const [resendDisabledUntil, setResendDisabledUntil] = useState<
         number | null
     >(null);
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const fontSize = useAccessibleFontSize();
 
     const COOLDOWN_MS = 30 * 1000;
@@ -41,13 +42,17 @@ export default function VerifyEmail() {
     }, [resendDisabledUntil]);
 
     const handleResend = async () => {
-        if (!user) return;
+        const firebaseUser = auth.currentUser;
+        if (!firebaseUser) {
+            Alert.alert("Error", "No user found. Please try logging in again.");
+            return;
+        }
         if (isDisabled) {
             Alert.alert("Please wait", "You can resend email in a few seconds");
             return;
         }
         try {
-            await sendEmailVerification(user);
+            await sendEmailVerification(firebaseUser);
             setResendDisabledUntil(Date.now() + COOLDOWN_MS);
             Alert.alert("Verification email sent", "Check your inbox again.");
         } catch (error) {
@@ -56,14 +61,26 @@ export default function VerifyEmail() {
         }
     };
     const handleVerified = async () => {
-        if (!user) return;
-        await user.reload();
-        if (user.emailVerified) {
-            router.replace("/(tabs)");
-        } else {
+        const firebaseUser = auth.currentUser;
+        if (!firebaseUser) {
+            Alert.alert("Error", "No user found. Please try logging in again.");
+            return;
+        }
+        try {
+            await firebaseUser.reload();
+            if (firebaseUser.emailVerified) {
+                router.replace("/(tabs)");
+            } else {
+                Alert.alert(
+                    "Still not verified.",
+                    "Please verify your email first."
+                );
+            }
+        } catch (error) {
+            console.error("Error checking verification status: ", error);
             Alert.alert(
-                "Still not verified.",
-                "Please verify your email first."
+                "Error",
+                "Failed to check verification status. Please try again."
             );
         }
     };
@@ -71,7 +88,9 @@ export default function VerifyEmail() {
     return (
         <PageContainer centered>
             <Card className='flex-col items-center justify-center p-3 gap-2'>
-                <Text className='text-dark dark:text-white text-center font-regular my-3' style={{ fontSize: fontSize['2xl'] }}>
+                <Text
+                    className='text-dark dark:text-white text-center font-regular my-3'
+                    style={{ fontSize: fontSize["2xl"] }}>
                     Check your inbox to verify your email.
                 </Text>
                 <StyledButton
@@ -79,9 +98,12 @@ export default function VerifyEmail() {
                     onPress={handleResend}
                     disabled={isDisabled}
                 />
+                <StyledButton title="I've verified" onPress={handleVerified} />
                 <StyledButton
-                    title="I've verified"
-                    onPress={handleVerified}
+                    title='Back to Login'
+                    onPress={async () => {
+                        await logout();
+                    }}
                 />
             </Card>
         </PageContainer>

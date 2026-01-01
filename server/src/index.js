@@ -1,11 +1,13 @@
 import express from "express";
 import pool from "./db/pool.js";
 import dotenv from "dotenv";
+import cron from "node-cron";
 
 import usersRoutes from "./routes/users.js";
 import bandsRoutes from "./routes/bands.js";
 import messagesRoutes from "./routes/messages.js";
 import songsRoutes from "./routes/songs.js";
+import { cleanupUnverifiedUsers } from "./utils/cleanupUnverifiedUsers.js";
 
 dotenv.config();
 
@@ -29,4 +31,25 @@ app.listen(port, () => {
             console.log("Database connected successfully at:", res.rows[0].now);
         }
     });
+
+    // Schedule cleanup job for unverified users
+    // Runs daily at 2:00 AM
+    // Set CLEANUP_UNVERIFIED_DAYS environment variable to change the threshold (default: 7 days)
+    const cleanupDays = parseInt(process.env.CLEANUP_UNVERIFIED_DAYS) || 7;
+
+    cron.schedule("0 2 * * *", async () => {
+        console.log("[Cron] Starting scheduled cleanup of unverified users...");
+        try {
+            const result = await cleanupUnverifiedUsers(cleanupDays);
+            console.log(
+                `[Cron] Cleanup completed: ${result.deleted} users deleted, ${result.errors} errors`
+            );
+        } catch (error) {
+            console.error("[Cron] Cleanup job failed:", error);
+        }
+    });
+
+    console.log(
+        `[Cron] Scheduled cleanup job: Daily at 2:00 AM (deleting unverified users older than ${cleanupDays} days)`
+    );
 });
