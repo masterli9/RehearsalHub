@@ -175,16 +175,36 @@ export const createSong = async (req, res) => {
                 tagIds.push(tagResult.rows[0].tag_id);
             }
         }
-        // insert record into song_tags
+
+        // insert record into song_tags, enforcing the song tag limit via PL/pgSQL function and handling error
         for (const tagId of tagIds) {
-            const check = await pool.query(
-                "INSERT INTO song_tags (song_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *",
-                [songId, tagId]
-            );
-            if (check.rows.length === 0) {
-                return res
-                    .status(400)
-                    .json({ error: "Failed to add tag to song" });
+            try {
+                // Call PL/pgSQL function before each insert to check for the tag limit
+                await pool.query("SELECT check_song_tag_limit($1)", [songId]);
+                const check = await pool.query(
+                    "INSERT INTO song_tags (song_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *",
+                    [songId, tagId]
+                );
+                if (check.rows.length === 0) {
+                    return res
+                        .status(400)
+                        .json({ error: "Failed to add tag to song" });
+                }
+            } catch (err) {
+                if (
+                    err &&
+                    err.message &&
+                    err.message.includes("Maximum tags per song reached")
+                ) {
+                    return res.status(400).json({
+                        error: "Maximum tags per song reached.",
+                    });
+                } else {
+                    console.error("Error adding tag to song:", err);
+                    return res
+                        .status(500)
+                        .json({ error: "Server error (adding tag to song)" });
+                }
             }
         }
 
@@ -366,6 +386,21 @@ export const addTag = async (req, res) => {
             .status(400)
             .json({ error: "Band ID, color, and name are required" });
     try {
+        try {
+            await pool.query("SELECT check_band_tag_limit($1)", [bandId]);
+        } catch (err) {
+            if (
+                err &&
+                err.message &&
+                err.message.includes("Maximum tags per band reached")
+            ) {
+                return res
+                    .status(400)
+                    .json({ error: "Maximum tags per band reached" });
+            } else {
+                throw err; // Re-throw other errors to be caught by the outer catch
+            }
+        }
         const exists = await pool.query(
             "SELECT * FROM tags WHERE name = $1 AND band_id = $2",
             [name, bandId]

@@ -17,6 +17,24 @@ export const createBand = async (req, res) => {
         console.log("Creator ID: ", creator_id);
         console.log("Converted User ID: ", convertedUserId);
 
+        try {
+            await pool.query("SELECT check_user_bands_limit($1)", [
+                convertedUserId,
+            ]);
+        } catch (err) {
+            if (
+                err &&
+                err.message &&
+                err.message.includes("Maximum bands per user reached")
+            ) {
+                return res
+                    .status(400)
+                    .json({ error: "Maximum bands per user reached" });
+            } else {
+                throw err; // Re-throw other errors to be caught by the outer catch
+            }
+        }
+
         // Insert into bands, return band_id, name, invite_code (schema: band_id, name, invite_code, created_at)
         const bandResult = await pool.query(
             "INSERT INTO bands (name, invite_code) VALUES ($1, $2) RETURNING band_id, name, invite_code",
@@ -97,6 +115,40 @@ export const joinBand = async (req, res) => {
         }
 
         const bandId = bandResult.rows[0].band_id;
+
+        try {
+            await pool.query("SELECT check_user_bands_limit($1)", [
+                convertedUserId,
+            ]);
+        } catch (err) {
+            if (
+                err &&
+                err.message &&
+                err.message.includes("Maximum bands per user reached")
+            ) {
+                return res
+                    .status(400)
+                    .json({ error: "Maximum bands per user reached" });
+            } else {
+                throw err; // Re-throw other errors to be caught by the outer catch
+            }
+        }
+
+        try {
+            await pool.query("SELECT check_band_member_limit($1)", [bandId]);
+        } catch (err) {
+            if (
+                err &&
+                err.message &&
+                err.message.includes("Band member limit reached")
+            ) {
+                return res
+                    .status(400)
+                    .json({ error: "Band member limit reached" });
+            } else {
+                throw err; // Re-throw other errors to be caught by the outer catch
+            }
+        }
 
         const checkMember = await pool.query(
             "SELECT * FROM band_members WHERE band_id = $1 AND user_id = $2",

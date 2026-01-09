@@ -866,9 +866,21 @@ const songs = () => {
                                 const err = await songResp
                                     .json()
                                     .catch(() => ({}));
-                                throw new Error(
-                                    err.error || "Saving song metadata failed"
-                                );
+                                const errorMessage =
+                                    err.error || "Saving song metadata failed";
+
+                                // Check for specific limit errors
+                                if (
+                                    errorMessage.includes(
+                                        "Maximum tags per song reached"
+                                    )
+                                ) {
+                                    throw new Error(
+                                        "Maximum tags per song reached. You can only add up to 4 tags per song."
+                                    );
+                                }
+
+                                throw new Error(errorMessage);
                             }
 
                             setUploadProgress(100);
@@ -1003,6 +1015,16 @@ const songs = () => {
                                                     key={tag.tag_id}
                                                     className='rounded rounded-xl p-2 mr-2'
                                                     onPress={() => {
+                                                        if (
+                                                            values.tags
+                                                                .length >= 4
+                                                        ) {
+                                                            Alert.alert(
+                                                                "Tag Limit Reached",
+                                                                "You can only add up to 4 tags per song."
+                                                            );
+                                                            return;
+                                                        }
                                                         setFieldValue("tags", [
                                                             ...values.tags,
                                                             tag,
@@ -1027,6 +1049,14 @@ const songs = () => {
                                             );
                                         })}
                                 </ScrollView>
+                                {values.tags.length >= 4 && (
+                                    <View className='w-full flex-row justify-center mt-1'>
+                                        <ErrorText>
+                                            Maximum of 4 tags per song. Remove a
+                                            tag to add another.
+                                        </ErrorText>
+                                    </View>
+                                )}
                                 {!isAddingTag ? (
                                     <Pressable
                                         className='bg-accent-light dark:bg-accent-dark rounded-xl px-4 py-3 flex-row items-center justify-center'
@@ -1084,26 +1114,40 @@ const songs = () => {
                                                 );
 
                                                 if (!response.ok) {
-                                                    const errorText =
-                                                        await response.text();
-                                                    console.error(
-                                                        "Server Error:",
-                                                        errorText
-                                                    );
+                                                    const errorData =
+                                                        await response
+                                                            .json()
+                                                            .catch(() => ({}));
+                                                    const errorMessage =
+                                                        errorData.error ||
+                                                        "Server rejected the tag";
+
+                                                    // Check for specific limit errors
+                                                    if (
+                                                        errorMessage.includes(
+                                                            "Maximum tags per band reached"
+                                                        )
+                                                    ) {
+                                                        throw new Error(
+                                                            "Maximum tags per band reached. You can only create up to 7 tags per band."
+                                                        );
+                                                    }
+
                                                     throw new Error(
-                                                        "Server rejected the tag"
+                                                        errorMessage
                                                     );
                                                 }
                                                 await fetchTags();
                                                 setIsAddingTag(false);
-                                            } catch (error) {
+                                            } catch (error: any) {
                                                 console.error(
                                                     "Tag Submit Error:",
                                                     error
                                                 );
                                                 Alert.alert(
                                                     "Error",
-                                                    "Could not save tag. Check console for details."
+                                                    error.message ||
+                                                        "Could not save tag. Please try again."
                                                 );
                                             } finally {
                                                 setSubmitting(false);

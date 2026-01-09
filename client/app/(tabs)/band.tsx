@@ -217,9 +217,16 @@ export default function Band() {
                         bandName: "",
                         roles: [],
                     }}
-                    onSubmit={(values) => {
-                        createBand(values.bandName, values.roles);
-                        setShowCreateModal(false);
+                    onSubmit={async (values) => {
+                        try {
+                            await createBand(values.bandName, values.roles);
+                            setShowCreateModal(false);
+                        } catch (error: any) {
+                            Alert.alert(
+                                "Error",
+                                error.message || "Failed to create band. Please try again."
+                            );
+                        }
                     }}
                     validateOnBlur={false}
                     validateOnChange={false}>
@@ -319,12 +326,19 @@ export default function Band() {
                         joinCode: "",
                         roles: [],
                     }}
-                    onSubmit={(values) => {
-                        joinBandByCode(
-                            values.joinCode.toUpperCase(),
-                            values.roles
-                        );
-                        setShowJoinModal(false);
+                    onSubmit={async (values) => {
+                        try {
+                            await joinBandByCode(
+                                values.joinCode.toUpperCase(),
+                                values.roles
+                            );
+                            setShowJoinModal(false);
+                        } catch (error: any) {
+                            Alert.alert(
+                                "Error",
+                                error.message || "Failed to join band. Please try again."
+                            );
+                        }
                     }}
                     validateOnBlur={false}
                     validateOnChange={false}>

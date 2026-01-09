@@ -107,9 +107,12 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 }),
             });
 
-            if (!res.ok) throw new Error("Error creating band (fe)");
-
             const data = await res.json();
+            
+            if (!res.ok) {
+                const errorMessage = data.error || "Error creating band";
+                throw new Error(errorMessage);
+            }
 
             const newBand = {
                 id: data.band_id || data.id,
@@ -119,8 +122,9 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
 
             setBands((prev) => [...prev, newBand]);
             setActiveBand(newBand);
-        } catch (err) {
+        } catch (err: any) {
             console.error("createBand error: ", err);
+            throw err; // Re-throw so the UI can handle it
         }
     };
 
@@ -140,8 +144,8 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
 
             const data = await res.json();
             if (!res.ok) {
-                alert(data.error || "Error joining band (fe)");
-                return;
+                const errorMessage = data.error || "Error joining band";
+                throw new Error(errorMessage);
             }
 
             const joined = {
@@ -152,8 +156,9 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
 
             setBands((prev) => [...prev, joined]);
             setActiveBand(joined);
-        } catch (err) {
+        } catch (err: any) {
             console.error("joinBandByCode error:", err);
+            throw err; // Re-throw so the UI can handle it
         }
     };
     const fetchBandMembers = async (bandId: string) => {
