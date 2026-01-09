@@ -105,7 +105,7 @@ const songs = () => {
 
     const runFilterAndSearch = () => {
         const statuses = [
-            readyStatusSelected ? "ready" : null,
+            readyStatusSelected ? "rehearsed" : null,
             finishedStatusSelected ? "finished" : null,
             draftStatusSelected ? "draft" : null,
         ].filter(Boolean) as string[];
@@ -289,7 +289,7 @@ const songs = () => {
         songId: number;
         audioUrl: string;
         songName: string;
-        status: "ready" | "draft" | "finished";
+        status: "rehearsed" | "draft" | "finished";
         length: string;
         songKey: string;
         dateAdded: string;
@@ -347,7 +347,7 @@ const songs = () => {
                                 {songName}
                             </Text>
                             <Text
-                                className={`${status === "ready" ? "text-green bg-transparentGreen" : status === "draft" ? "text-violet bg-transparentViolet" : status === "finished" && "text-blue bg-transparentBlue"} my-1 px-3 py-1 rounded-xl mr-2`}
+                                className={`${status === "rehearsed" ? "text-green bg-transparentGreen" : status === "draft" ? "text-violet bg-transparentViolet" : status === "finished" && "text-blue bg-transparentBlue"} my-1 px-3 py-1 rounded-xl mr-2`}
                                 style={{ fontSize: fontSize.base }}
                                 numberOfLines={1}
                                 maxFontSizeMultiplier={1.3}
@@ -517,7 +517,7 @@ const songs = () => {
         status: yup
             .string()
             .trim()
-            .oneOf(["ready", "draft", "finished"])
+            .oneOf(["rehearsed", "draft", "finished"])
             .required("Status is required"),
         tags: yup
             .array()
@@ -544,7 +544,7 @@ const songs = () => {
     const [valueStatus, setValueStatus] = useState(null);
     const [itemsStatus, setItemsStatus] = useState([
         { label: "Finished", value: "finished" },
-        { label: "Ready", value: "ready" },
+        { label: "rehearsed", value: "rehearsed" },
         { label: "Draft", value: "draft" },
     ]);
     const [openKey, setOpenKey] = useState(false);
@@ -1760,7 +1760,7 @@ const songs = () => {
                                         {
                                             sortedSongs.filter(
                                                 (song) =>
-                                                    song.status === "ready"
+                                                    song.status === "rehearsed"
                                             ).length
                                         }{" "}
                                         ready
