@@ -286,12 +286,20 @@ const Profile = () => {
                         onPress={() => setEditVisible(true)}
                         className='px-3 py-5 flex-row items-center gap-3 w-full border-b border-accent-light dark:border-accent-dark'
                     >
-                        <SquarePen
-                            size={Math.min(fontSize["3xl"], 20)}
-                            color={colorScheme === "dark" ? "#fff" : "#000"}
-                        />
+                        <View
+                            style={{
+                                width: 28,
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            <SquarePen
+                                size={Math.min(fontSize["3xl"], 20)}
+                                color={colorScheme === "dark" ? "#fff" : "#000"}
+                            />
+                        </View>
                         <Text
-                            className='text-black dark:text-white'
+                            className='text-black dark:text-white ml-2'
                             style={{ fontSize: fontSize.base }}
                         >
                             Edit profile
@@ -302,12 +310,20 @@ const Profile = () => {
                         className='px-3 py-5 flex-row items-center gap-3 w-full'
                         onPress={() => logout()}
                     >
-                        <LogOut
-                            size={Math.min(fontSize["3xl"], 20)}
-                            color={colorScheme === "dark" ? "#fff" : "#000"}
-                        />
+                        <View
+                            style={{
+                                width: 28,
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            <LogOut
+                                size={Math.min(fontSize["3xl"], 20)}
+                                color={colorScheme === "dark" ? "#fff" : "#000"}
+                            />
+                        </View>
                         <Text
-                            className='text-black dark:text-white'
+                            className='text-black dark:text-white ml-2'
                             style={{ fontSize: fontSize.base }}
                         >
                             Log Out
