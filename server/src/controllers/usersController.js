@@ -46,10 +46,18 @@ export const registerUser = async (req, res) => {
             return res.status(201).json(result.rows[0]);
         }
 
-        const result = await pool.query(
-            "INSERT INTO users (firebase_uid, email, username, photourl) VALUES ($1, $2, $3, $4) RETURNING *",
-            [uid, email, username, photo_url]
-        );
+        let result;
+        if (photo_url === null || photo_url === undefined) {
+            result = await pool.query(
+                "INSERT INTO users (firebase_uid, email, username) VALUES ($1, $2, $3) RETURNING *",
+                [uid, email, username]
+            );
+        } else {
+            result = await pool.query(
+                "INSERT INTO users (firebase_uid, email, username, photourl) VALUES ($1, $2, $3, $4) RETURNING *",
+                [uid, email, username, photo_url]
+            );
+        }
 
         res.status(201).json(result.rows[0]);
     } catch (error) {

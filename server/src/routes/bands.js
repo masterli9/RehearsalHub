@@ -7,6 +7,8 @@ import {
     removeBandMember,
     makeLeader,
     removeLeader,
+    updateBandName,
+    updateMemberRoles,
 } from "../controllers/bandsController.js";
 
 const router = express.Router();
@@ -21,5 +23,7 @@ router.delete(
 );
 router.put("/:band_id/make-leader/:user_id", makeLeader);
 router.put("/:band_id/remove-leader/:user_id", removeLeader);
+router.put("/:band_id/update-name", updateBandName);
+router.put("/:band_id/update-member-roles/:user_id", updateMemberRoles);
 
 export default router;

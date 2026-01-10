@@ -31,6 +31,8 @@ type BandContextType = {
     removeBand: (bandId: string) => void;
     removeBandMember: (bandId: string, firebaseUid: string) => Promise<void>;
     makeLeader: (bandId: string, newLeaderFirebaseUid: string) => Promise<void>;
+    updateBandName: (bandId: string, name: string) => Promise<void>;
+    updateMemberRoles: (bandId: string, roles: BandRole[]) => Promise<void>;
 };
 
 const BandContext = createContext<BandContextType | undefined>(undefined);
@@ -108,7 +110,7 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
             });
 
             const data = await res.json();
-            
+
             if (!res.ok) {
                 const errorMessage = data.error || "Error creating band";
                 throw new Error(errorMessage);
@@ -299,6 +301,87 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
+    const updateBandName = async (bandId: string, name: string) => {
+        try {
+            const userId = user?.uid;
+            if (!userId) {
+                throw new Error("User not authenticated");
+            }
+
+            const res = await fetch(
+                `${apiUrl}/api/bands/${bandId}/update-name`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name,
+                        user_id: userId,
+                    }),
+                }
+            );
+
+            const data = await res.json();
+            if (!res.ok) {
+                const errorMessage = data.error || "Error updating band name";
+                throw new Error(errorMessage);
+            }
+
+            // Update the band in the local state
+            setBands((prev) =>
+                prev.map((band) =>
+                    band.id === bandId
+                        ? {
+                              ...band,
+                              name: data.name,
+                              inviteCode: data.invite_code || band.inviteCode,
+                          }
+                        : band
+                )
+            );
+
+            // Update active band if it's the one being updated
+            if (activeBand?.id === bandId) {
+                setActiveBand({
+                    ...activeBand,
+                    name: data.name,
+                    inviteCode: data.invite_code || activeBand.inviteCode,
+                });
+            }
+        } catch (err: any) {
+            console.error("updateBandName error:", err);
+            throw err;
+        }
+    };
+
+    const updateMemberRoles = async (bandId: string, roles: BandRole[]) => {
+        try {
+            const userId = user?.uid;
+            if (!userId) {
+                throw new Error("User not authenticated");
+            }
+
+            const res = await fetch(
+                `${apiUrl}/api/bands/${bandId}/update-member-roles/${userId}`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        roles,
+                    }),
+                }
+            );
+
+            const data = await res.json();
+            if (!res.ok) {
+                const errorMessage = data.error || "Error updating roles";
+                throw new Error(errorMessage);
+            }
+        } catch (err: any) {
+            console.error("updateMemberRoles error:", err);
+            throw err;
+        }
+    };
+
     return (
         <BandContext.Provider
             value={{
@@ -313,6 +396,8 @@ export const BandProvider = ({ children }: { children: React.ReactNode }) => {
                 removeBand,
                 removeBandMember,
                 makeLeader,
+                updateBandName,
+                updateMemberRoles,
             }}>
             {children}
         </BandContext.Provider>

@@ -220,13 +220,14 @@ export const getBandMembers = async (req, res) => {
           u.firebase_uid,
           u.username,
           u.email,
+          u.photourl,
           json_agg(r.title) AS roles
         FROM band_members bm
         JOIN users u ON bm.user_id = u.user_id
         LEFT JOIN member_roles mr ON bm.band_member_id = mr.band_member_id
         LEFT JOIN roles r ON mr.role_id = r.role_id
         WHERE bm.band_id = $1
-        GROUP BY u.firebase_uid, u.username, u.email
+        GROUP BY u.firebase_uid, u.username, u.email, u.photourl
         `,
             [band_id]
         );
@@ -363,6 +364,142 @@ export const removeLeader = async (req, res) => {
         res.status(200).json({ message: "Leader removed successfully" });
     } catch (error) {
         console.error("Error removing leader: ", error);
+        res.status(500).json({ error: "Server error" });
+    }
+};
+export const updateBandName = async (req, res) => {
+    const { band_id } = req.params;
+    const { name, user_id } = req.body;
+
+    if (!name) {
+        return res.status(400).json({ error: "Band name is required" });
+    }
+
+    if (!user_id) {
+        return res.status(400).json({ error: "User ID is required" });
+    }
+
+    try {
+        const convertedUserId = await getUserIdByFirebaseUid(user_id);
+
+        // Check if user is a member of the band
+        const checkMember = await pool.query(
+            "SELECT * FROM band_members WHERE band_id = $1 AND user_id = $2",
+            [band_id, convertedUserId]
+        );
+
+        if (checkMember.rows.length === 0) {
+            return res.status(404).json({ error: "Band member not found" });
+        }
+
+        const bandMemberId = checkMember.rows[0].band_member_id;
+
+        // Check if user is a Leader
+        const checkLeader = await pool.query(
+            "SELECT * FROM member_roles WHERE band_member_id = $1 AND role_id = (SELECT role_id FROM roles WHERE title = 'Leader')",
+            [bandMemberId]
+        );
+
+        if (checkLeader.rows.length === 0) {
+            return res
+                .status(403)
+                .json({ error: "Only band leaders can update the band name" });
+        }
+
+        // Update the band name
+        const result = await pool.query(
+            "UPDATE bands SET name = $1 WHERE band_id = $2 RETURNING band_id, name, invite_code",
+            [name, band_id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Band not found" });
+        }
+
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        console.error("Error updating band name: ", error);
+        res.status(500).json({ error: "Server error" });
+    }
+};
+export const updateMemberRoles = async (req, res) => {
+    const { band_id, user_id } = req.params;
+    const { roles } = req.body;
+
+    if (!roles || !Array.isArray(roles)) {
+        return res.status(400).json({ error: "Roles array is required" });
+    }
+
+    const roleTitles = roles.map((r) => r.title || r);
+
+    try {
+        const convertedUserId = await getUserIdByFirebaseUid(user_id);
+
+        // Check if user is a member of the band
+        const checkMember = await pool.query(
+            "SELECT * FROM band_members WHERE band_id = $1 AND user_id = $2",
+            [band_id, convertedUserId]
+        );
+
+        if (checkMember.rows.length === 0) {
+            return res.status(404).json({ error: "Band member not found" });
+        }
+
+        const bandMemberId = checkMember.rows[0].band_member_id;
+
+        // Get the Leader role_id to ensure it's not removed
+        const leaderRoleResult = await pool.query(
+            "SELECT role_id FROM roles WHERE title = 'Leader'"
+        );
+        const leaderRoleId = leaderRoleResult.rows[0]?.role_id;
+
+        // Check if user currently has Leader role
+        const checkLeader = await pool.query(
+            "SELECT * FROM member_roles WHERE band_member_id = $1 AND role_id = $2",
+            [bandMemberId, leaderRoleId]
+        );
+        const isLeader = checkLeader.rows.length > 0;
+
+        // If user is a Leader, ensure Leader role is included in the new roles
+        if (isLeader) {
+            const hasLeaderRole = roleTitles.includes("Leader");
+            if (!hasLeaderRole) {
+                return res
+                    .status(400)
+                    .json({ error: "Leaders cannot remove their Leader role" });
+            }
+        }
+
+        // Delete all existing roles (except Leader if user is a leader)
+        if (isLeader) {
+            await pool.query(
+                "DELETE FROM member_roles WHERE band_member_id = $1 AND role_id != $2",
+                [bandMemberId, leaderRoleId]
+            );
+        } else {
+            await pool.query(
+                "DELETE FROM member_roles WHERE band_member_id = $1",
+                [bandMemberId]
+            );
+        }
+
+        // Get role_ids for the new roles
+        const roleResult = await pool.query(
+            "SELECT role_id, title FROM roles WHERE title = ANY($1)",
+            [roleTitles]
+        );
+
+        // Insert new roles
+        for (const role of roleResult.rows) {
+            await pool.query(
+                "INSERT INTO member_roles (band_member_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+                [bandMemberId, role.role_id]
+            );
+        }
+
+        res.status(200).json({ message: "Roles updated successfully" });
+    } catch (error) {
+        console.error("Error updating member roles: ", error);
         res.status(500).json({ error: "Server error" });
     }
 };

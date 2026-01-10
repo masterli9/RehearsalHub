@@ -20,6 +20,7 @@ import {
     Calendar,
     Clock,
     EllipsisVertical,
+    DiscAlbum,
     Hash,
     ListMusic,
     Pause,
@@ -45,6 +46,7 @@ import {
     MenuOptions,
     MenuTrigger,
 } from "react-native-popup-menu";
+import { SwitchBandModal } from "@/components/SwitchBandModal";
 import * as yup from "yup";
 
 const songs = () => {
@@ -56,6 +58,9 @@ const songs = () => {
     const progressAnimationRef = useRef<null | number>(null);
 
     const [activeTab, setActiveTab] = useState<string>("Songs");
+    const [songCollectionSwitch, setSongCollectionSwitch] = useState<
+        "Songs" | "Collections"
+    >("Songs");
     const [newSongModalVisible, setNewSongModalVisible] =
         useState<boolean>(false);
 
@@ -67,6 +72,8 @@ const songs = () => {
 
     const [tags, setTags] = useState<any[]>([]);
     const [isAddingTag, setIsAddingTag] = useState<boolean>(false);
+
+    const [showSwitchModal, setShowSwitchModal] = useState<boolean>(false);
 
     // filter states
     const [sort, setSort] = useState("date_desc");
@@ -328,37 +335,31 @@ const songs = () => {
             <View className='bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3'>
                 <View
                     className='flex-row justify-between items-center'
-                    style={{ flexWrap: "wrap" }}
-                >
+                    style={{ flexWrap: "wrap" }}>
                     <View
                         className='flex-col'
-                        style={{ flexShrink: 1, flex: 1, minWidth: 0 }}
-                    >
+                        style={{ flexShrink: 1, flex: 1, minWidth: 0 }}>
                         <View
                             className='flex-row items-center gap-2'
-                            style={{ flexWrap: "wrap" }}
-                        >
+                            style={{ flexWrap: "wrap" }}>
                             <Text
                                 className='font-bold text-black dark:text-white'
                                 style={{ fontSize: fontSize.xl }}
                                 numberOfLines={1}
-                                maxFontSizeMultiplier={1.3}
-                            >
+                                maxFontSizeMultiplier={1.3}>
                                 {songName}
                             </Text>
                             <Text
                                 className={`${status === "rehearsed" ? "text-green bg-transparentGreen" : status === "draft" ? "text-violet bg-transparentViolet" : status === "finished" && "text-blue bg-transparentBlue"} my-1 px-3 py-1 rounded-xl mr-2`}
                                 style={{ fontSize: fontSize.base }}
                                 numberOfLines={1}
-                                maxFontSizeMultiplier={1.3}
-                            >
+                                maxFontSizeMultiplier={1.3}>
                                 {status}
                             </Text>
                         </View>
                         <View
                             className='flex-row gap-2'
-                            style={{ flexWrap: "wrap" }}
-                        >
+                            style={{ flexWrap: "wrap" }}>
                             <View className='flex-row items-center gap-1'>
                                 <Clock
                                     color={"#A1A1A1"}
@@ -372,8 +373,7 @@ const songs = () => {
                                         alignItems: "center",
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}
-                                >
+                                    maxFontSizeMultiplier={1.3}>
                                     {formatInterval(length)}
                                 </Text>
                             </View>
@@ -390,8 +390,7 @@ const songs = () => {
                                         alignItems: "center",
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}
-                                >
+                                    maxFontSizeMultiplier={1.3}>
                                     {songKey || "N/A"}
                                 </Text>
                             </View>
@@ -408,8 +407,7 @@ const songs = () => {
                                         alignItems: "center",
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}
-                                >
+                                    maxFontSizeMultiplier={1.3}>
                                     {formatDate(dateAdded)}
                                 </Text>
                             </View>
@@ -417,8 +415,7 @@ const songs = () => {
                     </View>
                     <View
                         className='flex-row gap-4 items-center'
-                        style={{ flexShrink: 0 }}
-                    >
+                        style={{ flexShrink: 0 }}>
                         <Pressable onPress={showPause ? pause : handlePlay}>
                             {showPause ? (
                                 <Pause
@@ -455,8 +452,7 @@ const songs = () => {
                         className='text-silverText my-2'
                         style={{ fontSize: fontSize.base }}
                         numberOfLines={3}
-                        maxFontSizeMultiplier={1.3}
-                    >
+                        maxFontSizeMultiplier={1.3}>
                         {description}
                     </Text>
                 )}
@@ -468,8 +464,7 @@ const songs = () => {
                                 className='px-3 py-1 rounded-xl'
                                 style={{
                                     backgroundColor: t.color,
-                                }}
-                            >
+                                }}>
                                 <Text
                                     className='text-white text-sm'
                                     // style={{ fontSize: fontSize.base }} // TODO: FIX ERROR
@@ -544,7 +539,7 @@ const songs = () => {
     const [valueStatus, setValueStatus] = useState(null);
     const [itemsStatus, setItemsStatus] = useState([
         { label: "Finished", value: "finished" },
-        { label: "rehearsed", value: "rehearsed" },
+        { label: "Rehearsed", value: "rehearsed" },
         { label: "Draft", value: "draft" },
     ]);
     const [openKey, setOpenKey] = useState(false);
@@ -761,8 +756,7 @@ const songs = () => {
                 canClose={!isUploading}
                 wide={true}
                 title='Create a song'
-                subtitle="Add a new song to your band's repertoire and choose its tags and status"
-            >
+                subtitle="Add a new song to your band's repertoire and choose its tags and status">
                 <Formik<NewSongFormValues>
                     validationSchema={newSongSchema}
                     initialValues={{
@@ -904,8 +898,7 @@ const songs = () => {
                         }
                     }}
                     validateOnBlur={false}
-                    validateOnChange={false}
-                >
+                    validateOnChange={false}>
                     {({
                         handleChange,
                         handleBlur,
@@ -1000,8 +993,7 @@ const songs = () => {
                                 <ScrollView
                                     horizontal={true}
                                     contentContainerClassName='items-center'
-                                    className='flex-row gap-2 w-full'
-                                >
+                                    className='flex-row gap-2 w-full'>
                                     {tags
                                         .filter(
                                             (tag: BandSongTag) =>
@@ -1034,15 +1026,13 @@ const songs = () => {
                                                         backgroundColor:
                                                             tag.color,
                                                         opacity: 0.88,
-                                                    }}
-                                                >
+                                                    }}>
                                                     <Text
                                                         className='text-white'
                                                         style={{
                                                             fontSize:
                                                                 fontSize.base,
-                                                        }}
-                                                    >
+                                                        }}>
                                                         {tag.name}
                                                     </Text>
                                                 </Pressable>
@@ -1062,8 +1052,7 @@ const songs = () => {
                                         className='bg-accent-light dark:bg-accent-dark rounded-xl px-4 py-3 flex-row items-center justify-center'
                                         onPress={() => {
                                             setIsAddingTag(true);
-                                        }}
-                                    >
+                                        }}>
                                         <Text
                                             style={{
                                                 color:
@@ -1072,8 +1061,7 @@ const songs = () => {
                                                         : "#222",
                                                 fontWeight: "500",
                                                 fontSize: fontSize.base,
-                                            }}
-                                        >
+                                            }}>
                                             Add a new tag
                                         </Text>
                                     </Pressable>
@@ -1152,8 +1140,7 @@ const songs = () => {
                                             } finally {
                                                 setSubmitting(false);
                                             }
-                                        }}
-                                    >
+                                        }}>
                                         {({
                                             handleChange,
                                             handleBlur,
@@ -1212,8 +1199,7 @@ const songs = () => {
                                                         style={{
                                                             fontSize:
                                                                 fontSize.base,
-                                                        }}
-                                                    >
+                                                        }}>
                                                         Select Color
                                                     </Text>
                                                     <View className='flex-row flex-wrap gap-3 mb-4'>
@@ -1311,8 +1297,7 @@ const songs = () => {
                                             className='text-silverText mb-2'
                                             style={{
                                                 fontSize: fontSize.base,
-                                            }}
-                                        >
+                                            }}>
                                             Selected tags:
                                         </Text>
                                         <View className='flex-row flex-wrap gap-2'>
@@ -1351,16 +1336,14 @@ const songs = () => {
                                                         shadowOpacity: 0.25,
                                                         shadowRadius: 3.84,
                                                         elevation: 5,
-                                                    }}
-                                                >
+                                                    }}>
                                                     <Text
                                                         className='text-white'
                                                         style={{
                                                             fontSize:
                                                                 fontSize.base,
                                                             fontWeight: "bold",
-                                                        }}
-                                                    >
+                                                        }}>
                                                         {tag.name}
                                                     </Text>
                                                 </Pressable>
@@ -1386,8 +1369,7 @@ const songs = () => {
                                     className='bg-accent-light dark:bg-accent-dark rounded-xl px-4 py-3 flex-row items-center justify-center mt-2'
                                     onPress={() =>
                                         onPickBtnPress(setFieldValue)
-                                    }
-                                >
+                                    }>
                                     <Text
                                         style={{
                                             color:
@@ -1396,8 +1378,7 @@ const songs = () => {
                                                     : "#222",
                                             fontWeight: "500",
                                             fontSize: fontSize.base,
-                                        }}
-                                    >
+                                        }}>
                                         {values.file
                                             ? `Selected: ${values.file.name ?? values.file.uri.split("/").pop()}`
                                             : "Pick audio file"}
@@ -1415,8 +1396,7 @@ const songs = () => {
                                 <View className='w-full items-center my-2'>
                                     <Text
                                         className='text-silverText mb-2'
-                                        style={{ fontSize: fontSize.base }}
-                                    >
+                                        style={{ fontSize: fontSize.base }}>
                                         Uploading... {uploadProgress ?? 0}%
                                     </Text>
                                     <View className='w-full h-2 bg-accent-light dark:bg-accent-dark rounded-full'>
@@ -1445,6 +1425,10 @@ const songs = () => {
                     )}
                 </Formik>
             </StyledModal>
+            <SwitchBandModal
+                onClose={() => setShowSwitchModal(false)}
+                visible={showSwitchModal}
+            />
             {filtersVisible && (
                 <View className='absolute top-0 left-0 right-0 bottom-0 bg-black/20 w-full flex-1 z-10'></View>
             )}
@@ -1452,27 +1436,22 @@ const songs = () => {
                 visible={filtersVisible}
                 animationType='slide'
                 transparent
-                onRequestClose={closeFiltersModal}
-            >
+                onRequestClose={closeFiltersModal}>
                 <Pressable
                     onPress={closeFiltersModal}
-                    className='flex-1 justify-end'
-                >
+                    className='flex-1 justify-end'>
                     <Pressable
                         onPress={(e) => e.stopPropagation()}
-                        className='bg-boxBackground-light dark:bg-boxBackground-dark border-t border-accent-light dark:border-accent-dark rounded-t-3xl p-6'
-                    >
+                        className='bg-boxBackground-light dark:bg-boxBackground-dark border-t border-accent-light dark:border-accent-dark rounded-t-3xl p-6'>
                         <View className='flex-row items-center justify-between mb-4'>
                             <Text
                                 className='font-bold dark:text-white'
-                                style={{ fontSize: fontSize.xl }}
-                            >
+                                style={{ fontSize: fontSize.xl }}>
                                 Filters
                             </Text>
                             <Pressable
                                 onPress={closeFiltersModal}
-                                className='p-2 rounded-full bg-accent-light dark:bg-accent-dark active:opacity-70'
-                            >
+                                className='p-2 rounded-full bg-accent-light dark:bg-accent-dark active:opacity-70'>
                                 <X
                                     size={20}
                                     color={
@@ -1484,8 +1463,7 @@ const songs = () => {
                         <View className='mb-4'>
                             <Text
                                 className='text-black dark:text-white mb-2'
-                                style={{ fontSize: fontSize.xl }}
-                            >
+                                style={{ fontSize: fontSize.xl }}>
                                 Key:
                             </Text>
                             <View className='flex-row items-center flex-wrap gap-2'>
@@ -1517,14 +1495,12 @@ const songs = () => {
                                                 isSelected
                                                     ? "bg-transparentGreen border-green"
                                                     : "bg-transparent border-gray-400"
-                                            }`}
-                                        >
+                                            }`}>
                                             <Text
                                                 className='text-black dark:text-white'
                                                 style={{
                                                     fontSize: fontSize.base,
-                                                }}
-                                            >
+                                                }}>
                                                 {keyItem.label}
                                             </Text>
                                         </Pressable>
@@ -1535,8 +1511,7 @@ const songs = () => {
                         <View className='flex-row items-center gap-2 mb-4'>
                             <Text
                                 className='text-black dark:text-white'
-                                style={{ fontSize: fontSize.xl }}
-                            >
+                                style={{ fontSize: fontSize.xl }}>
                                 Status:
                             </Text>
                             <Pressable
@@ -1549,14 +1524,12 @@ const songs = () => {
                                     readyStatusSelected
                                         ? "bg-transparentGreen border-green"
                                         : "bg-transparent border-gray-400"
-                                }`}
-                            >
+                                }`}>
                                 <Text
                                     className='text-black dark:text-white'
                                     style={{ fontSize: fontSize.base }}
-                                    maxFontSizeMultiplier={1.3}
-                                >
-                                    ready
+                                    maxFontSizeMultiplier={1.3}>
+                                    rehearsed
                                 </Text>
                             </Pressable>
                             <Pressable
@@ -1569,13 +1542,11 @@ const songs = () => {
                                     finishedStatusSelected
                                         ? "bg-transparentGreen border-green"
                                         : "bg-transparent border-gray-400"
-                                }`}
-                            >
+                                }`}>
                                 <Text
                                     className='text-black dark:text-white'
                                     style={{ fontSize: fontSize.base }}
-                                    maxFontSizeMultiplier={1.3}
-                                >
+                                    maxFontSizeMultiplier={1.3}>
                                     finished
                                 </Text>
                             </Pressable>
@@ -1589,13 +1560,11 @@ const songs = () => {
                                     draftStatusSelected
                                         ? "bg-transparentGreen border-green"
                                         : "bg-transparent border-gray-400"
-                                }`}
-                            >
+                                }`}>
                                 <Text
                                     className='text-black dark:text-white'
                                     style={{ fontSize: fontSize.base }}
-                                    maxFontSizeMultiplier={1.3}
-                                >
+                                    maxFontSizeMultiplier={1.3}>
                                     draft
                                 </Text>
                             </Pressable>
@@ -1603,8 +1572,7 @@ const songs = () => {
                         <View className='mb-4'>
                             <Text
                                 className='text-black dark:text-white'
-                                style={{ fontSize: fontSize.xl }}
-                            >
+                                style={{ fontSize: fontSize.xl }}>
                                 Tags
                             </Text>
                             <View className='flex-row items-center flex-wrap'>
@@ -1649,8 +1617,7 @@ const songs = () => {
                                                 )
                                                     ? 1
                                                     : 0.7,
-                                        }}
-                                    >
+                                        }}>
                                         <Text
                                             className='text-white'
                                             style={{
@@ -1661,8 +1628,7 @@ const songs = () => {
                                                     )
                                                         ? "bold"
                                                         : "normal",
-                                            }}
-                                        >
+                                            }}>
                                             {tag.name}
                                         </Text>
                                     </Pressable>
@@ -1680,23 +1646,19 @@ const songs = () => {
                                     // This will trigger the debounced useEffect to re-fetch with cleared filters
                                     setSearchText("");
                                 }}
-                                className='font-regular rounded rounded-xl bg-darkOrange p-2 flex-1 items-center justify-center'
-                            >
+                                className='font-regular rounded rounded-xl bg-darkOrange p-2 flex-1 items-center justify-center'>
                                 <Text
                                     className='text-black'
-                                    style={{ fontSize: fontSize.xl }}
-                                >
+                                    style={{ fontSize: fontSize.xl }}>
                                     Reset
                                 </Text>
                             </Pressable>
                             <Pressable
                                 onPress={handleApplyFilters}
-                                className='font-regular rounded rounded-xl bg-blue dark:bg-blue p-2 flex-1 items-center justify-center'
-                            >
+                                className='font-regular rounded rounded-xl bg-blue dark:bg-blue p-2 flex-1 items-center justify-center'>
                                 <Text
                                     className='text-white'
-                                    style={{ fontSize: fontSize.xl }}
-                                >
+                                    style={{ fontSize: fontSize.xl }}>
                                     Apply filters
                                 </Text>
                             </Pressable>
@@ -1709,8 +1671,7 @@ const songs = () => {
                     <ActivityIndicator size='large' color='#2B7FFF' />
                     <Text
                         className='text-silverText mt-4'
-                        style={{ fontSize: fontSize.base }}
-                    >
+                        style={{ fontSize: fontSize.base }}>
                         Loading bands...
                     </Text>
                 </View>
@@ -1722,16 +1683,54 @@ const songs = () => {
                         <View className='flex-col items-start justify-center'>
                             <Text
                                 className='text-black dark:text-white font-bold my-1'
-                                style={{ fontSize: fontSize["2xl"] }}
-                            >
+                                style={{ fontSize: fontSize["2xl"] }}>
                                 {activeBand?.name} Songs & Setlists
                             </Text>
                             <Text
                                 className='text-silverText'
-                                style={{ fontSize: fontSize.base }}
-                            >
+                                style={{ fontSize: fontSize.base }}>
                                 Manage your band's songs and setlists
                             </Text>
+                        </View>
+                        <View className='flex-row items-center justify-center'>
+                            <Menu
+                                // renderer={SlideInMenu}
+                                rendererProps={{ transitionDuration: 200 }}>
+                                <MenuTrigger>
+                                    <Text
+                                        className='text-black dark:text-white p-4'
+                                        style={{ fontSize: fontSize["2xl"] }}>
+                                        ⋯
+                                    </Text>
+                                </MenuTrigger>
+                                <MenuOptions
+                                    customStyles={{
+                                        optionsContainer: {
+                                            borderRadius: 10,
+                                            backgroundColor:
+                                                colorScheme === "dark"
+                                                    ? "#333"
+                                                    : "#fff",
+                                        },
+                                    }}>
+                                    <MenuOption
+                                        onSelect={() => {
+                                            setShowSwitchModal(true);
+                                        }}
+                                        text='Switch band'
+                                        customStyles={{
+                                            optionText: {
+                                                color:
+                                                    colorScheme === "dark"
+                                                        ? "#fff"
+                                                        : "#333",
+                                                paddingVertical: 8,
+                                                fontSize: fontSize.base,
+                                            },
+                                        }}
+                                    />
+                                </MenuOptions>
+                            </Menu>
                         </View>
                     </View>
                     <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark w-full px-4'>
@@ -1747,8 +1746,7 @@ const songs = () => {
                                 <View className='flex-row justify-between items-center w-full'>
                                     <Text
                                         className='text-silverText'
-                                        style={{ fontSize: fontSize.base }}
-                                    >
+                                        style={{ fontSize: fontSize.base }}>
                                         {sortedSongs.length} songs •{" "}
                                         {
                                             sortedSongs.filter(
@@ -1763,7 +1761,7 @@ const songs = () => {
                                                     song.status === "rehearsed"
                                             ).length
                                         }{" "}
-                                        ready
+                                        rehearsed
                                     </Text>
                                     <StyledButton
                                         onPress={() =>
@@ -1782,20 +1780,51 @@ const songs = () => {
                                             onSubmitEditing={runFilterAndSearch}
                                         />
                                     </View>
-                                    <Pressable>
-                                        <ListMusic
-                                            size={Math.min(fontSize["3xl"], 20)}
-                                            style={{
-                                                marginRight: 2,
-                                                marginBottom: -2,
-                                            }}
-                                            color={
-                                                colorScheme === "dark"
-                                                    ? "#fff"
-                                                    : "#000"
-                                            }
-                                        />
-                                    </Pressable>
+                                    {songCollectionSwitch === "Songs" ? (
+                                        <Pressable
+                                            onPress={() =>
+                                                setSongCollectionSwitch(
+                                                    "Collections"
+                                                )
+                                            }>
+                                            <ListMusic
+                                                size={Math.min(
+                                                    fontSize["3xl"],
+                                                    20
+                                                )}
+                                                style={{
+                                                    marginRight: 2,
+                                                    marginBottom: -2,
+                                                }}
+                                                color={
+                                                    colorScheme === "dark"
+                                                        ? "#fff"
+                                                        : "#000"
+                                                }
+                                            />
+                                        </Pressable>
+                                    ) : (
+                                        <Pressable
+                                            onPress={() =>
+                                                setSongCollectionSwitch("Songs")
+                                            }>
+                                            <DiscAlbum
+                                                size={Math.min(
+                                                    fontSize["3xl"],
+                                                    20
+                                                )}
+                                                style={{
+                                                    marginRight: 2,
+                                                    marginBottom: -2,
+                                                }}
+                                                color={
+                                                    colorScheme === "dark"
+                                                        ? "#fff"
+                                                        : "#000"
+                                                }
+                                            />
+                                        </Pressable>
+                                    )}
                                     <Menu>
                                         <MenuTrigger>
                                             <ArrowUpDown
@@ -1824,8 +1853,7 @@ const songs = () => {
                                                             ? "#333"
                                                             : "#fff",
                                                 },
-                                            }}
-                                        >
+                                            }}>
                                             <MenuOption
                                                 onSelect={() => {
                                                     setSort("alphabetical_asc");
@@ -1903,8 +1931,7 @@ const songs = () => {
                                     <Pressable
                                         onPress={() => {
                                             setFiltersVisible(true);
-                                        }}
-                                    >
+                                        }}>
                                         <SlidersHorizontal
                                             size={Math.min(fontSize["3xl"], 20)}
                                             style={{
@@ -1926,8 +1953,7 @@ const songs = () => {
                                     alignItems: "center",
                                     justifyContent: "flex-start",
                                     paddingBottom: 25,
-                                }}
-                            >
+                                }}>
                                 {Array.isArray(sortedSongs) &&
                                     sortedSongs.map((song, idx) => (
                                         <SongCard
@@ -1947,8 +1973,7 @@ const songs = () => {
                                     <View className='flex-1 w-full justify-center items-center'>
                                         <Text
                                             className='text-silverText'
-                                            style={{ fontSize: fontSize.base }}
-                                        >
+                                            style={{ fontSize: fontSize.base }}>
                                             No songs found.
                                         </Text>
                                     </View>

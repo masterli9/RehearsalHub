@@ -17,6 +17,7 @@ import {
     Text,
     useColorScheme,
     View,
+    Image,
 } from "react-native";
 import {
     Menu,
@@ -38,6 +39,8 @@ export default function Band() {
 
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showJoinModal, setShowJoinModal] = useState(false);
+    const [showEditBandNameModal, setShowEditBandNameModal] = useState(false);
+    const [showEditRolesModal, setShowEditRolesModal] = useState(false);
     const [bandMembers, setBandMembers] = useState<any[]>([]);
     const [memberCount, setMemberCount] = useState(0);
     const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([]);
@@ -70,6 +73,8 @@ export default function Band() {
         fetchBandMembers,
         removeBandMember,
         makeLeader,
+        updateBandName,
+        updateMemberRoles,
     } = useBand();
 
     const loadBandMembers = async () => {
@@ -194,12 +199,29 @@ export default function Band() {
             .required("Invite code is required"),
         roles: Yup.array().required("Select at least one role"),
     });
+    const editBandNameSchema = Yup.object().shape({
+        bandName: Yup.string()
+            .min(2, "Band name should be at least 2 characters")
+            .max(255, "Band name should be less than 255 characters")
+            .required("Band name is required"),
+    });
+    const editRolesSchema = Yup.object().shape({
+        roles: Yup.array()
+            .min(1, "Select at least one role")
+            .required("Select at least one role"),
+    });
     type JoinFormValues = {
         joinCode: string;
         roles: BandRole[];
     };
     type CreateFormValues = {
         bandName: string;
+        roles: BandRole[];
+    };
+    type EditBandNameFormValues = {
+        bandName: string;
+    };
+    type EditRolesFormValues = {
         roles: BandRole[];
     };
 
@@ -224,7 +246,8 @@ export default function Band() {
                         } catch (error: any) {
                             Alert.alert(
                                 "Error",
-                                error.message || "Failed to create band. Please try again."
+                                error.message ||
+                                    "Failed to create band. Please try again."
                             );
                         }
                     }}
@@ -336,7 +359,8 @@ export default function Band() {
                         } catch (error: any) {
                             Alert.alert(
                                 "Error",
-                                error.message || "Failed to join band. Please try again."
+                                error.message ||
+                                    "Failed to join band. Please try again."
                             );
                         }
                     }}
@@ -440,6 +464,210 @@ export default function Band() {
                 onClose={() => setShowSwitchModal(false)}
                 visible={showSwitchModal}
             />
+            {/* Edit Band Name Modal */}
+            <StyledModal
+                visible={showEditBandNameModal}
+                onClose={() => setShowEditBandNameModal(false)}
+                title='Edit band name'>
+                <Formik<EditBandNameFormValues>
+                    validationSchema={editBandNameSchema}
+                    initialValues={{
+                        bandName: activeBand?.name || "",
+                    }}
+                    onSubmit={async (values) => {
+                        try {
+                            if (!activeBand?.id) {
+                                Alert.alert("Error", "No active band");
+                                return;
+                            }
+                            await updateBandName(
+                                activeBand.id,
+                                values.bandName
+                            );
+                            setShowEditBandNameModal(false);
+                            Alert.alert(
+                                "Success",
+                                "Band name updated successfully"
+                            );
+                        } catch (error: any) {
+                            Alert.alert(
+                                "Error",
+                                error.message ||
+                                    "Failed to update band name. Please try again."
+                            );
+                        }
+                    }}
+                    validateOnBlur={false}
+                    validateOnChange={false}>
+                    {({
+                        handleChange,
+                        handleBlur,
+                        handleSubmit,
+                        values,
+                        errors,
+                        touched,
+                        submitCount,
+                    }) => (
+                        <>
+                            <StyledTextInput
+                                placeholder='Band name'
+                                className='my-4'
+                                value={values.bandName}
+                                onChangeText={handleChange("bandName")}
+                                onBlur={handleBlur("bandName")}
+                            />
+                            {(touched.bandName || submitCount > 0) &&
+                                errors.bandName && (
+                                    <ErrorText>{errors.bandName}</ErrorText>
+                                )}
+                            <View className='flex-row gap-4 w-full justify-center items-center my-3'>
+                                <StyledButton
+                                    onPress={() =>
+                                        setShowEditBandNameModal(false)
+                                    }
+                                    title='Cancel'
+                                />
+                                <StyledButton
+                                    onPress={() => handleSubmit()}
+                                    title='Save'
+                                />
+                            </View>
+                        </>
+                    )}
+                </Formik>
+            </StyledModal>
+            {/* Edit My Roles Modal */}
+            <StyledModal
+                visible={showEditRolesModal}
+                onClose={() => setShowEditRolesModal(false)}
+                title='Edit my roles'>
+                <Formik<EditRolesFormValues>
+                    validationSchema={editRolesSchema}
+                    initialValues={{
+                        roles: roles.filter((role: BandRole) =>
+                            currentUserRoles.includes(role.title)
+                        ),
+                    }}
+                    onSubmit={async (values) => {
+                        try {
+                            if (!activeBand?.id) {
+                                Alert.alert("Error", "No active band");
+                                return;
+                            }
+                            // If user is a Leader, ensure Leader role is included
+                            const finalRoles = currentUserRoles.includes(
+                                "Leader"
+                            )
+                                ? [
+                                      ...values.roles,
+                                      { role_id: 0, title: "Leader" },
+                                  ]
+                                : values.roles;
+                            await updateMemberRoles(activeBand.id, finalRoles);
+                            await loadBandMembers();
+                            setShowEditRolesModal(false);
+                            Alert.alert(
+                                "Success",
+                                "Roles updated successfully"
+                            );
+                        } catch (error: any) {
+                            Alert.alert(
+                                "Error",
+                                error.message ||
+                                    "Failed to update roles. Please try again."
+                            );
+                        }
+                    }}
+                    validateOnBlur={false}
+                    validateOnChange={false}>
+                    {({
+                        handleSubmit,
+                        values,
+                        setFieldValue,
+                        errors,
+                        touched,
+                        submitCount,
+                    }) => (
+                        <>
+                            <Text
+                                className='font-regular text-silverText text-center mb-2'
+                                style={{ fontSize: fontSize.base }}>
+                                Select your role(s) in the band:
+                            </Text>
+                            {currentUserRoles.includes("Leader") && (
+                                <Text
+                                    className='font-regular text-silverText text-center mb-2'
+                                    style={{ fontSize: fontSize.sm }}>
+                                    Note: Leader role cannot be removed
+                                </Text>
+                            )}
+                            <View className='flex-row flex-wrap gap-2 w-full justify-center items-center my-2'>
+                                {roles.map((role: BandRole) => {
+                                    const isSelected = values.roles.some(
+                                        (r) => r.role_id === role.role_id
+                                    );
+
+                                    return (
+                                        <Pressable
+                                            key={role.role_id}
+                                            onPress={() => {
+                                                if (isSelected) {
+                                                    setFieldValue(
+                                                        "roles",
+                                                        values.roles.filter(
+                                                            (r) =>
+                                                                r.role_id !==
+                                                                role.role_id
+                                                        )
+                                                    );
+                                                } else {
+                                                    setFieldValue("roles", [
+                                                        ...values.roles,
+                                                        role,
+                                                    ]);
+                                                }
+                                            }}
+                                            className={`px-2 py-1 rounded-m border ${
+                                                isSelected
+                                                    ? "bg-transparentGreen border-green"
+                                                    : "bg-transparent border-gray-400"
+                                            }`}>
+                                            <Text
+                                                className={`${
+                                                    isSelected
+                                                        ? "text-black dark:text-white font-semibold"
+                                                        : "text-gray-700 dark:text-gray-200"
+                                                }`}>
+                                                {role.title}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+                            {(touched.roles || submitCount > 0) &&
+                                errors.roles && (
+                                    <ErrorText>
+                                        {typeof errors.roles === "string"
+                                            ? errors.roles
+                                            : Array.isArray(errors.roles)
+                                              ? errors.roles.join(", ")
+                                              : "Please select at least one role"}
+                                    </ErrorText>
+                                )}
+                            <View className='flex-row gap-4 w-full justify-center items-center my-3'>
+                                <StyledButton
+                                    onPress={() => setShowEditRolesModal(false)}
+                                    title='Cancel'
+                                />
+                                <StyledButton
+                                    onPress={() => handleSubmit()}
+                                    title='Save'
+                                />
+                            </View>
+                        </>
+                    )}
+                </Formik>
+            </StyledModal>
             {bands.length === 0 ? (
                 <>
                     <Card className='flex-col w-full items-center justify-center'>
@@ -524,6 +752,40 @@ export default function Band() {
                                             setShowCreateModal(false);
                                         }}
                                         text='Join new band'
+                                        customStyles={{
+                                            optionText: {
+                                                color:
+                                                    systemScheme === "dark"
+                                                        ? "#fff"
+                                                        : "#333",
+                                                paddingVertical: 8,
+                                                fontSize: fontSize.base,
+                                            },
+                                        }}
+                                    />
+                                    {currentUserRoles.includes("Leader") && (
+                                        <MenuOption
+                                            onSelect={() => {
+                                                setShowEditBandNameModal(true);
+                                            }}
+                                            text='Edit band name'
+                                            customStyles={{
+                                                optionText: {
+                                                    color:
+                                                        systemScheme === "dark"
+                                                            ? "#fff"
+                                                            : "#333",
+                                                    paddingVertical: 8,
+                                                    fontSize: fontSize.base,
+                                                },
+                                            }}
+                                        />
+                                    )}
+                                    <MenuOption
+                                        onSelect={() => {
+                                            setShowEditRolesModal(true);
+                                        }}
+                                        text='Edit my roles'
                                         customStyles={{
                                             optionText: {
                                                 color:
@@ -624,6 +886,20 @@ export default function Band() {
                                 }
                                 variant='boxBackground'
                                 className='w-full flex-row items-center justify-between my-1'>
+                                <Image
+                                    source={
+                                        member.photourl && {
+                                            uri: member.photourl,
+                                        }
+                                    }
+                                    style={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: 9999,
+                                        marginRight: 8,
+                                    }}
+                                    resizeMode='cover'
+                                />
                                 <View className='flex-col items-start justify-center flex-1'>
                                     <View className='flex-row flex-wrap items-center'>
                                         <Text

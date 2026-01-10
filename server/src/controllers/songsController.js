@@ -30,7 +30,7 @@ const VALID_SONG_KEYS = [
 ];
 
 // Valid statuses from database CHECK constraint
-const VALID_STATUSES = ["draft", "finished", "ready"];
+const VALID_STATUSES = ["draft", "finished", "rehearsed"];
 
 export const createSong = async (req, res) => {
     try {

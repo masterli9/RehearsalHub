@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     FlatList,
+    Image,
     Keyboard,
     KeyboardAvoidingView,
     Platform,
@@ -22,6 +23,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { io } from "socket.io-client";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
+import { SwitchBandModal } from "@/components/SwitchBandModal";
+import {
+    Menu,
+    MenuOption,
+    MenuOptions,
+    MenuTrigger,
+} from "react-native-popup-menu";
 
 interface Message {
     id?: number;
@@ -43,6 +51,7 @@ const chat = () => {
     const { bands, activeBand } = useBand();
     const { user, idToken, setIdToken } = useAuth();
     const fontSize = useAccessibleFontSize();
+    const colorScheme = useColorScheme();
 
     // Create socket instance only once and reuse it
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
@@ -59,6 +68,8 @@ const chat = () => {
     const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [hasMore, setHasMore] = useState(true);
     const [messageInput, setMessageInput] = useState("");
+
+    const [showSwitchModal, setShowSwitchModal] = useState<boolean>(false);
 
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
     const [loadOlderError, setLoadOlderError] = useState(false);
@@ -514,6 +525,7 @@ const chat = () => {
         status,
         clientId,
         messageId,
+        photourl,
     }: {
         text: string;
         authorUsername: string;
@@ -521,9 +533,9 @@ const chat = () => {
         status: "ok" | "pending" | "failed";
         clientId?: string;
         messageId?: number;
+        photourl?: string | null;
     }) => {
         const position = authorUsername === user?.username ? "right" : "left";
-        const colorScheme = useColorScheme();
         const messageIndex = messages.findIndex((m) => m.id === messageId);
         const currMsg = messages[messageIndex];
         const prevMsg = messages[messageIndex + 1];
@@ -558,47 +570,59 @@ const chat = () => {
                         {authorUsername} · {prettyTime(sentAt)}
                     </Text>
                 )}
-                <View
-                    className={`bg-darkWhite dark:bg-accent-dark ${position === "right" && "bg-violet dark:bg-violet"} p-3 rounded-2xl ${(() => {
-                        const isMe = authorUsername === user?.username;
-
-                        if (isMe) {
-                            if (prevSameUserAndDay && nextSameUserAndDay) {
-                                return "rounded-tr-none rounded-br-none";
+                <View className='flex-row items-center gap-1'>
+                    {position === "left" && shouldShowUsername && photourl && (
+                        <Image
+                            source={{ uri: photourl }}
+                            className='rounded-full'
+                            style={{
+                                width: fontSize.lg * 1.8,
+                                height: fontSize.lg * 1.8,
+                                borderRadius: (fontSize.lg * 1.8) / 2,
+                            }}
+                        />
+                    )}
+                    <View
+                        className={`bg-darkWhite dark:bg-accent-dark ${position === "right" && "bg-violet dark:bg-violet"} p-3 rounded-2xl ${(() => {
+                            const isMe = authorUsername === user?.username;
+                            if (isMe) {
+                                if (prevSameUserAndDay && nextSameUserAndDay) {
+                                    return "rounded-tr-none rounded-br-none";
+                                }
+                                if (prevSameUserAndDay && !nextSameUserAndDay) {
+                                    return "rounded-tr-none";
+                                }
+                                if (!prevSameUserAndDay && nextSameUserAndDay) {
+                                    return "rounded-br-none";
+                                }
+                                return "rounded-2xl";
+                            } else {
+                                if (prevSameUserAndDay && nextSameUserAndDay) {
+                                    return "rounded-tl-none rounded-bl-none";
+                                }
+                                if (prevSameUserAndDay && !nextSameUserAndDay) {
+                                    return "rounded-tl-none";
+                                }
+                                if (!prevSameUserAndDay && nextSameUserAndDay) {
+                                    return "rounded-bl-none";
+                                }
+                                return "rounded-2xl";
                             }
-                            if (prevSameUserAndDay && !nextSameUserAndDay) {
-                                return "rounded-tr-none";
-                            }
-                            if (!prevSameUserAndDay && nextSameUserAndDay) {
-                                return "rounded-br-none";
-                            }
-                            return "rounded-2xl";
-                        } else {
-                            if (prevSameUserAndDay && nextSameUserAndDay) {
-                                return "rounded-tl-none rounded-bl-none";
-                            }
-                            if (prevSameUserAndDay && !nextSameUserAndDay) {
-                                return "rounded-tl-none";
-                            }
-                            if (!prevSameUserAndDay && nextSameUserAndDay) {
-                                return "rounded-bl-none";
-                            }
-                            return "rounded-2xl";
-                        }
-                    })()}`}
-                    style={{ maxWidth: "80%" }}>
-                    <Text
-                        style={{
-                            color:
-                                colorScheme === "dark"
-                                    ? "#ffffff"
-                                    : position === "right"
-                                      ? "#ffffff"
-                                      : "#000000",
-                            fontSize: fontSize.sm,
-                        }}>
-                        {text}
-                    </Text>
+                        })()}`}
+                        style={{ maxWidth: "80%" }}>
+                        <Text
+                            style={{
+                                color:
+                                    colorScheme === "dark"
+                                        ? "#ffffff"
+                                        : position === "right"
+                                          ? "#ffffff"
+                                          : "#000000",
+                                fontSize: fontSize.sm,
+                            }}>
+                            {text}
+                        </Text>
+                    </View>
                 </View>
                 {status === "pending" && (
                     <View className='flex-row items-center gap-2'>
@@ -652,6 +676,7 @@ const chat = () => {
                     status={item.status || "ok"}
                     clientId={item.clientId}
                     messageId={item.id}
+                    photourl={item.author.photourl}
                 />
                 {showDate && (
                     <Text
@@ -666,6 +691,10 @@ const chat = () => {
 
     return (
         <PageContainer noBandState={bands.length === 0}>
+            <SwitchBandModal
+                onClose={() => setShowSwitchModal(false)}
+                visible={showSwitchModal}
+            />
             {bands.length === 0 ? (
                 <NoBand />
             ) : (
@@ -682,6 +711,46 @@ const chat = () => {
                                 style={{ fontSize: fontSize.base }}>
                                 Chat with your bandmates
                             </Text>
+                        </View>
+                        <View className='flex-row items-center justify-center'>
+                            <Menu
+                                // renderer={SlideInMenu}
+                                rendererProps={{ transitionDuration: 200 }}>
+                                <MenuTrigger>
+                                    <Text
+                                        className='text-black dark:text-white p-4'
+                                        style={{ fontSize: fontSize["2xl"] }}>
+                                        ⋯
+                                    </Text>
+                                </MenuTrigger>
+                                <MenuOptions
+                                    customStyles={{
+                                        optionsContainer: {
+                                            borderRadius: 10,
+                                            backgroundColor:
+                                                colorScheme === "dark"
+                                                    ? "#333"
+                                                    : "#fff",
+                                        },
+                                    }}>
+                                    <MenuOption
+                                        onSelect={() => {
+                                            setShowSwitchModal(true);
+                                        }}
+                                        text='Switch band'
+                                        customStyles={{
+                                            optionText: {
+                                                color:
+                                                    colorScheme === "dark"
+                                                        ? "#fff"
+                                                        : "#333",
+                                                paddingVertical: 8,
+                                                fontSize: fontSize.base,
+                                            },
+                                        }}
+                                    />
+                                </MenuOptions>
+                            </Menu>
                         </View>
                     </View>
                     <KeyboardAvoidingView
