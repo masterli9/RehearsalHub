@@ -24,6 +24,7 @@ import {
     View,
 } from "react-native";
 import * as yup from "yup";
+import SwitchTabs from "@/components/SwitchTabs";
 
 type Event = {
     event_id: number;
@@ -55,7 +56,8 @@ const events = () => {
     const fontSize = useAccessibleFontSize();
     const colorScheme = useColorScheme();
 
-    const [events, setEvents] = useState<Event[]>([]);
+    const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
+    const [pastEvents, setPastEvents] = useState<Event[]>([]);
     const [eventsLoading, setEventsLoading] = useState<boolean>(false);
     const [newEventModalVisible, setNewEventModalVisible] =
         useState<boolean>(false);
@@ -71,9 +73,12 @@ const events = () => {
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [selectedTime, setSelectedTime] = useState<Date>(new Date());
 
+    const [activeTab, setActiveTab] = useState<string>("Upcoming");
+
     const fetchEvents = async () => {
         if (!activeBand?.id) {
-            setEvents([]);
+            setUpcomingEvents([]);
+            setPastEvents([]);
             return;
         }
         setEventsLoading(true);
@@ -95,10 +100,20 @@ const events = () => {
             }
 
             const data = await response.json();
-            setEvents(data);
+            setUpcomingEvents(
+                data.filter(
+                    (event: Event) => new Date(event.date_time) >= new Date()
+                )
+            );
+            setPastEvents(
+                data.filter(
+                    (event: Event) => new Date(event.date_time) < new Date()
+                )
+            );
         } catch (error) {
             console.error("Error fetching events:", error);
-            setEvents([]);
+            setUpcomingEvents([]);
+            setPastEvents([]);
         } finally {
             setEventsLoading(false);
         }
@@ -236,35 +251,30 @@ const events = () => {
 
         return (
             <View
-                className={`${colors.cardBg} border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3`}
-            >
+                className={`${colors.cardBg} border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3`}>
                 <View className='flex-row justify-between items-start mb-2'>
                     <View className='flex-1' style={{ minWidth: 0 }}>
                         <View
                             className='flex-row items-center gap-2'
-                            style={{ flexWrap: "wrap" }}
-                        >
+                            style={{ flexWrap: "wrap" }}>
                             <Text
                                 className='font-bold text-black dark:text-white'
                                 style={{ fontSize: fontSize.xl }}
                                 numberOfLines={2}
-                                maxFontSizeMultiplier={1.3}
-                            >
+                                maxFontSizeMultiplier={1.3}>
                                 {event.title}
                             </Text>
                             <Text
                                 className={`${colors.bg} ${colors.text} my-1 px-3 py-1 rounded-xl`}
                                 style={{ fontSize: fontSize.base }}
                                 numberOfLines={1}
-                                maxFontSizeMultiplier={1.3}
-                            >
+                                maxFontSizeMultiplier={1.3}>
                                 {event.type}
                             </Text>
                         </View>
                         <View
                             className='flex-row items-center gap-3 mt-2'
-                            style={{ flexWrap: "wrap" }}
-                        >
+                            style={{ flexWrap: "wrap" }}>
                             <View className='flex-row items-center gap-1'>
                                 <Calendar
                                     color={"#A1A1A1"}
@@ -277,8 +287,7 @@ const events = () => {
                                         fontSize: fontSize.base,
                                     }}
                                     numberOfLines={1}
-                                    maxFontSizeMultiplier={1.3}
-                                >
+                                    maxFontSizeMultiplier={1.3}>
                                     {formatDateTime(event.date_time)}
                                 </Text>
                             </View>
@@ -298,8 +307,7 @@ const events = () => {
                                             fontSize: fontSize.base,
                                         }}
                                         numberOfLines={1}
-                                        maxFontSizeMultiplier={1.3}
-                                    >
+                                        maxFontSizeMultiplier={1.3}>
                                         {event.place}
                                     </Text>
                                 </View>
@@ -320,8 +328,7 @@ const events = () => {
                                             fontSize: fontSize.base,
                                         }}
                                         numberOfLines={1}
-                                        maxFontSizeMultiplier={1.3}
-                                    >
+                                        maxFontSizeMultiplier={1.3}>
                                         {formatInterval(event.length)}
                                     </Text>
                                 </View>
@@ -334,8 +341,7 @@ const events = () => {
                         className='text-silverText my-2'
                         style={{ fontSize: fontSize.base }}
                         numberOfLines={3}
-                        maxFontSizeMultiplier={1.3}
-                    >
+                        maxFontSizeMultiplier={1.3}>
                         {event.description}
                     </Text>
                 )}
@@ -350,8 +356,7 @@ const events = () => {
                                 />
                                 <Text
                                     className='text-silverText font-semibold'
-                                    style={{ fontSize: fontSize.base }}
-                                >
+                                    style={{ fontSize: fontSize.base }}>
                                     Songs to rehearse:
                                 </Text>
                             </View>
@@ -359,8 +364,7 @@ const events = () => {
                                 {event.songs.map((song) => (
                                     <View
                                         key={song.song_id}
-                                        className='px-3 py-1 rounded-xl bg-accent-light dark:bg-accent-dark'
-                                    >
+                                        className='px-3 py-1 rounded-xl bg-accent-light dark:bg-accent-dark'>
                                         <Text
                                             className='text-black dark:text-white text-sm'
                                             // style={{ fontSize: fontSize.sm }}
@@ -376,8 +380,7 @@ const events = () => {
                     <View className='mt-2'>
                         <Text
                             className='text-silverText italic'
-                            style={{ fontSize: fontSize.sm }}
-                        >
+                            style={{ fontSize: fontSize.sm }}>
                             Setlist: Coming soon
                         </Text>
                     </View>
@@ -467,8 +470,7 @@ const events = () => {
                 canClose={true}
                 wide={true}
                 title='Create an event'
-                subtitle="Add a new rehearsal or concert to your band's schedule"
-            >
+                subtitle="Add a new rehearsal or concert to your band's schedule">
                 <Formik
                     validationSchema={
                         eventType === "rehearsal"
@@ -583,8 +585,7 @@ const events = () => {
                         }
                     }}
                     validateOnBlur={false}
-                    validateOnChange={false}
-                >
+                    validateOnChange={false}>
                     {({
                         handleChange,
                         handleBlur,
@@ -640,8 +641,7 @@ const events = () => {
                                 <View>
                                     <Pressable
                                         onPress={() => setShowDatePicker(true)}
-                                        className='bg-white dark:bg-darkGray border border-accent-light dark:border-accent-dark rounded-2xl p-3'
-                                    >
+                                        className='bg-white dark:bg-darkGray border border-accent-light dark:border-accent-dark rounded-2xl p-3'>
                                         <View className='flex-row items-center gap-2'>
                                             <Calendar
                                                 color={
@@ -655,8 +655,7 @@ const events = () => {
                                                 className='text-black dark:text-white'
                                                 style={{
                                                     fontSize: fontSize.sm,
-                                                }}
-                                            >
+                                                }}>
                                                 {values.date.toLocaleDateString(
                                                     "en-US",
                                                     {
@@ -718,8 +717,7 @@ const events = () => {
                                 <View>
                                     <Pressable
                                         onPress={() => setShowTimePicker(true)}
-                                        className='bg-white dark:bg-darkGray border border-accent-light dark:border-accent-dark rounded-2xl p-3'
-                                    >
+                                        className='bg-white dark:bg-darkGray border border-accent-light dark:border-accent-dark rounded-2xl p-3'>
                                         <View className='flex-row items-center gap-2'>
                                             <Clock
                                                 color={
@@ -733,8 +731,7 @@ const events = () => {
                                                 className='text-black dark:text-white'
                                                 style={{
                                                     fontSize: fontSize.sm,
-                                                }}
-                                            >
+                                                }}>
                                                 {values.time.toLocaleTimeString(
                                                     "en-US",
                                                     {
@@ -819,15 +816,13 @@ const events = () => {
                                                 className='text-black dark:text-white mb-2'
                                                 style={{
                                                     fontSize: fontSize.base,
-                                                }}
-                                            >
+                                                }}>
                                                 Songs to rehearse (optional):
                                             </Text>
                                             <ScrollView
                                                 horizontal={true}
                                                 contentContainerClassName='items-center'
-                                                className='flex-row gap-2 w-full'
-                                            >
+                                                className='flex-row gap-2 w-full'>
                                                 {songs.map((song) => {
                                                     const isSelected =
                                                         values.songs.includes(
@@ -886,8 +881,7 @@ const events = () => {
                                                                             "dark"
                                                                           ? "#262626"
                                                                           : "#EDEDED",
-                                                            }}
-                                                        >
+                                                            }}>
                                                             <Text
                                                                 className={
                                                                     isSelected
@@ -901,8 +895,7 @@ const events = () => {
                                                                         isSelected
                                                                             ? "bold"
                                                                             : "normal",
-                                                                }}
-                                                            >
+                                                                }}>
                                                                 {song.title}
                                                             </Text>
                                                         </Pressable>
@@ -940,8 +933,7 @@ const events = () => {
                                         />
                                         <Text
                                             className='text-silverText text-xs mt-1 ml-1'
-                                            style={{ fontSize: fontSize.xs }}
-                                        >
+                                            style={{ fontSize: fontSize.xs }}>
                                             Format: HH:MM:SS (e.g., 2:30:00)
                                         </Text>
                                         {touched.length && errors.length && (
@@ -956,8 +948,7 @@ const events = () => {
                                                 className='text-silverText italic'
                                                 style={{
                                                     fontSize: fontSize.sm,
-                                                }}
-                                            >
+                                                }}>
                                                 Setlist: Coming soon
                                             </Text>
                                         </View>
@@ -978,8 +969,7 @@ const events = () => {
                     <ActivityIndicator size='large' color='#2B7FFF' />
                     <Text
                         className='text-silverText mt-4'
-                        style={{ fontSize: fontSize.base }}
-                    >
+                        style={{ fontSize: fontSize.base }}>
                         Loading bands...
                     </Text>
                 </View>
@@ -991,26 +981,39 @@ const events = () => {
                         <View className='flex-col items-start justify-center'>
                             <Text
                                 className='text-black dark:text-white font-bold my-1'
-                                style={{ fontSize: fontSize["2xl"] }}
-                            >
+                                style={{ fontSize: fontSize["2xl"] }}>
                                 {activeBand?.name} Events
                             </Text>
                             <Text
                                 className='text-silverText'
-                                style={{ fontSize: fontSize.base }}
-                            >
+                                style={{ fontSize: fontSize.base }}>
                                 Manage your band's rehearsals and concerts
                             </Text>
                         </View>
+                    </View>
+                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark w-full px-4'>
+                        <SwitchTabs
+                            activeTab={activeTab}
+                            setActiveTab={setActiveTab}
+                            tabs={["Upcoming", "Past"]}
+                        />
                     </View>
                     <View className='flex-col justify-center items-center gap-3 w-full border-b border-accent-light dark:border-accent-dark w-full px-5 py-3'>
                         <View className='flex-row justify-between items-center w-full'>
                             <Text
                                 className='text-silverText'
-                                style={{ fontSize: fontSize.base }}
-                            >
-                                {events.length} event
-                                {events.length !== 1 ? "s" : ""}
+                                style={{ fontSize: fontSize.base }}>
+                                {activeTab === "Upcoming"
+                                    ? upcomingEvents.length + " upcoming event"
+                                    : pastEvents.length + " past event"}
+
+                                {activeTab === "Upcoming"
+                                    ? upcomingEvents.length !== 1
+                                        ? "s"
+                                        : ""
+                                    : pastEvents.length !== 1
+                                      ? "s"
+                                      : ""}
                             </Text>
                             <StyledButton
                                 onPress={() => setNewEventModalVisible(true)}
@@ -1023,8 +1026,7 @@ const events = () => {
                             <ActivityIndicator size='large' color='#2B7FFF' />
                             <Text
                                 className='text-silverText mt-4'
-                                style={{ fontSize: fontSize.base }}
-                            >
+                                style={{ fontSize: fontSize.base }}>
                                 Loading events...
                             </Text>
                         </View>
@@ -1035,22 +1037,32 @@ const events = () => {
                                 alignItems: "center",
                                 justifyContent: "flex-start",
                                 paddingBottom: 25,
-                            }}
-                        >
-                            {Array.isArray(events) && events.length > 0 ? (
-                                events.map((event) => (
-                                    <EventCard
-                                        key={event.event_id}
-                                        event={event}
-                                    />
-                                ))
+                            }}>
+                            {(Array.isArray(pastEvents) &&
+                                pastEvents.length > 0) ||
+                            (Array.isArray(upcomingEvents) &&
+                                upcomingEvents.length > 0) ? (
+                                activeTab === "Upcoming" ? (
+                                    upcomingEvents.map((event) => (
+                                        <EventCard
+                                            key={event.event_id}
+                                            event={event}
+                                        />
+                                    ))
+                                ) : (
+                                    pastEvents.map((event) => (
+                                        <EventCard
+                                            key={event.event_id}
+                                            event={event}
+                                        />
+                                    ))
+                                )
                             ) : (
                                 <View className='flex-1 w-full justify-center items-center py-10'>
                                     <Text
                                         className='text-silverText'
-                                        style={{ fontSize: fontSize.base }}
-                                    >
-                                        No events yet. Create your first event!
+                                        style={{ fontSize: fontSize.base }}>
+                                        No events yet.
                                     </Text>
                                 </View>
                             )}
