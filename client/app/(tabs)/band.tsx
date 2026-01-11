@@ -46,6 +46,8 @@ export default function Band() {
     const [memberCount, setMemberCount] = useState(0);
     const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([]);
     const [confirmLeaveModal, setConfirmLeaveModal] = useState(false);
+    const [showMemberRolesModal, setShowMemberRolesModal] = useState(false);
+    const [selectedMemberRoles, setSelectedMemberRoles] = useState<any>(null);
 
     const [isLoadingMembers, setIsLoadingMembers] = useState(false);
     const [membersLoadError, setMembersLoadError] = useState(false);
@@ -79,7 +81,9 @@ export default function Band() {
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                throw new Error(`Error fetching roles, status: ${response.status}`);
+                throw new Error(
+                    `Error fetching roles, status: ${response.status}`
+                );
             }
 
             const data = await response.json();
@@ -138,8 +142,11 @@ export default function Band() {
                 setTimeout(() => reject(new Error("TIMEOUT")), TIMEOUT_MS)
             );
 
-            const members = await Promise.race([membersPromise, timeoutPromise]) as any;
-            
+            const members = (await Promise.race([
+                membersPromise,
+                timeoutPromise,
+            ])) as any;
+
             clearTimeout(timeoutId);
             setBandMembers(members.members);
             setMemberCount(members.members.length || 0);
@@ -730,6 +737,47 @@ export default function Band() {
                     )}
                 </Formik>
             </StyledModal>
+            {/* Member Roles Modal */}
+            <StyledModal
+                visible={showMemberRolesModal}
+                onClose={() => {
+                    setShowMemberRolesModal(false);
+                    setSelectedMemberRoles(null);
+                }}
+                title={
+                    selectedMemberRoles?.username
+                        ? `${selectedMemberRoles.username}'s Roles`
+                        : "Member Roles"
+                }>
+                <View className='flex-row flex-wrap gap-2 w-full justify-center items-center my-4'>
+                    {selectedMemberRoles?.roles &&
+                    Array.isArray(selectedMemberRoles.roles) &&
+                    selectedMemberRoles.roles.length > 0 ? (
+                        selectedMemberRoles.roles
+                            .filter((r: any) => r != null)
+                            .map((r: any, i: number) => (
+                                <Text
+                                    key={
+                                        typeof r === "string"
+                                            ? r
+                                            : r.role_id || r.title || i
+                                    }
+                                    className='text-white bg-darkGray dark:bg-accent-dark px-4 py-2 rounded-xl'
+                                    style={{
+                                        fontSize: fontSize.base,
+                                    }}>
+                                    {typeof r === "string" ? r : r?.title || ""}
+                                </Text>
+                            ))
+                    ) : (
+                        <Text
+                            className='text-silverText text-center'
+                            style={{ fontSize: fontSize.base }}>
+                            No roles assigned
+                        </Text>
+                    )}
+                </View>
+            </StyledModal>
             {bands.length === 0 ? (
                 <>
                     <Card className='flex-col w-full items-center justify-center'>
@@ -940,7 +988,10 @@ export default function Band() {
                         </Card>
                         {isLoadingMembers ? (
                             <View className='flex-1 w-full justify-center items-center py-8'>
-                                <ActivityIndicator size='large' color='#2B7FFF' />
+                                <ActivityIndicator
+                                    size='large'
+                                    color='#2B7FFF'
+                                />
                                 <Text
                                     className='text-silverText mt-4'
                                     style={{ fontSize: fontSize.base }}>
@@ -957,7 +1008,8 @@ export default function Band() {
                                 <Text
                                     className='text-silverText text-center mb-4'
                                     style={{ fontSize: fontSize.base }}>
-                                    Request timed out. Check your connection and try again.
+                                    Request timed out. Check your connection and
+                                    try again.
                                 </Text>
                                 <StyledButton
                                     title='Try Again'
@@ -967,152 +1019,189 @@ export default function Band() {
                         ) : (
                             <>
                                 {bandMembers.map((member, idx) => (
-                            <Card
-                                key={
-                                    member.firebase_uid ||
-                                    member.id ||
-                                    member.email ||
-                                    idx
-                                }
-                                variant='boxBackground'
-                                className='w-full flex-row items-center justify-between my-1'>
-                                <Image
-                                    source={
-                                        member.photourl && {
-                                            uri: member.photourl,
+                                    <Card
+                                        key={
+                                            member.firebase_uid ||
+                                            member.id ||
+                                            member.email ||
+                                            idx
                                         }
-                                    }
-                                    style={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: 9999,
-                                        marginRight: 8,
-                                    }}
-                                    resizeMode='cover'
-                                />
-                                <View className='flex-col items-start justify-center flex-1'>
-                                    <View className='flex-row flex-wrap items-center'>
-                                        <Text
-                                            className='text-black dark:text-white font-bold my-1 mr-2'
-                                            numberOfLines={1}
-                                            ellipsizeMode='tail'
-                                            style={{ fontSize: fontSize.xl }}>
-                                            {member.username}
-                                        </Text>
-                                        {member.roles.length > 0 &&
-                                            (Array.isArray(member.roles)
-                                                ? member.roles.slice(0, 1)
-                                                : []
-                                            )
-                                                .filter((r: any) => r != null)
-                                                .map((r: any, i: number) => (
-                                                    <Text
-                                                        key={
-                                                            typeof r ===
-                                                            "string"
-                                                                ? r
-                                                                : r.role_id ||
-                                                                  r.title ||
-                                                                  i
-                                                        }
-                                                        className='text-white my-1 bg-darkGray dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'
-                                                        style={{
-                                                            fontSize:
-                                                                fontSize.base,
-                                                        }}>
-                                                        {typeof r === "string"
-                                                            ? r
-                                                            : r?.title || ""}
-                                                    </Text>
-                                                ))}
-                                        {member.roles.length > 0 &&
-                                            member.roles.length > 1 && (
+                                        variant='boxBackground'
+                                        className='w-full flex-row items-center justify-between my-1'>
+                                        <Image
+                                            source={
+                                                member.photourl && {
+                                                    uri: member.photourl,
+                                                }
+                                            }
+                                            style={{
+                                                width: 40,
+                                                height: 40,
+                                                borderRadius: 9999,
+                                                marginRight: 8,
+                                            }}
+                                            resizeMode='cover'
+                                        />
+                                        <View className='flex-col items-start justify-center flex-1'>
+                                            <View className='flex-row flex-wrap items-center'>
                                                 <Text
-                                                    className='text-white my-1 bg-darkGray dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'
+                                                    className='text-black dark:text-white font-bold my-1 mr-2'
+                                                    numberOfLines={1}
+                                                    ellipsizeMode='tail'
                                                     style={{
-                                                        fontSize: fontSize.base,
+                                                        fontSize: fontSize.xl,
                                                     }}>
-                                                    +{member.roles.length - 1}
+                                                    {member.username}
                                                 </Text>
-                                            )}
-                                    </View>
-                                    <Text
-                                        className='text-silverText'
-                                        style={{ fontSize: fontSize.base }}>
-                                        {member.email}
-                                    </Text>
-                                </View>
-                                {currentUserRoles.includes("Leader") &&
-                                    member.firebase_uid !== user?.uid && (
-                                        <Menu>
-                                            <MenuTrigger>
-                                                <Text
-                                                    className='text-black dark:text-white p-4'
-                                                    style={{
-                                                        fontSize:
-                                                            fontSize["2xl"],
-                                                    }}>
-                                                    ⋮
-                                                </Text>
-                                            </MenuTrigger>
-                                            <MenuOptions
-                                                customStyles={{
-                                                    optionsContainer: {
-                                                        borderRadius: 10,
-                                                        paddingVertical: 4,
-                                                        backgroundColor:
-                                                            systemScheme ===
-                                                            "dark"
-                                                                ? "#333"
-                                                                : "#fff",
-                                                    },
+                                                {member.roles.length > 0 ? (
+                                                    <Pressable
+                                                        onPress={() => {
+                                                            setSelectedMemberRoles(
+                                                                member
+                                                            );
+                                                            setShowMemberRolesModal(
+                                                                true
+                                                            );
+                                                        }}
+                                                        className='flex-row flex-wrap items-center'>
+                                                        {(Array.isArray(
+                                                            member.roles
+                                                        )
+                                                            ? member.roles.slice(
+                                                                  0,
+                                                                  1
+                                                              )
+                                                            : []
+                                                        )
+                                                            .filter(
+                                                                (r: any) =>
+                                                                    r != null
+                                                            )
+                                                            .map(
+                                                                (
+                                                                    r: any,
+                                                                    i: number
+                                                                ) => (
+                                                                    <Text
+                                                                        key={
+                                                                            typeof r ===
+                                                                            "string"
+                                                                                ? r
+                                                                                : r.role_id ||
+                                                                                  r.title ||
+                                                                                  i
+                                                                        }
+                                                                        className='text-white my-1 bg-darkGray dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'
+                                                                        style={{
+                                                                            fontSize:
+                                                                                fontSize.base,
+                                                                        }}>
+                                                                        {typeof r ===
+                                                                        "string"
+                                                                            ? r
+                                                                            : r?.title ||
+                                                                              ""}
+                                                                    </Text>
+                                                                )
+                                                            )}
+                                                        {member.roles.length >
+                                                            1 && (
+                                                            <Text
+                                                                className='text-white my-1 bg-darkGray dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'
+                                                                style={{
+                                                                    fontSize:
+                                                                        fontSize.base,
+                                                                }}>
+                                                                +
+                                                                {member.roles
+                                                                    .length - 1}
+                                                            </Text>
+                                                        )}
+                                                    </Pressable>
+                                                ) : null}
+                                            </View>
+                                            <Text
+                                                className='text-silverText'
+                                                style={{
+                                                    fontSize: fontSize.base,
                                                 }}>
-                                                <MenuOption
-                                                    onSelect={() =>
-                                                        handleRemoveMember(
-                                                            activeBand?.id ||
-                                                                "",
-                                                            member.firebase_uid
-                                                        )
-                                                    }
-                                                    text='Remove member'
-                                                    customStyles={{
-                                                        optionText: {
-                                                            color:
-                                                                systemScheme ===
-                                                                "dark"
-                                                                    ? "#fff"
-                                                                    : "#333",
-                                                            paddingVertical: 8,
-                                                            fontSize:
-                                                                fontSize.base,
-                                                        },
-                                                    }}
-                                                />
-                                                <MenuOption
-                                                    onSelect={() =>
-                                                        handleMakeLeader(
-                                                            member.firebase_uid
-                                                        )
-                                                    }
-                                                    text='Make leader'
-                                                    customStyles={{
-                                                        optionText: {
-                                                            color:
-                                                                systemScheme ===
-                                                                "dark"
-                                                                    ? "#fff"
-                                                                    : "#333",
-                                                            paddingVertical: 8,
-                                                            fontSize:
-                                                                fontSize.base,
-                                                        },
-                                                    }}
-                                                />
-                                            </MenuOptions>
-                                        </Menu>
-                                    )}
-                            </Card>
+                                                {member.email}
+                                            </Text>
+                                        </View>
+                                        {currentUserRoles.includes("Leader") &&
+                                            member.firebase_uid !==
+                                                user?.uid && (
+                                                <Menu>
+                                                    <MenuTrigger>
+                                                        <Text
+                                                            className='text-black dark:text-white p-4'
+                                                            style={{
+                                                                fontSize:
+                                                                    fontSize[
+                                                                        "2xl"
+                                                                    ],
+                                                            }}>
+                                                            ⋮
+                                                        </Text>
+                                                    </MenuTrigger>
+                                                    <MenuOptions
+                                                        customStyles={{
+                                                            optionsContainer: {
+                                                                borderRadius: 10,
+                                                                paddingVertical: 4,
+                                                                backgroundColor:
+                                                                    systemScheme ===
+                                                                    "dark"
+                                                                        ? "#333"
+                                                                        : "#fff",
+                                                            },
+                                                        }}>
+                                                        <MenuOption
+                                                            onSelect={() =>
+                                                                handleRemoveMember(
+                                                                    activeBand?.id ||
+                                                                        "",
+                                                                    member.firebase_uid
+                                                                )
+                                                            }
+                                                            text='Remove member'
+                                                            customStyles={{
+                                                                optionText: {
+                                                                    color:
+                                                                        systemScheme ===
+                                                                        "dark"
+                                                                            ? "#fff"
+                                                                            : "#333",
+                                                                    paddingVertical: 8,
+                                                                    fontSize:
+                                                                        fontSize.base,
+                                                                },
+                                                            }}
+                                                        />
+                                                        <MenuOption
+                                                            onSelect={() =>
+                                                                handleMakeLeader(
+                                                                    member.firebase_uid
+                                                                )
+                                                            }
+                                                            text='Make leader'
+                                                            customStyles={{
+                                                                optionText: {
+                                                                    color:
+                                                                        systemScheme ===
+                                                                        "dark"
+                                                                            ? "#fff"
+                                                                            : "#333",
+                                                                    paddingVertical: 8,
+                                                                    fontSize:
+                                                                        fontSize.base,
+                                                                },
+                                                            }}
+                                                        />
+                                                    </MenuOptions>
+                                                </Menu>
+                                            )}
+                                    </Card>
                                 ))}
                             </>
                         )}
