@@ -18,6 +18,7 @@ import {
     useColorScheme,
     View,
     Image,
+    ActivityIndicator,
 } from "react-native";
 import {
     Menu,
@@ -46,20 +47,53 @@ export default function Band() {
     const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([]);
     const [confirmLeaveModal, setConfirmLeaveModal] = useState(false);
 
+    const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+    const [membersLoadError, setMembersLoadError] = useState(false);
+    const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+    const [rolesLoadError, setRolesLoadError] = useState(false);
+
+    const TIMEOUT_MS = 20 * 1000; // 20 seconds
+
     const [roles, setRoles] = useState([]);
-    const fetchRoles = async () => {
+    const fetchRoles = async (forceRetry: boolean = false) => {
+        if (isLoadingRoles && !forceRetry) return;
+        if (rolesLoadError && !forceRetry) return;
+
+        setIsLoadingRoles(true);
+        setRolesLoadError(false);
+
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+            abortController.abort();
+        }, TIMEOUT_MS);
+
         try {
             const response = await fetch(`${apiUrl}/api/bands/roles`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
                 },
+                signal: abortController.signal,
             });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`Error fetching roles, status: ${response.status}`);
+            }
 
             const data = await response.json();
             setRoles(data.filter((role: BandRole) => role.title !== "Leader"));
-        } catch (error) {
+        } catch (error: any) {
+            clearTimeout(timeoutId);
             console.error("Error fetching roles:", error);
+            if (error.name === "AbortError") {
+                setRolesLoadError(true);
+            } else {
+                setRolesLoadError(true);
+            }
+        } finally {
+            setIsLoadingRoles(false);
         }
     };
 
@@ -77,24 +111,52 @@ export default function Band() {
         updateMemberRoles,
     } = useBand();
 
-    const loadBandMembers = async () => {
-        if (activeBand?.id) {
-            try {
-                const members = await fetchBandMembers(activeBand.id);
-                setBandMembers(members.members);
-                setMemberCount(members.members.length || 0);
-                setCurrentUserRoles(members.currentUserRoles);
-            } catch (error) {
-                console.error("Error loading band members:", error);
-                setBandMembers([]);
-                setMemberCount(0);
-                setCurrentUserRoles([]);
-            }
-        } else {
+    const loadBandMembers = async (forceRetry: boolean = false) => {
+        if (isLoadingMembers && !forceRetry) return;
+        if (membersLoadError && !forceRetry) return;
+
+        if (!activeBand?.id) {
             // Clear members when no active band
             setBandMembers([]);
             setMemberCount(0);
             setCurrentUserRoles([]);
+            return;
+        }
+
+        setIsLoadingMembers(true);
+        setMembersLoadError(false);
+
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+            abortController.abort();
+        }, TIMEOUT_MS);
+
+        try {
+            // Wrap fetchBandMembers in a timeout promise
+            const membersPromise = fetchBandMembers(activeBand.id);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("TIMEOUT")), TIMEOUT_MS)
+            );
+
+            const members = await Promise.race([membersPromise, timeoutPromise]) as any;
+            
+            clearTimeout(timeoutId);
+            setBandMembers(members.members);
+            setMemberCount(members.members.length || 0);
+            setCurrentUserRoles(members.currentUserRoles);
+        } catch (error: any) {
+            clearTimeout(timeoutId);
+            console.error("Error loading band members:", error);
+            if (error.message === "TIMEOUT" || error.name === "AbortError") {
+                setMembersLoadError(true);
+            } else {
+                setMembersLoadError(true);
+                setBandMembers([]);
+                setMemberCount(0);
+                setCurrentUserRoles([]);
+            }
+        } finally {
+            setIsLoadingMembers(false);
         }
     };
 
@@ -876,7 +938,35 @@ export default function Band() {
                                 </Text>
                             </Pressable>
                         </Card>
-                        {bandMembers.map((member, idx) => (
+                        {isLoadingMembers ? (
+                            <View className='flex-1 w-full justify-center items-center py-8'>
+                                <ActivityIndicator size='large' color='#2B7FFF' />
+                                <Text
+                                    className='text-silverText mt-4'
+                                    style={{ fontSize: fontSize.base }}>
+                                    Loading members...
+                                </Text>
+                            </View>
+                        ) : membersLoadError ? (
+                            <View className='flex-1 w-full justify-center items-center py-8 px-8'>
+                                <Text
+                                    className='text-red-500 font-semibold mb-2'
+                                    style={{ fontSize: fontSize.lg }}>
+                                    Failed to load members
+                                </Text>
+                                <Text
+                                    className='text-silverText text-center mb-4'
+                                    style={{ fontSize: fontSize.base }}>
+                                    Request timed out. Check your connection and try again.
+                                </Text>
+                                <StyledButton
+                                    title='Try Again'
+                                    onPress={() => loadBandMembers(true)}
+                                />
+                            </View>
+                        ) : (
+                            <>
+                                {bandMembers.map((member, idx) => (
                             <Card
                                 key={
                                     member.firebase_uid ||
@@ -1023,7 +1113,9 @@ export default function Band() {
                                         </Menu>
                                     )}
                             </Card>
-                        ))}
+                                ))}
+                            </>
+                        )}
                     </ScrollView>
                 </>
             )}

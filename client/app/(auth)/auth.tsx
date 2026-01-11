@@ -87,10 +87,14 @@ export default function Auth() {
                     <Card
                         key={activeTab}
                         className='flex-col items-center justify-center w-full p-4'>
-                        <Text className='font-bold text-black dark:text-white mt-3' style={{ fontSize: fontSize['2xl'] }}>
+                        <Text
+                            className='font-bold text-black dark:text-white mt-3'
+                            style={{ fontSize: fontSize["2xl"] }}>
                             Welcome to RehearsalHub!
                         </Text>
-                        <Text className='text-silverText font-regular mb-4' style={{ fontSize: fontSize.base }}>
+                        <Text
+                            className='text-silverText font-regular mb-4'
+                            style={{ fontSize: fontSize.base }}>
                             Log in to your account or create a new one.
                         </Text>
                         <SwitchTabs
@@ -132,6 +136,7 @@ export default function Auth() {
                                     errors,
                                     touched,
                                     submitCount,
+                                    isSubmitting,
                                 }) => (
                                     <>
                                         <StyledTextInput
@@ -171,6 +176,8 @@ export default function Auth() {
                                         <StyledButton
                                             title='Log in'
                                             onPress={() => handleSubmit()}
+                                            disabled={isSubmitting}
+                                            showActivityIndicator={isSubmitting}
                                         />
                                     </>
                                 )}
@@ -232,6 +239,7 @@ export default function Auth() {
                                     errors,
                                     touched,
                                     submitCount,
+                                    isSubmitting,
                                 }) => (
                                     <>
                                         <StyledTextInput
@@ -310,6 +318,8 @@ export default function Auth() {
                                             onPress={() => {
                                                 handleSubmit();
                                             }}
+                                            disabled={isSubmitting}
+                                            showActivityIndicator={isSubmitting}
                                         />
                                     </>
                                 )}

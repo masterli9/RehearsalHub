@@ -70,6 +70,13 @@ const songs = () => {
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [isUploading, setIsUploading] = useState<boolean>(false);
 
+    const [isLoadingSongs, setIsLoadingSongs] = useState(false);
+    const [songsLoadError, setSongsLoadError] = useState(false);
+    const [isLoadingTags, setIsLoadingTags] = useState(false);
+    const [tagsLoadError, setTagsLoadError] = useState(false);
+
+    const TIMEOUT_MS = 20 * 1000; // 20 seconds
+
     const [tags, setTags] = useState<any[]>([]);
     const [isAddingTag, setIsAddingTag] = useState<boolean>(false);
 
@@ -110,7 +117,7 @@ const songs = () => {
         };
     }, [searchText]); // The effect runs only when searchText changes.
 
-    const runFilterAndSearch = () => {
+    const runFilterAndSearch = (forceRetry: boolean = false) => {
         const statuses = [
             readyStatusSelected ? "rehearsed" : null,
             finishedStatusSelected ? "finished" : null,
@@ -122,7 +129,7 @@ const songs = () => {
             search: searchText,
             tags: selectedFilterTags,
             keys: selectedFilterKeys,
-        });
+        }, forceRetry);
     };
 
     const stopProgressAnimation = () => {
@@ -142,11 +149,23 @@ const songs = () => {
         tags?: number[];
         search?: string;
         keys?: string[];
-    }) => {
+    }, forceRetry: boolean = false) => {
+        if (isLoadingSongs && !forceRetry) return;
+        if (songsLoadError && !forceRetry) return;
+
         if (!activeBand?.id) {
             setSongs([]);
             return;
         }
+
+        setIsLoadingSongs(true);
+        setSongsLoadError(false);
+
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+            abortController.abort();
+        }, TIMEOUT_MS);
+
         try {
             let query = `${apiUrl}/api/songs?bandId=${activeBand.id}`;
 
@@ -188,7 +207,10 @@ const songs = () => {
                 headers: {
                     "Content-Type": "application/json",
                 },
+                signal: abortController.signal,
             });
+
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 throw new Error(
@@ -198,9 +220,17 @@ const songs = () => {
 
             const data = await response.json();
             setSongs(data);
-        } catch (error) {
+        } catch (error: any) {
+            clearTimeout(timeoutId);
             console.error("Error fetching songs:", error);
-            setSongs([]);
+            if (error.name === "AbortError") {
+                setSongsLoadError(true);
+            } else {
+                setSongsLoadError(true);
+                setSongs([]);
+            }
+        } finally {
+            setIsLoadingSongs(false);
         }
     };
 
@@ -229,7 +259,23 @@ const songs = () => {
         }
     }, [songs, sort]);
 
-    const fetchTags = async () => {
+    const fetchTags = async (forceRetry: boolean = false) => {
+        if (isLoadingTags && !forceRetry) return;
+        if (tagsLoadError && !forceRetry) return;
+
+        if (!activeBand?.id) {
+            setTags([]);
+            return;
+        }
+
+        setIsLoadingTags(true);
+        setTagsLoadError(false);
+
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+            abortController.abort();
+        }, TIMEOUT_MS);
+
         try {
             const response = await fetch(
                 `${apiUrl}/api/songs/tags/${activeBand?.id}`,
@@ -238,8 +284,12 @@ const songs = () => {
                     headers: {
                         "Content-Type": "application/json",
                     },
+                    signal: abortController.signal,
                 }
             );
+
+            clearTimeout(timeoutId);
+
             if (!response.ok) {
                 throw new Error(
                     `Error fetching tags, status: ${response.status}`
@@ -247,8 +297,16 @@ const songs = () => {
             }
             const data = await response.json();
             setTags(data);
-        } catch (error) {
+        } catch (error: any) {
+            clearTimeout(timeoutId);
             console.error("Error setting tags:", error);
+            if (error.name === "AbortError") {
+                setTagsLoadError(true);
+            } else {
+                setTagsLoadError(true);
+            }
+        } finally {
+            setIsLoadingTags(false);
         }
     };
 
@@ -1954,29 +2012,59 @@ const songs = () => {
                                     justifyContent: "flex-start",
                                     paddingBottom: 25,
                                 }}>
-                                {Array.isArray(sortedSongs) &&
-                                    sortedSongs.map((song, idx) => (
-                                        <SongCard
-                                            songId={song.song_id}
-                                            audioUrl={song.cloudurl}
-                                            key={song.song_id || idx}
-                                            songName={song.title}
-                                            status={song.status}
-                                            length={song.length}
-                                            songKey={song.key}
-                                            dateAdded={song.created_at}
-                                            description={song.notes}
-                                            songTags={song.tags}
-                                        />
-                                    ))}
-                                {sortedSongs.length === 0 && (
-                                    <View className='flex-1 w-full justify-center items-center'>
+                                {isLoadingSongs ? (
+                                    <View className='flex-1 w-full justify-center items-center py-8'>
+                                        <ActivityIndicator size='large' color='#2B7FFF' />
                                         <Text
-                                            className='text-silverText'
+                                            className='text-silverText mt-4'
                                             style={{ fontSize: fontSize.base }}>
-                                            No songs found.
+                                            Loading songs...
                                         </Text>
                                     </View>
+                                ) : songsLoadError ? (
+                                    <View className='flex-1 w-full justify-center items-center py-8 px-8'>
+                                        <Text
+                                            className='text-red-500 font-semibold mb-2'
+                                            style={{ fontSize: fontSize.lg }}>
+                                            Failed to load songs
+                                        </Text>
+                                        <Text
+                                            className='text-silverText text-center mb-4'
+                                            style={{ fontSize: fontSize.base }}>
+                                            Request timed out. Check your connection and try again.
+                                        </Text>
+                                        <StyledButton
+                                            title='Try Again'
+                                            onPress={() => runFilterAndSearch(true)}
+                                        />
+                                    </View>
+                                ) : (
+                                    <>
+                                        {Array.isArray(sortedSongs) &&
+                                            sortedSongs.map((song, idx) => (
+                                                <SongCard
+                                                    songId={song.song_id}
+                                                    audioUrl={song.cloudurl}
+                                                    key={song.song_id || idx}
+                                                    songName={song.title}
+                                                    status={song.status}
+                                                    length={song.length}
+                                                    songKey={song.key}
+                                                    dateAdded={song.created_at}
+                                                    description={song.notes}
+                                                    songTags={song.tags}
+                                                />
+                                            ))}
+                                        {sortedSongs.length === 0 && (
+                                            <View className='flex-1 w-full justify-center items-center'>
+                                                <Text
+                                                    className='text-silverText'
+                                                    style={{ fontSize: fontSize.base }}>
+                                                    No songs found.
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </>
                                 )}
                             </ScrollView>
                         </>
