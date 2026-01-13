@@ -35,6 +35,7 @@ module.exports = {
                 pink: "#F6339A",
                 darkOrange: "#FF6900",
                 black: "#0A0A0A",
+                darkRed: "#d61515",
             },
             fontFamily: {
                 bold: ["Segoe UI", "sans-serif"],

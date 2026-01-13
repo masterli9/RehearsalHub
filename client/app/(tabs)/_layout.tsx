@@ -114,6 +114,20 @@ export default function TabLayout() {
                         tabBarLabel: () => null,
                     }}>
                     <Tabs.Screen
+                        name='ideas'
+                        options={{
+                            title: "Ideas",
+                            tabBarIcon: ({ color, focused }) => (
+                                <TabIcon
+                                    name='Lightbulb'
+                                    label='Ideas'
+                                    color={color}
+                                    focused={focused}
+                                />
+                            ),
+                        }}
+                    />
+                    <Tabs.Screen
                         name='index'
                         options={{
                             title: "Home",
@@ -149,20 +163,6 @@ export default function TabLayout() {
                                 <TabIcon
                                     name='Music'
                                     label='Songs'
-                                    color={color}
-                                    focused={focused}
-                                />
-                            ),
-                        }}
-                    />
-                    <Tabs.Screen
-                        name='ideas'
-                        options={{
-                            title: "Ideas",
-                            tabBarIcon: ({ color, focused }) => (
-                                <TabIcon
-                                    name='Lightbulb'
-                                    label='Ideas'
                                     color={color}
                                     focused={focused}
                                 />
