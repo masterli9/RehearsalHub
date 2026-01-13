@@ -31,7 +31,9 @@ export const createEvent = async (req, res) => {
         }
 
         if (!date_time) {
-            return res.status(400).json({ error: "Date and time are required" });
+            return res
+                .status(400)
+                .json({ error: "Date and time are required" });
         }
 
         if (!bandId) {
@@ -66,26 +68,15 @@ export const createEvent = async (req, res) => {
                 .json({ error: "bandId must be a positive integer" });
         }
 
-        // Validate and parse date_time
-        // Accept ISO string or local datetime string (YYYY-MM-DDTHH:mm:ss)
+        // Validate and parse date_time (expect an ISO string with offset)
         let dateTimeValue;
-        let dateTimeString;
         try {
-            // Parse the date string
             dateTimeValue = new Date(date_time);
             if (isNaN(dateTimeValue.getTime())) {
-                return res.status(400).json({ error: "Invalid date_time format" });
+                return res
+                    .status(400)
+                    .json({ error: "Invalid date_time format" });
             }
-            
-            // Format as local timestamp string (YYYY-MM-DD HH:mm:ss)
-            // This prevents timezone conversion since the DB column is "timestamp without time zone"
-            const year = dateTimeValue.getFullYear();
-            const month = String(dateTimeValue.getMonth() + 1).padStart(2, "0");
-            const day = String(dateTimeValue.getDate()).padStart(2, "0");
-            const hours = String(dateTimeValue.getHours()).padStart(2, "0");
-            const minutes = String(dateTimeValue.getMinutes()).padStart(2, "0");
-            const seconds = String(dateTimeValue.getSeconds()).padStart(2, "0");
-            dateTimeString = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
         } catch (error) {
             return res.status(400).json({ error: "Invalid date_time format" });
         }
@@ -106,7 +97,7 @@ export const createEvent = async (req, res) => {
             [
                 title,
                 type,
-                dateTimeString,
+                dateTimeValue, // pass Date so pg stores timestamptz correctly
                 description || null,
                 bandIdInt,
                 place || null,
@@ -117,7 +108,12 @@ export const createEvent = async (req, res) => {
         const event = insertEvent.rows[0];
 
         // Handle songs for rehearsal events
-        if (type === "rehearsal" && songs && Array.isArray(songs) && songs.length > 0) {
+        if (
+            type === "rehearsal" &&
+            songs &&
+            Array.isArray(songs) &&
+            songs.length > 0
+        ) {
             const songIds = songs
                 .map((s) => (typeof s === "number" ? s : parseInt(s, 10)))
                 .filter((id) => !isNaN(id) && id > 0);
@@ -231,4 +227,3 @@ export const getEvents = async (req, res) => {
         res.status(500).json({ error: "Server error (get events)" });
     }
 };
-

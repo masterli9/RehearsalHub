@@ -444,6 +444,26 @@ const events = () => {
         setShowTimePicker(false);
     };
 
+    // Format a Date as local time with the device's offset (YYYY-MM-DDTHH:mm:ss±HH:MM)
+    const formatLocalDateTimeWithOffset = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        const seconds = String(date.getSeconds()).padStart(2, "0");
+
+        const offsetMinutes = -date.getTimezoneOffset(); // invert to get POSIX-style offset
+        const offsetSign = offsetMinutes >= 0 ? "+" : "-";
+        const offsetHours = String(Math.floor(Math.abs(offsetMinutes) / 60)).padStart(
+            2,
+            "0"
+        );
+        const offsetMins = String(Math.abs(offsetMinutes) % 60).padStart(2, "0");
+
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetSign}${offsetHours}:${offsetMins}`;
+    };
+
     // Dropdown states for event type
     const [openType, setOpenType] = useState(false);
     const [valueType, setValueType] = useState<"rehearsal" | "concert">(
@@ -505,27 +525,9 @@ const events = () => {
                             dateTime.setSeconds(0);
                             dateTime.setMilliseconds(0);
 
-                            // Create ISO string in local timezone format (YYYY-MM-DDTHH:mm:ss)
-                            // This prevents timezone conversion issues
-                            const year = dateTime.getFullYear();
-                            const month = String(
-                                dateTime.getMonth() + 1
-                            ).padStart(2, "0");
-                            const day = String(dateTime.getDate()).padStart(
-                                2,
-                                "0"
-                            );
-                            const hours = String(dateTime.getHours()).padStart(
-                                2,
-                                "0"
-                            );
-                            const minutes = String(
-                                dateTime.getMinutes()
-                            ).padStart(2, "0");
-                            const seconds = String(
-                                dateTime.getSeconds()
-                            ).padStart(2, "0");
-                            const localDateTimeString = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+                            // Create ISO string that includes the device offset to preserve the entered timezone
+                            const localDateTimeString =
+                                formatLocalDateTimeWithOffset(dateTime);
 
                             const requestBody: any = {
                                 title: values.title.trim(),
