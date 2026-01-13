@@ -25,11 +25,9 @@ import { io } from "socket.io-client";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import { SwitchBandModal } from "@/components/SwitchBandModal";
 import {
-    Menu,
     MenuOption,
-    MenuOptions,
-    MenuTrigger,
 } from "react-native-popup-menu";
+import PageHeader from "@/components/PageHeader";
 
 interface Message {
     id?: number;
@@ -699,60 +697,26 @@ const chat = () => {
                 <NoBand />
             ) : (
                 <>
-                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2'>
-                        <View className='flex-col items-start justify-center'>
-                            <Text
-                                className='text-black dark:text-white font-bold my-1'
-                                style={{ fontSize: fontSize["2xl"] }}>
-                                {activeBand?.name} Chat
-                            </Text>
-                            <Text
-                                className='text-silverText'
-                                style={{ fontSize: fontSize.base }}>
-                                Chat with your bandmates
-                            </Text>
-                        </View>
-                        <View className='flex-row items-center justify-center'>
-                            <Menu
-                                // renderer={SlideInMenu}
-                                rendererProps={{ transitionDuration: 200 }}>
-                                <MenuTrigger>
-                                    <Text
-                                        className='text-black dark:text-white p-4'
-                                        style={{ fontSize: fontSize["2xl"] }}>
-                                        ⋯
-                                    </Text>
-                                </MenuTrigger>
-                                <MenuOptions
-                                    customStyles={{
-                                        optionsContainer: {
-                                            borderRadius: 10,
-                                            backgroundColor:
-                                                colorScheme === "dark"
-                                                    ? "#333"
-                                                    : "#fff",
-                                        },
-                                    }}>
-                                    <MenuOption
-                                        onSelect={() => {
-                                            setShowSwitchModal(true);
-                                        }}
-                                        text='Switch band'
-                                        customStyles={{
-                                            optionText: {
-                                                color:
-                                                    colorScheme === "dark"
-                                                        ? "#fff"
-                                                        : "#333",
-                                                paddingVertical: 8,
-                                                fontSize: fontSize.base,
-                                            },
-                                        }}
-                                    />
-                                </MenuOptions>
-                            </Menu>
-                        </View>
-                    </View>
+                    <PageHeader
+                        title={`${activeBand?.name} Chat`}
+                        subtitle="Chat with your bandmates">
+                        <MenuOption
+                            onSelect={() => {
+                                setShowSwitchModal(true);
+                            }}
+                            text='Switch band'
+                            customStyles={{
+                                optionText: {
+                                    color:
+                                        colorScheme === "dark"
+                                            ? "#fff"
+                                            : "#333",
+                                    paddingVertical: 8,
+                                    fontSize: fontSize.base,
+                                },
+                            }}
+                        />
+                    </PageHeader>
                     <KeyboardAvoidingView
                         className='flex-1 w-full'
                         behavior={Platform.OS === "ios" ? "padding" : "padding"}

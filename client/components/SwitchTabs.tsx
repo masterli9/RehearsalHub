@@ -13,22 +13,25 @@ export default function SwitchTabs({
     className?: string;
 }) {
     const fontSize = useAccessibleFontSize();
-    
+
     return (
         <View
-            className={`rounded-m w-full flex-row p-2 bg-accent-light dark:bg-accent-dark my-3 ${className}`}
-        >
+            className={`rounded-m w-full flex-row p-2 bg-accent-light dark:bg-accent-dark my-3 gap-1 ${className}`}>
             {tabs.map((tab, index) => (
                 <Pressable
                     key={index}
                     className={`p-3 rounded-m ${activeTab === tab ? "bg-boxBackground-light dark:bg-boxBackground-dark" : "bg-accent-light dark:bg-accent-dark"}`}
-                    style={{ flex: 1 }}
-                    onPress={() => setActiveTab(tab)}
-                >
+                    style={{
+                        flex: 1,
+                        boxShadow:
+                            activeTab === tab
+                                ? "0 0 3px 0 rgba(0, 0, 0, 0.1)"
+                                : "none",
+                    }}
+                    onPress={() => setActiveTab(tab)}>
                     <Text
                         className={`${activeTab === tab ? "text-black dark:text-white" : "text-silverText"}`}
-                        style={{ fontSize: fontSize.base }}
-                    >
+                        style={{ fontSize: fontSize.base }}>
                         {tab}
                     </Text>
                 </Pressable>

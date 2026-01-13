@@ -25,6 +25,7 @@ import {
 } from "react-native";
 import * as yup from "yup";
 import SwitchTabs from "@/components/SwitchTabs";
+import PageHeader from "@/components/PageHeader";
 
 type Event = {
     event_id: number;
@@ -979,20 +980,10 @@ const events = () => {
                 <NoBand />
             ) : (
                 <>
-                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark mt-4 w-full px-5 py-2'>
-                        <View className='flex-col items-start justify-center'>
-                            <Text
-                                className='text-black dark:text-white font-bold my-1'
-                                style={{ fontSize: fontSize["2xl"] }}>
-                                {activeBand?.name} Events
-                            </Text>
-                            <Text
-                                className='text-silverText'
-                                style={{ fontSize: fontSize.base }}>
-                                Manage your band's rehearsals and concerts
-                            </Text>
-                        </View>
-                    </View>
+                    <PageHeader
+                        title={`${activeBand?.name} Events`}
+                        subtitle="Manage your band's rehearsals and concerts"
+                    />
                     <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark w-full px-4'>
                         <SwitchTabs
                             activeTab={activeTab}

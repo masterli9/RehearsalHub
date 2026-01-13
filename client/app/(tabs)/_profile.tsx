@@ -22,6 +22,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Yup from "yup";
+import PageHeader from "@/components/PageHeader";
 
 const EditSchema = Yup.object().shape({
     username: Yup.string()
@@ -242,22 +243,10 @@ const Profile = () => {
 
     return (
         <SafeAreaView className='flex-1'>
-            <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark mt-4 w-full px-5 py-2'>
-                <View className='flex-col items-start justify-center'>
-                    <Text
-                        className='text-black dark:text-white font-bold my-1'
-                        style={{ fontSize: fontSize["2xl"] }}
-                    >
-                        Profile
-                    </Text>
-                    <Text
-                        className='text-silverText'
-                        style={{ fontSize: fontSize.base }}
-                    >
-                        Your personal settings
-                    </Text>
-                </View>
-            </View>
+            <PageHeader
+                title="Profile"
+                subtitle="Your personal settings"
+            />
 
             <View className='flex-1 items-center my-5 px-5'>
                 <View className='flex-col bg-darkWhite dark:bg-darkGray rounded-xl w-full'>

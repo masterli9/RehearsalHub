@@ -25,15 +25,14 @@ import {
     MenuOption,
     MenuOptions,
     MenuTrigger,
-    renderers,
 } from "react-native-popup-menu";
 import Toast from "react-native-root-toast";
 import * as Yup from "yup";
 import { useAuth } from "../../context/AuthContext";
 import { BandRole, useBand } from "../../context/BandContext";
+import PageHeader from "@/components/PageHeader";
 
 export default function Band() {
-    const { SlideInMenu } = renderers;
     const systemScheme = useColorScheme();
     const { user } = useAuth();
     const fontSize = useAccessibleFontSize();
@@ -805,143 +804,108 @@ export default function Band() {
                 </>
             ) : (
                 <>
-                    <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark my-4 w-full px-5 py-2'>
-                        <View className='flex-col items-start justify-center'>
-                            <Text
-                                className='text-black dark:text-white font-bold my-1'
-                                style={{ fontSize: fontSize["2xl"] }}>
-                                {activeBand?.name}
-                            </Text>
-                            <Text
-                                className='text-silverText'
-                                style={{ fontSize: fontSize.base }}>
-                                {memberCount} members
-                            </Text>
-                        </View>
-                        <View className='flex-row items-center justify-center'>
-                            <Menu
-                                renderer={SlideInMenu}
-                                rendererProps={{ transitionDuration: 200 }}>
-                                <MenuTrigger>
-                                    <Text
-                                        className='text-black dark:text-white p-4'
-                                        style={{ fontSize: fontSize["2xl"] }}>
-                                        ⋯
-                                    </Text>
-                                </MenuTrigger>
-                                <MenuOptions
-                                    customStyles={{
-                                        optionsContainer: {
-                                            borderRadius: 10,
-                                            backgroundColor:
-                                                systemScheme === "dark"
-                                                    ? "#333"
-                                                    : "#fff",
-                                        },
-                                    }}>
-                                    <MenuOption
-                                        onSelect={() => {
-                                            setShowJoinModal(false);
-                                            setShowCreateModal(true);
-                                        }}
-                                        text='Create new band'
-                                        customStyles={{
-                                            optionText: {
-                                                color:
-                                                    systemScheme === "dark"
-                                                        ? "#fff"
-                                                        : "#333",
-                                                paddingVertical: 8,
-                                                fontSize: fontSize.base,
-                                            },
-                                        }}
-                                    />
-                                    <MenuOption
-                                        onSelect={() => {
-                                            setShowJoinModal(true);
-                                            setShowCreateModal(false);
-                                        }}
-                                        text='Join new band'
-                                        customStyles={{
-                                            optionText: {
-                                                color:
-                                                    systemScheme === "dark"
-                                                        ? "#fff"
-                                                        : "#333",
-                                                paddingVertical: 8,
-                                                fontSize: fontSize.base,
-                                            },
-                                        }}
-                                    />
-                                    {currentUserRoles.includes("Leader") && (
-                                        <MenuOption
-                                            onSelect={() => {
-                                                setShowEditBandNameModal(true);
-                                            }}
-                                            text='Edit band name'
-                                            customStyles={{
-                                                optionText: {
-                                                    color:
-                                                        systemScheme === "dark"
-                                                            ? "#fff"
-                                                            : "#333",
-                                                    paddingVertical: 8,
-                                                    fontSize: fontSize.base,
-                                                },
-                                            }}
-                                        />
-                                    )}
-                                    <MenuOption
-                                        onSelect={() => {
-                                            setShowEditRolesModal(true);
-                                        }}
-                                        text='Edit my roles'
-                                        customStyles={{
-                                            optionText: {
-                                                color:
-                                                    systemScheme === "dark"
-                                                        ? "#fff"
-                                                        : "#333",
-                                                paddingVertical: 8,
-                                                fontSize: fontSize.base,
-                                            },
-                                        }}
-                                    />
-                                    <MenuOption
-                                        onSelect={() => {
-                                            setShowSwitchModal(true);
-                                        }}
-                                        text='Switch band'
-                                        customStyles={{
-                                            optionText: {
-                                                color:
-                                                    systemScheme === "dark"
-                                                        ? "#fff"
-                                                        : "#333",
-                                                paddingVertical: 8,
-                                                fontSize: fontSize.base,
-                                            },
-                                        }}
-                                    />
-                                    <MenuOption
-                                        onSelect={() =>
-                                            setConfirmLeaveModal(true)
-                                        }
-                                        text='Leave band'
-                                        customStyles={{
-                                            optionText: {
-                                                color: "#d11717",
-                                                paddingVertical: 8,
-                                                fontSize: fontSize.base,
-                                            },
-                                        }}
-                                    />
-                                </MenuOptions>
-                            </Menu>
-                        </View>
-                    </View>
+                    <PageHeader
+                        title={activeBand?.name || ""}
+                        subtitle={`${memberCount} members`}
+                        useSlideInMenu={true}>
+                        <MenuOption
+                            onSelect={() => {
+                                setShowJoinModal(false);
+                                setShowCreateModal(true);
+                            }}
+                            text='Create new band'
+                            customStyles={{
+                                optionText: {
+                                    color:
+                                        systemScheme === "dark"
+                                            ? "#fff"
+                                            : "#333",
+                                    paddingVertical: 8,
+                                    fontSize: fontSize.base,
+                                },
+                            }}
+                        />
+                        <MenuOption
+                            onSelect={() => {
+                                setShowJoinModal(true);
+                                setShowCreateModal(false);
+                            }}
+                            text='Join new band'
+                            customStyles={{
+                                optionText: {
+                                    color:
+                                        systemScheme === "dark"
+                                            ? "#fff"
+                                            : "#333",
+                                    paddingVertical: 8,
+                                    fontSize: fontSize.base,
+                                },
+                            }}
+                        />
+                        {currentUserRoles.includes("Leader") && (
+                            <MenuOption
+                                onSelect={() => {
+                                    setShowEditBandNameModal(true);
+                                }}
+                                text='Edit band name'
+                                customStyles={{
+                                    optionText: {
+                                        color:
+                                            systemScheme === "dark"
+                                                ? "#fff"
+                                                : "#333",
+                                        paddingVertical: 8,
+                                        fontSize: fontSize.base,
+                                    },
+                                }}
+                            />
+                        )}
+                        <MenuOption
+                            onSelect={() => {
+                                setShowEditRolesModal(true);
+                            }}
+                            text='Edit my roles'
+                            customStyles={{
+                                optionText: {
+                                    color:
+                                        systemScheme === "dark"
+                                            ? "#fff"
+                                            : "#333",
+                                    paddingVertical: 8,
+                                    fontSize: fontSize.base,
+                                },
+                            }}
+                        />
+                        <MenuOption
+                            onSelect={() => {
+                                setShowSwitchModal(true);
+                            }}
+                            text='Switch band'
+                            customStyles={{
+                                optionText: {
+                                    color:
+                                        systemScheme === "dark"
+                                            ? "#fff"
+                                            : "#333",
+                                    paddingVertical: 8,
+                                    fontSize: fontSize.base,
+                                },
+                            }}
+                        />
+                        <MenuOption
+                            onSelect={() => setConfirmLeaveModal(true)}
+                            text='Leave band'
+                            customStyles={{
+                                optionText: {
+                                    color: "#d11717",
+                                    paddingVertical: 8,
+                                    fontSize: fontSize.base,
+                                },
+                            }}
+                        />
+                    </PageHeader>
                     <ScrollView
-                        className='flex-col px-3 w-full'
+                        className='flex-col px-3 w-full mt-3'
                         contentContainerStyle={{
                             alignItems: "center",
                             justifyContent: "center",
