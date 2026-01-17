@@ -569,17 +569,22 @@ const chat = () => {
                     </Text>
                 )}
                 <View className='flex-row items-center gap-1'>
-                    {position === "left" && shouldShowUsername && photourl && (
-                        <Image
-                            source={{ uri: photourl }}
-                            className='rounded-full'
-                            style={{
-                                width: fontSize.lg * 1.8,
-                                height: fontSize.lg * 1.8,
-                                borderRadius: (fontSize.lg * 1.8) / 2,
-                            }}
-                        />
-                    )}
+                    <View style={{
+                                    width: fontSize.lg * 1.8,
+                                    height: fontSize.lg * 1.8,
+                                }}>
+                        {position === "left" && shouldShowUsername && photourl && (
+                            <Image
+                                source={{ uri: photourl }}
+                                className='rounded-full'
+                                style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    borderRadius: 9999,
+                                }}
+                            />
+                        )}
+                    </View>
                     <View
                         className={`bg-darkWhite dark:bg-accent-dark ${position === "right" && "bg-violet dark:bg-violet"} p-3 rounded-2xl ${(() => {
                             const isMe = authorUsername === user?.username;

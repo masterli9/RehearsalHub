@@ -1,15 +1,29 @@
-const getIdeas = async (req, res) => {
+import pool from "../db/pool.js";
+import { getUserIdByFirebaseUid } from "../utils/getUserId.js"
+
+const getBandMemberIdByUserId = async (user_uid, band_id) =>{
+    const userId = await getUserIdByFirebaseUid(user_uid);
+    const result = await pool.query(
+        "SELECT band_member_id FROM band_members WHERE user_id = $1 AND band_id = $2",
+        [userId, band_id]
+    );
+    if (result.rows.length === 0) {
+        return null;
+    }
+    return result.rows[0].band_member_id;
+}
+
+export const createIdea = async (req, res) => {
     try {
         let {
             title,
-            songKey,
+            description,
             length,
-            bpm,
-            status,
-            bandId,
-            notes,
+            // bpm,
+            user_uid,
+            band_id,
             cloudurl,
-            tags,
+            // tags,
         } = req.body;
 
         if (!title || typeof title !== "string") {
@@ -18,14 +32,13 @@ const getIdeas = async (req, res) => {
                 .json({ error: "Title is required and must be a string" });
         }
 
-        if (!bandId) {
-            return res.status(400).json({ error: "bandId is required" });
+        if (!user_uid || !band_id) {
+            return res.status(400).json({ error: "user_uid and band_id are required" });
         }
 
+        const band_member_id = await getBandMemberIdByUserId(user_uid, band_id);
+
         title = title.trim();
-        if (songKey && typeof songKey === "string") songKey = songKey.trim();
-        if (status && typeof status === "string") status = status.trim();
-        if (notes && typeof notes === "string") notes = notes.trim();
         if (cloudurl && typeof cloudurl === "string")
             cloudurl = cloudurl.trim();
 
@@ -38,93 +51,73 @@ const getIdeas = async (req, res) => {
                 .json({ error: "Title must be 255 characters or less" });
         }
 
-        if (songKey) {
-            if (songKey.length > 4) {
-                return res
-                    .status(400)
-                    .json({ error: "Song key must be 4 characters or less" });
-            }
-            if (!VALID_SONG_KEYS.includes(songKey)) {
-                return res.status(400).json({ error: "Invalid song key" });
-            }
-        }
-
-        if (status) {
-            if (status.length > 20) {
-                return res
-                    .status(400)
-                    .json({ error: "Status must be 20 characters or less" });
-            }
-            if (!VALID_STATUSES.includes(status)) {
-                return res.status(400).json({ error: "Invalid status" });
-            }
-        }
-
-        const bandIdInt = parseInt(bandId, 10);
-        if (isNaN(bandIdInt) || bandIdInt <= 0) {
+        const band_member_idInt = parseInt(band_member_id, 10);
+        if (isNaN(band_member_idInt) || band_member_idInt <= 0) {
             return res
                 .status(400)
-                .json({ error: "bandId must be a positive integer" });
+                .json({ error: "band_member_id must be a positive integer" });
         }
 
-        // Validate and convert bpm to smallint (range: -32768 to 32767)
-        let bpmValue = null;
-        if (bpm !== null && bpm !== undefined && bpm !== "") {
-            const bpmNum = Number(bpm);
-            if (isNaN(bpmNum)) {
-                return res.status(400).json({ error: "BPM must be a number" });
-            }
-            const bpmInt = Math.round(bpmNum);
-            // Enforce integer bounds for PostgreSQL smallint, but user should only enter 1..32767 (app enforced)
-            if (bpmInt < 1) {
-                return res
-                    .status(400)
-                    .json({ error: "BPM should be at least 1" });
-            }
-            if (bpmInt > 32767) {
-                return res
-                    .status(400)
-                    .json({ error: "BPM should be at most 32767" });
-            }
-            bpmValue = bpmInt;
-        }
-
-        // Validate length (interval type - can be null or a valid interval string)
-        // PostgreSQL accepts interval strings like '3:45', '1:05:22', '1 hour 30 minutes', etc.
+        // Handle length/duration for interval: accept only MM:SS or HH:MM:SS, else null
         let lengthValue = null;
         if (length !== null && length !== undefined && length !== "") {
-            if (typeof length === "string") {
-                lengthValue = length.trim() || null;
+            let str = typeof length === "string" ? length.trim() : String(length).trim();
+            // Accept formats like "MM:SS" or "H:MM:SS" only, to prevent "date/time field value out of range"
+            // (This gives postgres "interval" type strings it can parse)
+            // Accept e.g. "3:45", "1:23:45"
+            if (/^(\d{1,2}:)?[0-5]?\d:[0-5]\d$/.test(str)) {
+                // If MM:SS, convert to 0:MM:SS; postgres accepts both, but always good to make explicit
+                if (/^\d{1,2}:[0-5]\d$/.test(str)) {
+                    str = `0:${str}`;
+                }
+                lengthValue = str;
             } else {
-                lengthValue = length;
+                // For anything else (e.g. "7000") just ignore and save as null
+                lengthValue = null;
             }
         }
 
-        // Validate cloudurl (text type, can be null)
         const cloudurlValue = cloudurl || null;
 
-        // Validate notes (text type, can be null)
-        const notesValue = notes || null;
-
-        const insertSong = await pool.query(
-            "INSERT INTO songs (title, key, length, notes, status, bpm, cloudurl, band_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING song_id",
+        const insertIdea = await pool.query(
+            "INSERT INTO musideas (title, description, length, audiourl, band_member_id) VALUES ($1, $2, $3, $4, $5) RETURNING idea_id",
             [
                 title,
-                songKey || null,
+                description,
                 lengthValue,
-                notesValue,
-                status || null,
-                bpmValue,
                 cloudurlValue,
-                bandIdInt,
+                band_member_idInt,
             ]
         );
-        const songId = insertSong.rows[0].song_id;
+        const ideaId = insertIdea.rows[0].idea_id;
 
-        const song = insertSong.rows[0];
-        res.status(201).json(song);
+        const idea = insertIdea.rows[0];
+        res.status(201).json(idea);
     } catch (error) {
-        console.error("Error creating song: ", error);
-        res.status(500).json({ error: "Server error (song post)" });
+        console.error("Error creating idea: ", error);
+        res.status(500).json({ error: "Server error (idea post)" });
     }
 };
+
+export const getIdeas = async (req, res) => {
+    const { band_id } = req.query;
+
+    if (!band_id) {
+        return res.status(400).json({ error: "band_id is required" });
+    }
+
+    try {
+        const result = await pool.query(
+            "SELECT * FROM musideas mi JOIN band_members bm USING(band_member_id) WHERE bm.band_id = $1 ORDER BY mi.created_at DESC",
+            [band_id]
+        )
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "No ideas found" });
+        }
+        const ideas = result.rows;
+        res.status(200).json(ideas);
+    } catch (error) {
+        console.error("Error getting ideas: ", error);
+        res.status(500).json({ error: "Server error (idea get)" });
+    }
+}

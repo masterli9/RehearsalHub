@@ -59,7 +59,6 @@ const ideas = () => {
             .max(255, "Title is too long")
             .required("Title is required"),
         description: yup.string().max(1000, "Description is too long"),
-        file: yup.mixed().required("File is required"),
     });
 
     const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -68,6 +67,25 @@ const ideas = () => {
     const [recordedDuration, setRecordedDuration] = useState<number | null>(
         null
     );
+
+    useEffect(() => {
+        if (activeBand?.id) {
+            getIdeas();
+        } else {
+            setIdeas([]);
+        }
+    }, [activeBand?.id]);
+
+    const getIdeas = async () => {
+        const response = await fetch(`${apiUrl}/api/ideas/get?band_id=${activeBand?.id}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+        const data = await response.json();
+        setIdeas(data);
+    }
 
     const record = async () => {
         await audioRecorder.prepareToRecordAsync();
@@ -150,11 +168,13 @@ const ideas = () => {
 
         // 3. Start the upload
         const result = await uploadTask.uploadAsync();
+        console.log("upload result", result?.status);
 
         // 4. Validate Result
         // Google Cloud Storage returns 200 or 201 on success
         if (result && result.status >= 200 && result.status < 300) {
             onProgress(100);
+            console.log("upload successful", path);
             return { path };
         } else {
             throw new Error(
@@ -163,7 +183,7 @@ const ideas = () => {
         }
     }
 
-    const IdeaCard = () => {
+    const IdeaCard = ({ idea }: { idea: any }) => {
         return (
             <Card className='w-full flex-col'>
                 <View className='flex-row justify-between items-center'>
@@ -171,12 +191,12 @@ const ideas = () => {
                         <Text
                             className='text-black dark:text-white font-bold my-1'
                             style={{ fontSize: fontSize.xl }}>
-                            Title
+                            {idea.title}
                         </Text>
                         <Text
                             className='text-silverText'
                             style={{ fontSize: fontSize.base }}>
-                            Username • 2 hours ago
+                            Username • {idea.created_at}
                         </Text>
                     </View>
                     <Menu>
@@ -205,8 +225,7 @@ const ideas = () => {
                 <Text
                     className='text-silverText my-5'
                     style={{ fontSize: fontSize.base }}>
-                    this is a long description of an absolutely amazing idea
-                    that is going to change the world.
+                    {idea.description}
                 </Text>
                 <View
                     className='flex-row gap-2 mt-5'
@@ -299,21 +318,49 @@ const ideas = () => {
                     initialValues={{
                         title: "",
                         description: "",
-                        file: null,
                     }}
-                    onSubmit={async () => {
-                        if (!audioURI || activeBand === null) {
-                            Alert.alert("Error", "No audio file selected");
-                            return;
-                        }
+                    onSubmit={async (values, { setSubmitting }) => {
+                        try {
+                            if (!audioURI || activeBand === null) {
+                                Alert.alert("Error", "No audio file selected");
+                                return;
+                            }
 
-                        const { path } = await uploadFileToSignedUrl({
-                            localUri: audioURI,
-                            filename: "",
-                            contentType,
-                            bandId: activeBand.id,
-                            onProgress: setUploadProgress,
-                        });
+                            const { path } = await uploadFileToSignedUrl({
+                                localUri: audioURI,
+                                filename: `idea_${Date.now()}.m4a`,
+                                contentType: "audio/m4a",
+                                bandId: activeBand.id,
+                                onProgress: () => {},
+                            });
+
+                            const response = await fetch(`${apiUrl}/api/ideas/create`, {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    title: values.title,
+                                    description: values.description,
+                                    user_uid: user?.uid,
+                                    band_id: activeBand.id,
+                                    cloudurl: path,
+                                    length: recordedDuration,
+                                }),
+                            });
+
+                            if (!response.ok) {
+                                throw new Error("Failed to create idea");
+                            }
+
+                            setAddIdeaModalVisible(false);
+                            Alert.alert("Success", "Idea created successfully");
+                        } catch (error) {
+                            console.error(error);
+                            Alert.alert("Error", "Failed to save idea");
+                        } finally {
+                            setSubmitting(false);
+                        }
                     }}>
                     {({
                         handleChange,
@@ -340,7 +387,7 @@ const ideas = () => {
                                 )}
                             <StyledTextInput
                                 placeholder='Description'
-                                value={values.title}
+                                value={values.description}
                                 onChangeText={handleChange("description")}
                                 onBlur={handleBlur("description")}
                                 className='mb-4'
@@ -353,7 +400,6 @@ const ideas = () => {
                                 className={`${recorderState.isRecording ? "bg-darkRed" : "bg-black dark:bg-white"} rounded-full p-5 my-4 active:bg-gray-200 active:scale-90`}
                                 onPress={() => {
                                     handleRecordButtonPress();
-                                    setFieldValue("file", audioURI);
                                 }}>
                                 {recorderState.isRecording ? (
                                     <Square color='white' size={30} />
@@ -476,7 +522,9 @@ const ideas = () => {
                                 alignItems: "center",
                                 justifyContent: "center",
                             }}>
-                            <IdeaCard />
+                            {ideas.map((idea) => (
+                                <IdeaCard key={idea.idea_id} idea={idea} />
+                            ))}
                         </ScrollView>
                     ) : activeTab === "My Ideas" ? (
                         <View className='flex-1 w-full justify-center items-center'>
