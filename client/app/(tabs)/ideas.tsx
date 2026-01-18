@@ -25,7 +25,7 @@ import SwitchTabs from "@/components/SwitchTabs";
 import { SwitchBandModal } from "@/components/SwitchBandModal";
 import PageHeader from "@/components/PageHeader";
 import Card from "@/components/Card";
-import { Clock, Hash, Music4, Mic, Play, Square } from "lucide-react-native";
+import { Clock, Hash, Music4, Mic, Play, Square, Pause } from "lucide-react-native";
 import StyledButton from "@/components/StyledButton";
 import StyledModal from "@/components/StyledModal";
 import StyledTextInput from "@/components/StyledTextInput";
@@ -40,6 +40,8 @@ import apiUrl from "@/config";
 import * as FileSystem from "expo-file-system/legacy";
 import { Formik } from "formik";
 import * as yup from "yup";
+import { usePlayer } from "@/context/AudioPlayerContext";
+import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
 
 const ideas = () => {
     const { bands, bandsLoading, activeBand } = useBand();
@@ -184,8 +186,45 @@ const ideas = () => {
     }
 
     const IdeaCard = ({ idea }: { idea: any }) => {
+        const { play, pause, current, isPlaying } = usePlayer();
+        const isCurrent =
+            current?.song_id === idea.idea_id && current?.type === "idea";
+
+        const handlePlay = () => {
+            if (!idea.audiourl) return;
+            if (isCurrent && isPlaying) {
+                pause();
+            } else {
+                play({
+                    song_id: idea.idea_id,
+                    title: idea.title,
+                    url: idea.audiourl,
+                    type: "idea",
+                });
+            }
+        };
+
+        const formatDuration = (interval: any) => {
+            if (!interval) return "0:00";
+            if (typeof interval === "object") {
+                const minutes = interval.minutes || 0;
+                const seconds = interval.seconds || 0;
+                return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+            }
+            if (typeof interval === "string") {
+                const parts = interval.split(":");
+                if (parts.length >= 2) {
+                    const seconds = parts.pop();
+                    const minutes = parts.pop();
+                    return `${parseInt(minutes || "0", 10)}:${seconds}`;
+                }
+                return interval;
+            }
+            return "0:00";
+        };
+
         return (
-            <Card className='w-full flex-col'>
+            <Card className='w-full flex-col mb-3'>
                 <View className='flex-row justify-between items-center'>
                     <View className='flex-col'>
                         <Text
@@ -196,7 +235,7 @@ const ideas = () => {
                         <Text
                             className='text-silverText'
                             style={{ fontSize: fontSize.base }}>
-                            Username • {idea.created_at}
+                            {idea.username} • {new Date(idea.created_at).toLocaleDateString()}
                         </Text>
                     </View>
                     <Menu>
@@ -247,7 +286,7 @@ const ideas = () => {
                             }}
                             numberOfLines={1}
                             maxFontSizeMultiplier={1.3}>
-                            0:22
+                            {formatDuration(idea.length)}
                         </Text>
                     </View>
                     <View className='flex-row items-center gap-1'>
@@ -267,7 +306,7 @@ const ideas = () => {
                             }}
                             numberOfLines={1}
                             maxFontSizeMultiplier={1.3}>
-                            Am
+                            -
                         </Text>
                     </View>
                     <View className='flex-row items-center gap-1'>
@@ -287,16 +326,24 @@ const ideas = () => {
                             }}
                             numberOfLines={1}
                             maxFontSizeMultiplier={1.3}>
-                            110 BPM
+                            -
                         </Text>
                     </View>
                 </View>
                 <View className='flex-row w-full justify-center items-center mt-4'>
-                    <Pressable>
-                        <Play
-                            color={colorScheme === "dark" ? "#fff" : "#0A0A0A"}
-                            size={20}
-                        />
+                    <Pressable onPress={handlePlay} disabled={!idea.audiourl}>
+                        {isCurrent && isPlaying ? (
+                            <Pause
+                                color={colorScheme === "dark" ? "#fff" : "#0A0A0A"}
+                                size={20}
+                            />
+                        ) : (
+                            <Play
+                                color={colorScheme === "dark" ? "#fff" : "#0A0A0A"}
+                                size={20}
+                                style={{ opacity: idea.audiourl ? 1 : 0.5 }}
+                            />
+                        )}
                     </Pressable>
                 </View>
             </Card>
@@ -354,6 +401,7 @@ const ideas = () => {
                             }
 
                             setAddIdeaModalVisible(false);
+                            getIdeas();
                             Alert.alert("Success", "Idea created successfully");
                         } catch (error) {
                             console.error(error);
@@ -517,7 +565,7 @@ const ideas = () => {
                     </View>
                     {activeTab === "All Ideas" ? (
                         <ScrollView
-                            className='flex-col px-3 w-full mt-3 '
+                            className='flex-col px-3 w-full mt-3 gap-2'
                             contentContainerStyle={{
                                 alignItems: "center",
                                 justifyContent: "center",

@@ -1,5 +1,6 @@
 import pool from "../db/pool.js";
 import { getUserIdByFirebaseUid } from "../utils/getUserId.js"
+import { storage } from "../utils/firebaseAdmin.js";
 
 const getBandMemberIdByUserId = async (user_uid, band_id) =>{
     const userId = await getUserIdByFirebaseUid(user_uid);
@@ -61,19 +62,27 @@ export const createIdea = async (req, res) => {
         // Handle length/duration for interval: accept only MM:SS or HH:MM:SS, else null
         let lengthValue = null;
         if (length !== null && length !== undefined && length !== "") {
-            let str = typeof length === "string" ? length.trim() : String(length).trim();
-            // Accept formats like "MM:SS" or "H:MM:SS" only, to prevent "date/time field value out of range"
-            // (This gives postgres "interval" type strings it can parse)
-            // Accept e.g. "3:45", "1:23:45"
-            if (/^(\d{1,2}:)?[0-5]?\d:[0-5]\d$/.test(str)) {
-                // If MM:SS, convert to 0:MM:SS; postgres accepts both, but always good to make explicit
-                if (/^\d{1,2}:[0-5]\d$/.test(str)) {
-                    str = `0:${str}`;
-                }
-                lengthValue = str;
+            if (typeof length === 'number') {
+                const totalSeconds = Math.floor(length / 1000);
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                lengthValue = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             } else {
-                // For anything else (e.g. "7000") just ignore and save as null
-                lengthValue = null;
+                let str = typeof length === "string" ? length.trim() : String(length).trim();
+                // Accept formats like "MM:SS" or "H:MM:SS" only, to prevent "date/time field value out of range"
+                // (This gives postgres "interval" type strings it can parse)
+                // Accept e.g. "3:45", "1:23:45"
+                if (/^(\d{1,2}:)?[0-5]?\d:[0-5]\d$/.test(str)) {
+                    // If MM:SS, convert to 0:MM:SS; postgres accepts both, but always good to make explicit
+                    if (/^\d{1,2}:[0-5]\d$/.test(str)) {
+                        str = `0:${str}`;
+                    }
+                    lengthValue = str;
+                } else {
+                    // For anything else (e.g. "7000") just ignore and save as null
+                    lengthValue = null;
+                }
             }
         }
 
@@ -108,14 +117,44 @@ export const getIdeas = async (req, res) => {
 
     try {
         const result = await pool.query(
-            "SELECT * FROM musideas mi JOIN band_members bm USING(band_member_id) WHERE bm.band_id = $1 ORDER BY mi.created_at DESC",
+            "SELECT mi.*, u.username FROM musideas mi JOIN band_members bm USING(band_member_id) JOIN users u ON bm.user_id = u.user_id WHERE bm.band_id = $1 ORDER BY mi.created_at DESC",
             [band_id]
         )
         if (result.rows.length === 0) {
-            return res.status(404).json({ error: "No ideas found" });
+            return res.status(404).json({ error: "No ideas found for this band" });
         }
         const ideas = result.rows;
-        res.status(200).json(ideas);
+
+        const ideasWithUrls = await Promise.all(
+            result.rows.map(async (idea) => {
+                // If there is no audiourl, or it already looks like a full URL (legacy data), skip
+                if (!idea.audiourl || idea.audiourl.startsWith("http")) {
+                    return idea;
+                }
+
+                try {
+                    // Generate a fresh URL valid for 1 hour
+                    const [signedUrl] = await storage
+                        .bucket(process.env.FIREBASE_STORAGE_BUCKET)
+                        .file(idea.audiourl)
+                        .getSignedUrl({
+                            version: "v4",
+                            action: "read",
+                            expires: Date.now() + 60 * 60 * 1000, // 1 hour
+                        });
+
+                    return { ...idea, audiourl: signedUrl };
+                } catch (e) {
+                    console.error(
+                        `Failed to sign url for idea ${idea.idea_id}`,
+                        e
+                    );
+                    return idea;
+                }
+            })
+        );
+
+        res.status(200).json(ideasWithUrls);
     } catch (error) {
         console.error("Error getting ideas: ", error);
         res.status(500).json({ error: "Server error (idea get)" });
