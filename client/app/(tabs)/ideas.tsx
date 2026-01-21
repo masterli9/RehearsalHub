@@ -1,47 +1,45 @@
-import {
-    View,
-    Text,
-    ScrollView,
-    ActivityIndicator,
-    Pressable,
-    Alert,
-} from "react-native";
-import PageContainer from "@/components/PageContainer";
-import NoBand from "@/components/NoBand";
-import { useBand } from "@/context/BandContext";
-import { useAuth } from "@/context/AuthContext";
-import { requestRecordingPermissionsAsync, useAudioPlayer } from "expo-audio";
-import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import ErrorText from "@/components/ErrorText";
-import { useState, useEffect } from "react";
-import {
-    Menu,
-    MenuOption,
-    MenuTrigger,
-    MenuOptions,
-} from "react-native-popup-menu";
-import SwitchTabs from "@/components/SwitchTabs";
-import { SwitchBandModal } from "@/components/SwitchBandModal";
-import PageHeader from "@/components/PageHeader";
 import Card from "@/components/Card";
-import { Clock, Hash, Music4, Mic, Play, Square, Pause } from "lucide-react-native";
+import ErrorText from "@/components/ErrorText";
+import NoBand from "@/components/NoBand";
+import PageContainer from "@/components/PageContainer";
+import PageHeader from "@/components/PageHeader";
 import StyledButton from "@/components/StyledButton";
 import StyledModal from "@/components/StyledModal";
 import StyledTextInput from "@/components/StyledTextInput";
+import { SwitchBandModal } from "@/components/SwitchBandModal";
+import SwitchTabs from "@/components/SwitchTabs";
+import apiUrl from "@/config";
+import { usePlayer } from "@/context/AudioPlayerContext";
+import { useAuth } from "@/context/AuthContext";
+import { useBand } from "@/context/BandContext";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
-    useAudioRecorder,
     AudioModule,
     RecordingPresets,
     setAudioModeAsync,
+    useAudioRecorder,
     useAudioRecorderState,
 } from "expo-audio";
-import apiUrl from "@/config";
 import * as FileSystem from "expo-file-system/legacy";
 import { Formik } from "formik";
+import { Clock, Hash, Mic, Music4, Pause, Play, Square } from "lucide-react-native";
+import { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    Pressable,
+    ScrollView,
+    Text,
+    View,
+} from "react-native";
+import {
+    Menu,
+    MenuOption,
+    MenuOptions,
+    MenuTrigger,
+} from "react-native-popup-menu";
 import * as yup from "yup";
-import { usePlayer } from "@/context/AudioPlayerContext";
-import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
 
 const ideas = () => {
     const { bands, bandsLoading, activeBand } = useBand();
@@ -570,9 +568,12 @@ const ideas = () => {
                                 alignItems: "center",
                                 justifyContent: "center",
                             }}>
-                            {ideas.map((idea) => (
+                            {Array.isArray(ideas) ? 
+                            (ideas.map((idea) => (
                                 <IdeaCard key={idea.idea_id} idea={idea} />
-                            ))}
+                            ))) : (
+                                <Text className="text-silverText" style={{ fontSize: fontSize.base }}>No ideas yet</Text>
+                            )}
                         </ScrollView>
                     ) : activeTab === "My Ideas" ? (
                         <View className='flex-1 w-full justify-center items-center'>

@@ -1,9 +1,12 @@
 import NoBand from "@/components/NoBand";
 import PageContainer from "@/components/PageContainer";
+import PageHeader from "@/components/PageHeader";
 import StyledTextInput from "@/components/StyledTextInput";
+import { SwitchBandModal } from "@/components/SwitchBandModal";
 import apiUrl from "@/config";
 import { useAuth } from "@/context/AuthContext";
 import { useBand } from "@/context/BandContext";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import { auth } from "@/lib/firebase";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { onIdTokenChanged } from "firebase/auth";
@@ -20,14 +23,11 @@ import {
     useColorScheme,
     View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { io } from "socket.io-client";
-import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
-import { SwitchBandModal } from "@/components/SwitchBandModal";
 import {
     MenuOption,
 } from "react-native-popup-menu";
-import PageHeader from "@/components/PageHeader";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { io } from "socket.io-client";
 
 interface Message {
     id?: number;
@@ -177,7 +177,7 @@ const chat = () => {
         if (loadOlderError && !forceRetry) return;
 
         setIsLoadingOlder(true);
-        setLoadOlderError(false); // Clear previous errors
+        setLoadOlderError(false);
 
         // Use setTimeout to ensure state update is rendered before fetch starts
         setTimeout(async () => {
@@ -192,7 +192,6 @@ const chat = () => {
     };
 
     const onEndReached = () => {
-        // With inverted list, onEndReached triggers when scrolling to top (older messages)
         maybeLoadOlder();
     };
 

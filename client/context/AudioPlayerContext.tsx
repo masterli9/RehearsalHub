@@ -1,5 +1,5 @@
+import { AudioModule, useAudioPlayer } from "expo-audio";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { useAudioPlayer, AudioModule } from "expo-audio";
 
 type PlayableAudio = {
     song_id: number;
@@ -30,6 +30,12 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
 
     const [isPlaying, setIsPlaying] = useState(false);
     const hasStartedRef = useRef(false);
+    const playerRef = useRef(player);
+    
+    // Keep playerRef in sync with player
+    useEffect(() => {
+        playerRef.current = player;
+    }, [player]);
 
     useEffect(() => {
         hasStartedRef.current = false;
@@ -68,10 +74,16 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
         if (!hasStartedRef.current) {
             const timer = setTimeout(() => {
                 // console.log("Attempting play...");
-                player.play();
-                player.volume = 1.0;
-                setIsPlaying(true);
-                hasStartedRef.current = true;
+                if (player) {
+                    try {
+                        player.play();
+                        player.volume = 1.0;
+                        setIsPlaying(true);
+                        hasStartedRef.current = true;
+                    } catch (e) {
+                        console.error("Error starting playback:", e);
+                    }
+                }
             }, 500);
 
             return () => clearTimeout(timer);
@@ -89,24 +101,58 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const pause = () => {
-        player.pause();
+        const currentPlayer = playerRef.current;
+        if (currentPlayer) {
+            try {
+                currentPlayer.pause();
+            } catch (e) {
+                console.error("Error pausing player:", e);
+            }
+        }
         setIsPlaying(false);
     };
 
     const resume = () => {
-        player.play();
-        setIsPlaying(true);
+        const currentPlayer = playerRef.current;
+        if (currentPlayer) {
+            try {
+                currentPlayer.play();
+                setIsPlaying(true);
+            } catch (e) {
+                console.error("Error resuming player:", e);
+            }
+        }
     };
 
     const stop = () => {
-        player.pause();
-        player.seekTo(0);
+        const currentPlayer = playerRef.current;
+        if (currentPlayer) {
+            try {
+                currentPlayer.pause();
+                // Only seekTo if player is still valid
+                if (currentPlayer && typeof currentPlayer.seekTo === 'function') {
+                    currentPlayer.seekTo(0);
+                }
+            } catch (e) {
+                // Player might be released, ignore silently
+                // Error is already caught by try-catch
+            }
+        }
         setIsPlaying(false);
     };
 
     const clearCurrent = () => {
-        player.pause();
-        player.seekTo(0);
+        // Don't call seekTo when clearing - just pause if possible
+        const currentPlayer = playerRef.current;
+        if (currentPlayer) {
+            try {
+                currentPlayer.pause();
+                // Don't call seekTo here - player will be released anyway
+            } catch (e) {
+                // Player might be released, ignore silently
+                console.error("Error clearing player:", e);
+            }
+        }
         setIsPlaying(false);
         setCurrentAudio(null); // This effectively "closes" the player UI
     };
