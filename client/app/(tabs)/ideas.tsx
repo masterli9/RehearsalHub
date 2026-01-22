@@ -48,8 +48,21 @@ const ideas = () => {
     const colorScheme = useColorScheme();
 
     const [showSwitchModal, setShowSwitchModal] = useState(false);
-    const [activeTab, setActiveTab] = useState<string>("All Ideas");
+    const [activeTab, setActiveTab] = useState<string>("Recent");
     const [ideas, setIdeas] = useState<any[]>([]);
+
+    // How many ideas to show per tab (edit these to taste)
+    const ideasLimitByTab: Record<string, number> = {
+        Recent: 20,
+        "My Ideas": 50,
+        "All Ideas": 200,
+    };
+
+    const [allIdeas, setAllIdeas] = useState<any[]>([]);
+    const [myIdeas, setMyIdeas] = useState<any[]>([]);
+    const [recentIdeas, setRecentIdeas] = useState<any[]>([]);
+    const [visibleIdeas, setVisibleIdeas] = useState<any[]>([]);
+    const [activeIdeasCount, setActiveIdeasCount] = useState<number>(0);
     const [ideasLoading, setIdeasLoading] = useState(false);
     const [addIdeaModalVisible, setAddIdeaModalVisible] = useState(false);
 
@@ -75,6 +88,34 @@ const ideas = () => {
             setIdeas([]);
         }
     }, [activeBand?.id]);
+
+    useEffect(() => {
+        const sourceIdeas = Array.isArray(ideas) ? ideas : [];
+        setAllIdeas(sourceIdeas);
+
+        const mine = sourceIdeas.filter((idea) => idea.username === user?.username);
+        setMyIdeas(mine);
+
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getDay() - 30);
+        const recent = sourceIdeas.filter((idea) => new Date(idea.created_at) >= oneMonthAgo);
+        setRecentIdeas(recent);
+    }, [ideas, user?.username]);
+
+    useEffect(() => {
+        const limit = ideasLimitByTab[activeTab] ?? Infinity;
+        const activeList =
+            activeTab === "All Ideas"
+                ? allIdeas
+                : activeTab === "My Ideas"
+                  ? myIdeas
+                  : activeTab === "Recent"
+                    ? recentIdeas
+                    : [];
+
+        setActiveIdeasCount(activeList.length);
+        setVisibleIdeas(activeList.slice(0, limit));
+    }, [activeTab, allIdeas, myIdeas, recentIdeas]);
 
     const getIdeas = async () => {
         const response = await fetch(`${apiUrl}/api/ideas/get?band_id=${activeBand?.id}`, {
@@ -545,7 +586,7 @@ const ideas = () => {
                         <SwitchTabs
                             activeTab={activeTab}
                             setActiveTab={setActiveTab}
-                            tabs={["All Ideas", "My Ideas", "Recent"]}
+                            tabs={["Recent", "My Ideas", "All Ideas"]}
                         />
                     </View>
                     <View className='flex-col justify-center items-center gap-3 w-full border-b border-accent-light dark:border-accent-dark w-full px-5 py-3'>
@@ -553,7 +594,7 @@ const ideas = () => {
                             <Text
                                 className='text-silverText'
                                 style={{ fontSize: fontSize.base }}>
-                                8 ideas
+                                {activeIdeasCount} ideas
                             </Text>
                             <StyledButton
                                 onPress={() => setAddIdeaModalVisible(true)}
@@ -561,29 +602,24 @@ const ideas = () => {
                             />
                         </View>
                     </View>
-                    {activeTab === "All Ideas" ? (
-                        <ScrollView
-                            className='flex-col px-3 w-full mt-3 gap-2'
-                            contentContainerStyle={{
-                                alignItems: "center",
-                                justifyContent: "center",
-                            }}>
-                            {Array.isArray(ideas) ? 
-                            (ideas.map((idea) => (
+                    <ScrollView
+                        className='flex-col px-3 w-full mt-3 gap-2'
+                        contentContainerStyle={{
+                            alignItems: "center",
+                            justifyContent: "center",
+                        }}>
+                        {visibleIdeas.length > 0 ? (
+                            visibleIdeas.map((idea) => (
                                 <IdeaCard key={idea.idea_id} idea={idea} />
-                            ))) : (
-                                <Text className="text-silverText" style={{ fontSize: fontSize.base }}>No ideas yet</Text>
-                            )}
-                        </ScrollView>
-                    ) : activeTab === "My Ideas" ? (
-                        <View className='flex-1 w-full justify-center items-center'>
-                            <Text>My ideas</Text>
-                        </View>
-                    ) : (
-                        <View className='flex-1 w-full justify-center items-center'>
-                            <Text>Recent</Text>
-                        </View>
-                    )}
+                            ))
+                        ) : (
+                            <Text className="text-silverText" style={{ fontSize: fontSize.base }}>
+                                {activeTab === "Recent"
+                                    ? "No recent ideas from the past month"
+                                    : "No ideas yet"}
+                            </Text>
+                        )}
+                    </ScrollView>
                 </>
             )}
         </PageContainer>
