@@ -22,9 +22,10 @@ import {
     useAudioRecorderState,
 } from "expo-audio";
 import * as FileSystem from "expo-file-system/legacy";
+import { useFocusEffect } from "expo-router";
 import { Formik } from "formik";
 import { Clock, Hash, Mic, Music4, Pause, Play, Square } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -32,6 +33,7 @@ import {
     ScrollView,
     Text,
     View,
+    Image
 } from "react-native";
 import {
     Menu,
@@ -86,8 +88,14 @@ const ideas = () => {
             getIdeas();
         } else {
             setIdeas([]);
+            setRecentIdeas([]);
         }
     }, [activeBand?.id]);
+    useFocusEffect(
+        useCallback(() => {
+            getIdeas();
+        }, [activeBand?.id])
+    );
 
     useEffect(() => {
         const sourceIdeas = Array.isArray(ideas) ? ideas : [];
@@ -95,11 +103,6 @@ const ideas = () => {
 
         const mine = sourceIdeas.filter((idea) => idea.username === user?.username);
         setMyIdeas(mine);
-
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getDay() - 30);
-        const recent = sourceIdeas.filter((idea) => new Date(idea.created_at) >= oneMonthAgo);
-        setRecentIdeas(recent);
     }, [ideas, user?.username]);
 
     useEffect(() => {
@@ -118,14 +121,43 @@ const ideas = () => {
     }, [activeTab, allIdeas, myIdeas, recentIdeas]);
 
     const getIdeas = async () => {
-        const response = await fetch(`${apiUrl}/api/ideas/get?band_id=${activeBand?.id}`, {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
-        const data = await response.json();
-        setIdeas(data);
+        setIdeasLoading(true);
+        try {
+            const allIdeasResponse = await fetch(`${apiUrl}/api/ideas/get?band_id=${activeBand?.id}`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+            const data = await allIdeasResponse.json();
+            if (!allIdeasResponse.ok || !Array.isArray(data)) {
+                setIdeas([]);
+            } else {
+                setIdeas(data);
+            }
+        } catch (error) {
+            console.error("Error getting ideas: ", error);
+            setIdeas([]);
+        }
+        try {
+            const recentIdeasResponse = await fetch(`${apiUrl}/api/ideas/get-recent?band_id=${activeBand?.id}`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+            const recentIdeasData = await recentIdeasResponse.json();
+            if (!recentIdeasResponse.ok || !Array.isArray(recentIdeasData)) {
+                setRecentIdeas([]);
+            } else {
+                setRecentIdeas(recentIdeasData);
+            }
+        } catch (error) {
+            console.error("Error getting recent ideas: ", error);
+            setRecentIdeas([]);
+        } finally {
+            setIdeasLoading(false);
+        }
     }
 
     const record = async () => {
@@ -265,17 +297,22 @@ const ideas = () => {
         return (
             <Card className='w-full flex-col mb-3'>
                 <View className='flex-row justify-between items-center'>
-                    <View className='flex-col'>
-                        <Text
-                            className='text-black dark:text-white font-bold my-1'
-                            style={{ fontSize: fontSize.xl }}>
-                            {idea.title}
-                        </Text>
-                        <Text
-                            className='text-silverText'
-                            style={{ fontSize: fontSize.base }}>
-                            {idea.username} • {new Date(idea.created_at).toLocaleDateString()}
-                        </Text>
+                    <View className='flex-row items-center gap-3'>
+                        <View className='flex-row items-center'>
+                            <Image source={{ uri: idea.photourl }} className='w-10 h-10 rounded-full' style={{ width: fontSize["2xl"] * 1.8, height: fontSize["2xl"] * 1.8 }} />
+                        </View>
+                        <View className='flex-col'>
+                            <Text
+                                className='text-black dark:text-white font-bold my-1'
+                                style={{ fontSize: fontSize.xl }}>
+                                {idea.title}
+                            </Text>
+                            <Text
+                                className='text-silverText'
+                                style={{ fontSize: fontSize.base }}>
+                                {idea.username} • {new Date(idea.created_at).toLocaleDateString()}
+                            </Text>
+                        </View>
                     </View>
                     <Menu>
                         <MenuTrigger>
@@ -602,24 +639,38 @@ const ideas = () => {
                             />
                         </View>
                     </View>
-                    <ScrollView
-                        className='flex-col px-3 w-full mt-3 gap-2'
-                        contentContainerStyle={{
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}>
-                        {visibleIdeas.length > 0 ? (
-                            visibleIdeas.map((idea) => (
-                                <IdeaCard key={idea.idea_id} idea={idea} />
-                            ))
-                        ) : (
-                            <Text className="text-silverText" style={{ fontSize: fontSize.base }}>
-                                {activeTab === "Recent"
-                                    ? "No recent ideas from the past month"
-                                    : "No ideas yet"}
+                    {ideasLoading ? (
+                        <View className='flex-1 w-full justify-center items-center py-8'>
+                            <ActivityIndicator
+                                size='large'
+                                color='#2B7FFF'
+                            />
+                            <Text
+                                className='text-silverText mt-4'
+                                style={{ fontSize: fontSize.base }}>
+                                Loading ideas...
                             </Text>
-                        )}
-                    </ScrollView>
+                        </View>
+                    ) : (
+                        <ScrollView
+                            className='flex-col px-3 w-full mt-3 gap-2'
+                            contentContainerStyle={{
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}>
+                            {visibleIdeas.length > 0 ? (
+                                visibleIdeas.map((idea) => (
+                                    <IdeaCard key={idea.idea_id} idea={idea} />
+                                ))
+                            ) : (
+                                <Text className="text-silverText" style={{ fontSize: fontSize.base }}>
+                                    {activeTab === "Recent"
+                                        ? "No recent ideas from the past month"
+                                        : "No ideas yet"}
+                                </Text>
+                            )}
+                        </ScrollView>
+                    )}
                 </>
             )}
         </PageContainer>

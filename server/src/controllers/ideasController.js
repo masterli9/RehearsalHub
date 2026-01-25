@@ -117,7 +117,7 @@ export const getIdeas = async (req, res) => {
 
     try {
         const result = await pool.query(
-            "SELECT mi.*, u.username FROM musideas mi JOIN band_members bm USING(band_member_id) JOIN users u ON bm.user_id = u.user_id WHERE bm.band_id = $1 ORDER BY mi.created_at DESC",
+            "SELECT mi.*, u.username, u.photourl FROM musideas mi JOIN band_members bm USING(band_member_id) JOIN users u ON bm.user_id = u.user_id WHERE bm.band_id = $1 ORDER BY mi.created_at DESC",
             [band_id]
         )
         if (result.rows.length === 0) {
@@ -158,5 +158,58 @@ export const getIdeas = async (req, res) => {
     } catch (error) {
         console.error("Error getting ideas: ", error);
         res.status(500).json({ error: "Server error (idea get)" });
+    }
+}
+
+export const getRecentIdeas = async (req, res) => {
+    const { band_id } = req.query;
+
+    if (!band_id) {
+        return res.status(400).json({ error: "band_id is required" });
+    }
+
+    try {
+        const result = await pool.query(
+            "SELECT mi.*, u.username, u.photourl FROM musideas mi JOIN band_members bm USING(band_member_id) JOIN users u ON bm.user_id = u.user_id WHERE bm.band_id = $1 AND mi.created_at >= (NOW() - INTERVAL '1 month') ORDER BY mi.created_at DESC LIMIT 10",
+            [band_id]
+        )
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "No recent ideas found for this band" });
+        }
+        const ideas = result.rows;
+
+        const ideasWithUrls = await Promise.all(
+            result.rows.map(async (idea) => {
+                // If there is no audiourl, or it already looks like a full URL (legacy data), skip
+                if (!idea.audiourl || idea.audiourl.startsWith("http")) {
+                    return idea;
+                }
+
+                try {
+                    // Generate a fresh URL valid for 1 hour
+                    const [signedUrl] = await storage
+                        .bucket(process.env.FIREBASE_STORAGE_BUCKET)
+                        .file(idea.audiourl)
+                        .getSignedUrl({
+                            version: "v4",
+                            action: "read",
+                            expires: Date.now() + 60 * 60 * 1000, // 1 hour
+                        });
+
+                    return { ...idea, audiourl: signedUrl };
+                } catch (e) {
+                    console.error(
+                        `Failed to sign url for idea ${idea.idea_id}`,
+                        e
+                    );
+                    return idea;
+                }
+            })
+        );
+
+        res.status(200).json(ideasWithUrls);
+    } catch (error) {
+        console.error("Error getting recent ideas: ", error);
+        res.status(500).json({ error: "Server error (recent idea get)" });
     }
 }
