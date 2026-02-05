@@ -420,3 +420,56 @@ export const addTag = async (req, res) => {
         res.status(500).json({ error: "Server error (add tag)" });
     }
 };
+
+// add song file
+export const addSongFile = async (req, res) => {
+    const { songId } = req.params;
+    const { filename, storagePath } = req.body;
+    if (!songId || !filename || !storagePath)
+        return res
+            .status(400)
+            .json({ error: "Song ID, filename, and storage path are required" });
+    try {
+        const insert = await pool.query(
+            "INSERT INTO song_files (song_id, filename, storage_path) VALUES ($1, $2, $3) RETURNING *",
+            [songId, filename, storagePath]
+        );
+        const songFile = insert.rows[0];
+        res.status(201).json(songFile);
+    } catch (error) {
+        console.error("Error adding song file: ", error);
+        res.status(500).json({ error: "Server error (add song file)" });
+    }
+};
+// get song files
+export const getSongFiles = async (req, res) => {
+    const { songId } = req.params;
+    try {
+        const select = await pool.query(
+            "SELECT * FROM song_files WHERE song_id = $1",
+            [songId]
+        );
+        const songFiles = select.rows;
+        res.status(200).json(songFiles);
+    } catch (error) {
+        console.error("Error getting song files: ", error);
+        res.status(500).json({ error: "Server error (get song files)" });
+    }
+};
+// delete song file
+export const deleteSongFile = async (req, res) => {
+    const { songId, file_id } = req.params;
+    try {
+        const deletesql = await pool.query(
+            "DELETE FROM song_files WHERE song_id = $1 AND file_id = $2",
+            [songId, file_id]
+        );
+        res.status(200).json({
+            message: "Song file deleted successfully",
+            deleted: deletesql.rowCount,
+        });
+    } catch (error) {
+        console.error("Error deleting song file: ", error);
+        res.status(500).json({ error: "Server error (delete song file)" });
+    }
+};
