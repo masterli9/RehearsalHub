@@ -27,6 +27,13 @@ import {
     Play,
     SlidersHorizontal,
     X,
+    Trash2,
+    FileText,
+    Download,
+    Edit2,
+    Check,
+    AlertCircle,
+    Plus,
 } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -64,6 +71,13 @@ const songs = () => {
     >("Songs");
     const [newSongModalVisible, setNewSongModalVisible] =
         useState<boolean>(false);
+    const [songDetailModalVisible, setSongDetailModalVisible] = useState<boolean>(false);
+    const [selectedSong, setSelectedSong] = useState<any>(null);
+    const [songFiles, setSongFiles] = useState<any[]>([]);
+    const [isLoadingFiles, setIsLoadingFiles] = useState<boolean>(false);
+    const [isEditingSong, setIsEditingSong] = useState<boolean>(false);
+    const [editSongForm, setEditSongForm] = useState<any>({});
+
 
     const [disableSubmitBtn, setDisableSubmitBtn] = useState<boolean>(false);
 
@@ -347,6 +361,141 @@ const songs = () => {
         color: string;
     };
 
+    const fetchSongFiles = async (songId: number) => {
+        setIsLoadingFiles(true);
+        try {
+            const response = await fetch(`${apiUrl}/api/songs/${songId}/files`);
+            if (response.ok) {
+                const data = await response.json();
+                setSongFiles(data);
+            }
+        } catch (error) {
+            console.error("Error fetching song files:", error);
+            Alert.alert("Error", "Failed to load song files.");
+        } finally {
+            setIsLoadingFiles(false);
+        }
+    };
+
+    const handleDeleteSongFile = async (songId: number, fileId: number) => {
+        Alert.alert(
+            "Delete File",
+            "Are you sure you want to delete this file?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const response = await fetch(
+                                `${apiUrl}/api/songs/${songId}/files/${fileId}`,
+                                { method: "DELETE" }
+                            );
+                            if (response.ok) {
+                                fetchSongFiles(songId);
+                            } else {
+                                Alert.alert("Error", "Failed to delete file.");
+                            }
+                        } catch (error) {
+                            console.error("Error deleting file:", error);
+                            Alert.alert("Error", "Failed to delete file.");
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleDeleteSong = async (songId: number) => {
+        Alert.alert(
+            "Delete Song",
+            "Are you sure you want to delete this song? This action cannot be undone.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const response = await fetch(
+                                `${apiUrl}/api/songs/${songId}`,
+                                { method: "DELETE" }
+                            );
+                            if (response.ok) {
+                                setSongDetailModalVisible(false);
+                                runFilterAndSearch(true); // refresh list
+                            } else {
+                                Alert.alert("Error", "Failed to delete song.");
+                            }
+                        } catch (error) {
+                            console.error("Error deleting song:", error);
+                            Alert.alert("Error", "Failed to delete song.");
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleUpdateSong = async (songId: number, values: any) => {
+        setDisableSubmitBtn(true);
+        try {
+            // Check if audio file needs to be updated first
+            let cloudurl = selectedSong.cloudurl;
+
+            if (values.file && values.file.uri && values.file.uri !== selectedSong.cloudurl) {
+                // Upload new file
+                // Reuse upload logic or creating a new one?
+                // Let's reuse existing logic if possible, or copy it simplified
+                const filename = values.file.name || values.file.uri.split("/").pop();
+                const { path } = await uploadFileToSignedUrl({
+                    localUri: values.file.uri,
+                    filename: filename,
+                    contentType: values.file.mimeType || "audio/mpeg", // fallback
+                    bandId: activeBand?.id?.toString() || "",
+                    onProgress: (p) => { } // we can show progress if we want
+                });
+                cloudurl = path; // store path, backend generates signed url on get
+            }
+
+            const payload = {
+                title: values.title,
+                bpm: values.bpm,
+                songKey: values.songKey,
+                length: values.file?.duration ? values.file.duration : undefined, // Update length only if new file or explicitly changed (if we add manual length field)
+                status: values.status,
+                notes: values.description,
+                cloudurl: cloudurl,
+                tags: values.tags ? values.tags.map((t: any) => t.name) : []
+            };
+
+            const response = await fetch(`${apiUrl}/api/songs/${songId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const updatedSong = await response.json();
+                setSelectedSong(updatedSong); // update local state
+                setIsEditingSong(false);
+                runFilterAndSearch(true); // refresh main list
+                Alert.alert("Success", "Song updated successfully.");
+            } else {
+                const err = await response.text();
+                Alert.alert("Error", "Failed to update song: " + err);
+            }
+
+        } catch (error) {
+            console.error("Error updating song:", error);
+            Alert.alert("Error", "Failed to update song.");
+        } finally {
+            setDisableSubmitBtn(false);
+        }
+    };
+
+
     const SongCard = ({
         songId,
         audioUrl,
@@ -357,6 +506,7 @@ const songs = () => {
         dateAdded,
         description,
         songTags,
+        bpm
     }: {
         songId: number;
         audioUrl: string;
@@ -367,6 +517,7 @@ const songs = () => {
         dateAdded: string;
         description: string;
         songTags: any[];
+        bpm: number;
     }) => {
         const formatInterval = (interval: any) => {
             if (!interval || typeof interval !== "object") {
@@ -397,7 +548,27 @@ const songs = () => {
         const isCurrentSong = current?.song_id === songId;
         const showPause = isCurrentSong && isPlaying;
         return (
-            <View className='bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3'>
+            <Pressable
+                onPress={() => {
+                    setSelectedSong({
+                        song_id: songId,
+                        title: songName,
+                        status: status,
+                        length: length,
+                        key: songKey, // Note: backend returns 'key', prop is 'songKey'
+                        created_at: dateAdded,
+                        notes: description,
+                        cloudurl: audioUrl,
+                        tags: songTags,
+                        bpm: bpm
+                    });
+                    // We passed songTags as prop, but backend might return expanded objects.
+                    // The prop songTags seems to be array of objects based on usage in SongCard.
+
+                    fetchSongFiles(songId);
+                    setSongDetailModalVisible(true);
+                }}
+                className='bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3'>
                 <View
                     className='flex-row justify-between items-center'
                     style={{ flexWrap: "wrap" }}>
@@ -532,14 +703,14 @@ const songs = () => {
                                 }}>
                                 <Text
                                     className='text-white text-sm'
-                                    // style={{ fontSize: fontSize.base }} // TODO: FIX ERROR
+                                // style={{ fontSize: fontSize.base }} // TODO: FIX ERROR
                                 >
                                     {t.name}
                                 </Text>
                             </View>
                         ))}
                 </View>
-            </View>
+            </Pressable>
         );
     };
 
@@ -1200,7 +1371,7 @@ const songs = () => {
                                                 Alert.alert(
                                                     "Error",
                                                     error.message ||
-                                                        "Could not save tag. Please try again."
+                                                    "Could not save tag. Please try again."
                                                 );
                                             } finally {
                                                 setSubmitting(false);
@@ -1286,14 +1457,14 @@ const songs = () => {
                                                                             c,
                                                                         borderWidth:
                                                                             values.color ===
-                                                                            c
+                                                                                c
                                                                                 ? 3
                                                                                 : 1,
                                                                         borderColor:
                                                                             values.color ===
-                                                                            c
+                                                                                c
                                                                                 ? colorScheme ===
-                                                                                  "dark"
+                                                                                    "dark"
                                                                                     ? "white"
                                                                                     : "black"
                                                                                 : "#ddd",
@@ -1386,12 +1557,12 @@ const songs = () => {
                                                         borderWidth: 2,
                                                         borderColor:
                                                             colorScheme ===
-                                                            "dark"
+                                                                "dark"
                                                                 ? "#fff"
                                                                 : "#000",
                                                         shadowColor:
                                                             colorScheme ===
-                                                            "dark"
+                                                                "dark"
                                                                 ? "#000"
                                                                 : "#000",
                                                         shadowOffset: {
@@ -1556,11 +1727,10 @@ const songs = () => {
                                                     ]);
                                                 }
                                             }}
-                                            className={`px-3 py-1 rounded-md border ${
-                                                isSelected
-                                                    ? "bg-transparentGreen border-green"
-                                                    : "bg-transparent border-gray-400"
-                                            }`}>
+                                            className={`px-3 py-1 rounded-md border ${isSelected
+                                                ? "bg-transparentGreen border-green"
+                                                : "bg-transparent border-gray-400"
+                                                }`}>
                                             <Text
                                                 className='text-black dark:text-white'
                                                 style={{
@@ -1585,11 +1755,10 @@ const songs = () => {
                                         !readyStatusSelected
                                     );
                                 }}
-                                className={`px-2 py-1 rounded-md border ${
-                                    readyStatusSelected
-                                        ? "bg-transparentGreen border-green"
-                                        : "bg-transparent border-gray-400"
-                                }`}>
+                                className={`px-2 py-1 rounded-md border ${readyStatusSelected
+                                    ? "bg-transparentGreen border-green"
+                                    : "bg-transparent border-gray-400"
+                                    }`}>
                                 <Text
                                     className='text-black dark:text-white'
                                     style={{ fontSize: fontSize.base }}
@@ -1603,11 +1772,10 @@ const songs = () => {
                                         !finishedStatusSelected
                                     );
                                 }}
-                                className={`px-2 py-1 rounded-md border ${
-                                    finishedStatusSelected
-                                        ? "bg-transparentGreen border-green"
-                                        : "bg-transparent border-gray-400"
-                                }`}>
+                                className={`px-2 py-1 rounded-md border ${finishedStatusSelected
+                                    ? "bg-transparentGreen border-green"
+                                    : "bg-transparent border-gray-400"
+                                    }`}>
                                 <Text
                                     className='text-black dark:text-white'
                                     style={{ fontSize: fontSize.base }}
@@ -1621,11 +1789,10 @@ const songs = () => {
                                         !draftStatusSelected
                                     );
                                 }}
-                                className={`px-2 py-1 rounded-md border ${
-                                    draftStatusSelected
-                                        ? "bg-transparentGreen border-green"
-                                        : "bg-transparent border-gray-400"
-                                }`}>
+                                className={`px-2 py-1 rounded-md border ${draftStatusSelected
+                                    ? "bg-transparentGreen border-green"
+                                    : "bg-transparent border-gray-400"
+                                    }`}>
                                 <Text
                                     className='text-black dark:text-white'
                                     style={{ fontSize: fontSize.base }}
@@ -1896,7 +2063,7 @@ const songs = () => {
                                                     optionText: {
                                                         color:
                                                             colorScheme ===
-                                                            "dark"
+                                                                "dark"
                                                                 ? "#fff"
                                                                 : "#333",
                                                         paddingVertical: 8,
@@ -1916,7 +2083,7 @@ const songs = () => {
                                                     optionText: {
                                                         color:
                                                             colorScheme ===
-                                                            "dark"
+                                                                "dark"
                                                                 ? "#fff"
                                                                 : "#333",
                                                         paddingVertical: 8,
@@ -1934,7 +2101,7 @@ const songs = () => {
                                                     optionText: {
                                                         color:
                                                             colorScheme ===
-                                                            "dark"
+                                                                "dark"
                                                                 ? "#fff"
                                                                 : "#333",
                                                         paddingVertical: 8,
@@ -1951,7 +2118,7 @@ const songs = () => {
                                                     optionText: {
                                                         color:
                                                             colorScheme ===
-                                                            "dark"
+                                                                "dark"
                                                                 ? "#fff"
                                                                 : "#333",
                                                         paddingVertical: 8,
@@ -2034,6 +2201,7 @@ const songs = () => {
                                                     dateAdded={song.created_at}
                                                     description={song.notes}
                                                     songTags={song.tags}
+                                                    bpm={song.bpm}
                                                 />
                                             ))}
                                         {sortedSongs.length === 0 && (
@@ -2054,8 +2222,290 @@ const songs = () => {
                     ) : (
                         <></>
                     )}
-                </>
-            )}
+                </>)}
+            {/* Song Detail Modal */}
+            <StyledModal
+                visible={songDetailModalVisible}
+                onClose={() => {
+                    setSongDetailModalVisible(false);
+                    setIsEditingSong(false);
+                }}
+                title={isEditingSong ? "Edit Song" : selectedSong?.title}>
+
+                {selectedSong && !isEditingSong && (
+                    <ScrollView className='w-full'>
+                        <View className='mb-4'>
+                            <Text className='text-silverText' style={{ fontSize: fontSize.base }}>Status</Text>
+                            <View className={`self-start mt-1 px-3 py-1 rounded-xl ${selectedSong.status === "rehearsed" ? "bg-transparentGreen" :
+                                selectedSong.status === "draft" ? "bg-transparentViolet" : "bg-transparentBlue"
+                                }`}>
+                                <Text className={`${selectedSong.status === "rehearsed" ? "text-green" :
+                                    selectedSong.status === "draft" ? "text-violet" : "text-blue"
+                                    }`}>{selectedSong.status}</Text>
+                            </View>
+                        </View>
+
+                        <View className='flex-row justify-between mb-4'>
+                            <View className='flex-1 pr-2'>
+                                <Text className='text-silverText' style={{ fontSize: fontSize.base }}>Key</Text>
+                                <Text className='text-black dark:text-white font-medium' style={{ fontSize: fontSize.lg }}>{selectedSong.key || "N/A"}</Text>
+                            </View>
+                            <View className='flex-1 px-2'>
+                                <Text className='text-silverText' style={{ fontSize: fontSize.base }}>BPM</Text>
+                                <Text className='text-black dark:text-white font-medium' style={{ fontSize: fontSize.lg }}>{selectedSong.bpm || "N/A"}</Text>
+                            </View>
+                            <View className='flex-1 pl-2'>
+                                <Text className='text-silverText' style={{ fontSize: fontSize.base }}>Length</Text>
+                                <Text className='text-black dark:text-white font-medium' style={{ fontSize: fontSize.lg }}>
+                                    {typeof selectedSong.length === 'object' && selectedSong.length ?
+                                        `${selectedSong.length.minutes || 0}:${(selectedSong.length.seconds || 0).toString().padStart(2, '0')}` :
+                                        selectedSong.length || "N/A"}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {selectedSong.notes && (
+                            <View className='mb-4'>
+                                <Text className='text-silverText' style={{ fontSize: fontSize.base }}>Notes</Text>
+                                <Text className='text-black dark:text-white' style={{ fontSize: fontSize.base }}>{selectedSong.notes}</Text>
+                            </View>
+                        )}
+
+                        {selectedSong.tags && selectedSong.tags.length > 0 && (
+                            <View className='mb-4'>
+                                <Text className='text-silverText mb-2' style={{ fontSize: fontSize.base }}>Tags</Text>
+                                <View className='flex-row flex-wrap gap-2'>
+                                    {selectedSong.tags.map((t: any) => (
+                                        <View key={t.tag_id} className='px-3 py-1 rounded-xl' style={{ backgroundColor: t.color }}>
+                                            <Text className='text-white text-xs'>{t.name}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        )}
+
+                        {/* Files Section */}
+                        <View className='mt-4 pt-4 border-t border-accent-light dark:border-accent-dark'>
+                            <Text className='text-black dark:text-white font-bold mb-3' style={{ fontSize: fontSize.lg }}>Attached Files</Text>
+
+                            {/* Main Audio File */}
+                            {selectedSong.cloudurl && (
+                                <View className='flex-row items-center justify-between p-3 bg-boxBackground-light dark:bg-boxBackground-dark rounded-lg mb-2 border border-accent-light dark:border-accent-dark'>
+                                    <View className='flex-row items-center flex-1'>
+                                        <Play size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                                        <Text className='text-black dark:text-white ml-2 flex-1' numberOfLines={1}>Main Audio Track</Text>
+                                    </View>
+                                    <Download size={20} color='#A1A1A1' />
+                                </View>
+                            )}
+
+                            {isLoadingFiles ? (
+                                <ActivityIndicator size="small" />
+                            ) : (
+                                songFiles.map((file, idx) => (
+                                    <View key={file.file_id || idx} className='flex-row items-center justify-between p-3 bg-boxBackground-light dark:bg-boxBackground-dark rounded-lg mb-2 border border-accent-light dark:border-accent-dark'>
+                                        <View className='flex-row items-center flex-1 pr-2'>
+                                            <FileText size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                                            <Text className='text-black dark:text-white ml-2 flex-1' numberOfLines={1}>{file.filename}</Text>
+                                        </View>
+                                        <Pressable onPress={() => handleDeleteSongFile(selectedSong.song_id, file.file_id)} className=''>
+                                            <Trash2 size={20} color="#FF453A" />
+                                        </Pressable>
+                                    </View>
+                                ))
+                            )}
+
+                            <Pressable
+                                className='flex-row items-center justify-center p-3 mt-2 rounded-xl bg-accent-light dark:bg-accent-dark'
+                                onPress={async () => {
+                                    try {
+                                        const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: true });
+                                        if (!result.canceled) {
+                                            const picked = result.assets[0];
+                                            const filename = picked.name;
+
+                                            // 1. Upload file
+                                            const { path } = await uploadFileToSignedUrl({
+                                                localUri: picked.uri,
+                                                filename: filename,
+                                                contentType: picked.mimeType || "application/octet-stream",
+                                                bandId: activeBand?.id?.toString() || "",
+                                                onProgress: () => { }
+                                            });
+
+                                            // 2. Add reference to DB
+                                            const resp = await fetch(`${apiUrl}/api/songs/${selectedSong.song_id}/files/add`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    filename: filename,
+                                                    storagePath: path
+                                                })
+                                            });
+
+                                            if (resp.ok) {
+                                                fetchSongFiles(selectedSong.song_id);
+                                            } else {
+                                                Alert.alert("Error", "Failed to save file reference.");
+                                            }
+                                        }
+                                    } catch (err) {
+                                        console.error(err);
+                                        Alert.alert("Error", "Failed to upload file.");
+                                    }
+                                }}
+                            >
+                                <Plus size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
+                                <Text className='text-black dark:text-white ml-2 font-medium'>Add File</Text>
+                            </Pressable>
+                        </View>
+
+                        {/* Action Buttons */}
+                        <View className='flex-row gap-3 mt-6 mb-4'>
+                            <Pressable
+                                className='flex-1 flex-row items-center justify-center p-3 rounded-xl bg-blue'
+                                onPress={() => {
+                                    setEditSongForm({
+                                        title: selectedSong.title,
+                                        bpm: selectedSong.bpm ? String(selectedSong.bpm) : "",
+                                        songKey: selectedSong.key,
+                                        length: typeof selectedSong.length === 'string' ? selectedSong.length : "", // simplified for now
+                                        description: selectedSong.notes,
+                                        status: selectedSong.status,
+                                        tags: selectedSong.tags || [],
+                                        file: { uri: selectedSong.cloudurl } // mock for form
+                                    });
+                                    setIsEditingSong(true);
+                                }}
+                            >
+                                <Edit2 size={18} color="white" />
+                                <Text className='text-white font-regular ml-2'>Edit Song</Text>
+                            </Pressable>
+                            <Pressable
+                                className='flex-1 flex-row items-center justify-center p-3 rounded-xl bg-darkRed'
+                                onPress={() => handleDeleteSong(selectedSong.song_id)}
+                            >
+                                <Trash2 size={18} color="white" />
+                                <Text className='text-white font-regular ml-2'>Delete Song</Text>
+                            </Pressable>
+                        </View>
+                    </ScrollView>
+                )}
+
+                {/* Edit Mode */}
+                {selectedSong && isEditingSong && (
+                    <Formik
+                        initialValues={editSongForm}
+                        validationSchema={newSongSchema}
+                        onSubmit={(values) => handleUpdateSong(selectedSong.song_id, values)}
+                    >
+                        {({ handleChange, handleBlur, handleSubmit, values, errors, touched, setFieldValue }) => (
+                            <View className='w-full'>
+                                <StyledTextInput
+                                    placeholder='Song Title'
+                                    variant='rounded'
+                                    value={values.title}
+                                    onChangeText={handleChange("title")}
+                                    onBlur={handleBlur("title")}
+                                />
+                                {touched.title && errors.title && <ErrorText>{formatFormikError(errors.title)}</ErrorText>}
+
+                                <View className='flex-row w-full gap-2 mt-2'>
+                                    <View className='flex-1'>
+                                        <StyledDropdown
+                                            placeholder="Status"
+                                            open={openStatus}
+                                            value={values.status}
+                                            items={itemsStatus}
+                                            setOpen={setOpenStatus}
+                                            setValue={(callback) => {
+                                                if (typeof callback === 'function') {
+                                                    setFieldValue('status', callback(values.status));
+                                                } else {
+                                                    setFieldValue('status', callback);
+                                                }
+                                            }}
+                                            setItems={setItemsStatus}
+                                            zIndex={3000}
+                                        />
+                                        {touched.status && errors.status && <ErrorText>{formatFormikError(errors.status)}</ErrorText>}
+                                    </View>
+                                    <View className='flex-1'>
+                                        <StyledDropdown
+                                            placeholder="Key"
+                                            open={openKey}
+                                            value={values.songKey}
+                                            items={itemsKey}
+                                            setOpen={setOpenKey}
+                                            setValue={(callback) => {
+                                                if (typeof callback === 'function') {
+                                                    setFieldValue('songKey', callback(values.songKey));
+                                                } else {
+                                                    setFieldValue('songKey', callback);
+                                                }
+                                            }}
+                                            setItems={setItemsKey}
+                                            zIndex={2000}
+                                        />
+                                        {touched.songKey && errors.songKey && <ErrorText>{formatFormikError(errors.songKey)}</ErrorText>}
+                                    </View>
+                                </View>
+
+                                <View className='flex-row w-full gap-2 mt-2'>
+                                    <View className='flex-1'>
+                                        <StyledTextInput
+                                            placeholder='BPM'
+                                            variant='rounded'
+                                            keyboardType='numeric'
+                                            value={values.bpm}
+                                            onChangeText={handleChange("bpm")}
+                                            onBlur={handleBlur("bpm")}
+                                        />
+                                        {touched.bpm && errors.bpm && <ErrorText>{formatFormikError(errors.bpm)}</ErrorText>}
+                                    </View>
+                                </View>
+
+                                <StyledTextInput
+                                    placeholder='Description'
+                                    variant='rounded'
+                                    value={values.description}
+                                    onChangeText={handleChange("description")}
+                                    onBlur={handleBlur("description")}
+                                    multiline
+                                    className='h-24 mt-2'
+                                />
+                                {touched.description && errors.description && <ErrorText>{formatFormikError(errors.description)}</ErrorText>}
+
+                                <Pressable
+                                    className='bg-accent-light dark:bg-accent-dark rounded-xl px-4 py-3 flex-row items-center justify-center mt-2'
+                                    onPress={() => onPickBtnPress(setFieldValue)}
+                                >
+                                    <Text className='text-black dark:text-white font-medium'>
+                                        {values.file && values.file.uri !== selectedSong.cloudurl
+                                            ? `Selected: ${values.file.name || "New Audio"}`
+                                            : "Replace Audio File"}
+                                    </Text>
+                                </Pressable>
+
+                                <View className='flex-row gap-3 mt-4'>
+                                    <StyledButton
+                                        title='Cancel'
+                                        variant='accent'
+                                        className='flex-1'
+                                        onPress={() => setIsEditingSong(false)}
+                                    />
+                                    <StyledButton
+                                        title='Save Changes'
+                                        className='flex-1'
+                                        onPress={() => handleSubmit()}
+                                        disabled={disableSubmitBtn}
+                                    />
+                                </View>
+                            </View>
+                        )}
+                    </Formik>
+                )}
+            </StyledModal>
         </PageContainer>
     );
 };

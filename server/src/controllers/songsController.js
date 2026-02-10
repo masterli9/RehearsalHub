@@ -3,240 +3,240 @@ import { storage } from "../utils/firebaseAdmin.js";
 
 // Valid song keys from database CHECK constraint
 const VALID_SONG_KEYS = [
-    "C",
-    "C#",
-    "D",
-    "D#",
-    "E",
-    "F",
-    "F#",
-    "G",
-    "G#",
-    "A",
-    "A#",
-    "B",
-    "Cm",
-    "C#m",
-    "Dm",
-    "D#m",
-    "Em",
-    "Fm",
-    "F#m",
-    "Gm",
-    "G#m",
-    "Am",
-    "A#m",
-    "Bm",
+	"C",
+	"C#",
+	"D",
+	"D#",
+	"E",
+	"F",
+	"F#",
+	"G",
+	"G#",
+	"A",
+	"A#",
+	"B",
+	"Cm",
+	"C#m",
+	"Dm",
+	"D#m",
+	"Em",
+	"Fm",
+	"F#m",
+	"Gm",
+	"G#m",
+	"Am",
+	"A#m",
+	"Bm",
 ];
 
 // Valid statuses from database CHECK constraint
 const VALID_STATUSES = ["draft", "finished", "rehearsed"];
 
 export const createSong = async (req, res) => {
-    try {
-        let {
-            title,
-            songKey,
-            length,
-            bpm,
-            status,
-            bandId,
-            notes,
-            cloudurl,
-            tags,
-        } = req.body;
+	try {
+		let {
+			title,
+			songKey,
+			length,
+			bpm,
+			status,
+			bandId,
+			notes,
+			cloudurl,
+			tags,
+		} = req.body;
 
-        if (!title || typeof title !== "string") {
-            return res
-                .status(400)
-                .json({ error: "Title is required and must be a string" });
-        }
+		if (!title || typeof title !== "string") {
+			return res
+				.status(400)
+				.json({ error: "Title is required and must be a string" });
+		}
 
-        if (!bandId) {
-            return res.status(400).json({ error: "bandId is required" });
-        }
+		if (!bandId) {
+			return res.status(400).json({ error: "bandId is required" });
+		}
 
-        title = title.trim();
-        if (songKey && typeof songKey === "string") songKey = songKey.trim();
-        if (status && typeof status === "string") status = status.trim();
-        if (notes && typeof notes === "string") notes = notes.trim();
-        if (cloudurl && typeof cloudurl === "string")
-            cloudurl = cloudurl.trim();
+		title = title.trim();
+		if (songKey && typeof songKey === "string") songKey = songKey.trim();
+		if (status && typeof status === "string") status = status.trim();
+		if (notes && typeof notes === "string") notes = notes.trim();
+		if (cloudurl && typeof cloudurl === "string")
+			cloudurl = cloudurl.trim();
 
-        if (title.length === 0) {
-            return res.status(400).json({ error: "Title cannot be empty" });
-        }
-        if (title.length > 255) {
-            return res
-                .status(400)
-                .json({ error: "Title must be 255 characters or less" });
-        }
+		if (title.length === 0) {
+			return res.status(400).json({ error: "Title cannot be empty" });
+		}
+		if (title.length > 255) {
+			return res
+				.status(400)
+				.json({ error: "Title must be 255 characters or less" });
+		}
 
-        if (songKey) {
-            if (songKey.length > 4) {
-                return res
-                    .status(400)
-                    .json({ error: "Song key must be 4 characters or less" });
-            }
-            if (!VALID_SONG_KEYS.includes(songKey)) {
-                return res.status(400).json({ error: "Invalid song key" });
-            }
-        }
+		if (songKey) {
+			if (songKey.length > 4) {
+				return res
+					.status(400)
+					.json({ error: "Song key must be 4 characters or less" });
+			}
+			if (!VALID_SONG_KEYS.includes(songKey)) {
+				return res.status(400).json({ error: "Invalid song key" });
+			}
+		}
 
-        if (status) {
-            if (status.length > 20) {
-                return res
-                    .status(400)
-                    .json({ error: "Status must be 20 characters or less" });
-            }
-            if (!VALID_STATUSES.includes(status)) {
-                return res.status(400).json({ error: "Invalid status" });
-            }
-        }
+		if (status) {
+			if (status.length > 20) {
+				return res
+					.status(400)
+					.json({ error: "Status must be 20 characters or less" });
+			}
+			if (!VALID_STATUSES.includes(status)) {
+				return res.status(400).json({ error: "Invalid status" });
+			}
+		}
 
-        const bandIdInt = parseInt(bandId, 10);
-        if (isNaN(bandIdInt) || bandIdInt <= 0) {
-            return res
-                .status(400)
-                .json({ error: "bandId must be a positive integer" });
-        }
+		const bandIdInt = parseInt(bandId, 10);
+		if (isNaN(bandIdInt) || bandIdInt <= 0) {
+			return res
+				.status(400)
+				.json({ error: "bandId must be a positive integer" });
+		}
 
-        // Validate and convert bpm to smallint (range: -32768 to 32767)
-        let bpmValue = null;
-        if (bpm !== null && bpm !== undefined && bpm !== "") {
-            const bpmNum = Number(bpm);
-            if (isNaN(bpmNum)) {
-                return res.status(400).json({ error: "BPM must be a number" });
-            }
-            const bpmInt = Math.round(bpmNum);
-            // Enforce integer bounds for PostgreSQL smallint, but user should only enter 1..32767 (app enforced)
-            if (bpmInt < 1) {
-                return res
-                    .status(400)
-                    .json({ error: "BPM should be at least 1" });
-            }
-            if (bpmInt > 32767) {
-                return res
-                    .status(400)
-                    .json({ error: "BPM should be at most 32767" });
-            }
-            bpmValue = bpmInt;
-        }
+		// Validate and convert bpm to smallint (range: -32768 to 32767)
+		let bpmValue = null;
+		if (bpm !== null && bpm !== undefined && bpm !== "") {
+			const bpmNum = Number(bpm);
+			if (isNaN(bpmNum)) {
+				return res.status(400).json({ error: "BPM must be a number" });
+			}
+			const bpmInt = Math.round(bpmNum);
+			// Enforce integer bounds for PostgreSQL smallint, but user should only enter 1..32767 (app enforced)
+			if (bpmInt < 1) {
+				return res
+					.status(400)
+					.json({ error: "BPM should be at least 1" });
+			}
+			if (bpmInt > 32767) {
+				return res
+					.status(400)
+					.json({ error: "BPM should be at most 32767" });
+			}
+			bpmValue = bpmInt;
+		}
 
-        // Validate length (interval type - can be null or a valid interval string)
-        // PostgreSQL accepts interval strings like '3:45', '1:05:22', '1 hour 30 minutes', etc.
-        let lengthValue = null;
-        if (length !== null && length !== undefined && length !== "") {
-            if (typeof length === "string") {
-                lengthValue = length.trim() || null;
-            } else {
-                lengthValue = length;
-            }
-        }
+		// Validate length (interval type - can be null or a valid interval string)
+		// PostgreSQL accepts interval strings like '3:45', '1:05:22', '1 hour 30 minutes', etc.
+		let lengthValue = null;
+		if (length !== null && length !== undefined && length !== "") {
+			if (typeof length === "string") {
+				lengthValue = length.trim() || null;
+			} else {
+				lengthValue = length;
+			}
+		}
 
-        // Validate cloudurl (text type, can be null)
-        const cloudurlValue = cloudurl || null;
+		// Validate cloudurl (text type, can be null)
+		const cloudurlValue = cloudurl || null;
 
-        // Validate notes (text type, can be null)
-        const notesValue = notes || null;
+		// Validate notes (text type, can be null)
+		const notesValue = notes || null;
 
-        const insertSong = await pool.query(
-            "INSERT INTO songs (title, key, length, notes, status, bpm, cloudurl, band_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING song_id",
-            [
-                title,
-                songKey || null,
-                lengthValue,
-                notesValue,
-                status || null,
-                bpmValue,
-                cloudurlValue,
-                bandIdInt,
-            ]
-        );
-        const songId = insertSong.rows[0].song_id;
+		const insertSong = await pool.query(
+			"INSERT INTO songs (title, key, length, notes, status, bpm, cloudurl, band_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING song_id",
+			[
+				title,
+				songKey || null,
+				lengthValue,
+				notesValue,
+				status || null,
+				bpmValue,
+				cloudurlValue,
+				bandIdInt,
+			],
+		);
+		const songId = insertSong.rows[0].song_id;
 
-        // Handle tags
-        let tagIds = [];
-        if (tags && Array.isArray(tags) && tags.length > 0) {
-            for (const tagName of tags) {
-                // Check if tag exists for the band or is a global tag
-                let tagResult = await pool.query(
-                    "SELECT tag_id FROM tags WHERE name = $1 AND (band_id = $2 OR band_id IS NULL)",
-                    [tagName, bandIdInt]
-                );
+		// Handle tags
+		let tagIds = [];
+		if (tags && Array.isArray(tags) && tags.length > 0) {
+			for (const tagName of tags) {
+				// Check if tag exists for the band or is a global tag
+				let tagResult = await pool.query(
+					"SELECT tag_id FROM tags WHERE name = $1 AND (band_id = $2 OR band_id IS NULL)",
+					[tagName, bandIdInt],
+				);
 
-                if (tagResult.rows.length === 0) {
-                    // If tag doesn't exist, create it as a band-specific tag
-                    tagResult = await pool.query(
-                        "INSERT INTO tags (name, band_id) VALUES ($1, $2) RETURNING tag_id",
-                        [tagName, bandIdInt]
-                    );
-                }
-                tagIds.push(tagResult.rows[0].tag_id);
-            }
-        }
+				if (tagResult.rows.length === 0) {
+					// If tag doesn't exist, create it as a band-specific tag
+					tagResult = await pool.query(
+						"INSERT INTO tags (name, band_id) VALUES ($1, $2) RETURNING tag_id",
+						[tagName, bandIdInt],
+					);
+				}
+				tagIds.push(tagResult.rows[0].tag_id);
+			}
+		}
 
-        // insert record into song_tags, enforcing the song tag limit via PL/pgSQL function and handling error
-        for (const tagId of tagIds) {
-            try {
-                // Call PL/pgSQL function before each insert to check for the tag limit
-                await pool.query("SELECT check_song_tag_limit($1)", [songId]);
-                const check = await pool.query(
-                    "INSERT INTO song_tags (song_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *",
-                    [songId, tagId]
-                );
-                if (check.rows.length === 0) {
-                    return res
-                        .status(400)
-                        .json({ error: "Failed to add tag to song" });
-                }
-            } catch (err) {
-                if (
-                    err &&
-                    err.message &&
-                    err.message.includes("Maximum tags per song reached")
-                ) {
-                    return res.status(400).json({
-                        error: "Maximum tags per song reached.",
-                    });
-                } else {
-                    console.error("Error adding tag to song:", err);
-                    return res
-                        .status(500)
-                        .json({ error: "Server error (adding tag to song)" });
-                }
-            }
-        }
+		// insert record into song_tags, enforcing the song tag limit via PL/pgSQL function and handling error
+		for (const tagId of tagIds) {
+			try {
+				// Call PL/pgSQL function before each insert to check for the tag limit
+				await pool.query("SELECT check_song_tag_limit($1)", [songId]);
+				const check = await pool.query(
+					"INSERT INTO song_tags (song_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *",
+					[songId, tagId],
+				);
+				if (check.rows.length === 0) {
+					return res
+						.status(400)
+						.json({ error: "Failed to add tag to song" });
+				}
+			} catch (err) {
+				if (
+					err &&
+					err.message &&
+					err.message.includes("Maximum tags per song reached")
+				) {
+					return res.status(400).json({
+						error: "Maximum tags per song reached.",
+					});
+				} else {
+					console.error("Error adding tag to song:", err);
+					return res
+						.status(500)
+						.json({ error: "Server error (adding tag to song)" });
+				}
+			}
+		}
 
-        const song = insertSong.rows[0];
-        res.status(201).json(song);
-    } catch (error) {
-        console.error("Error creating song: ", error);
-        res.status(500).json({ error: "Server error (song post)" });
-    }
+		const song = insertSong.rows[0];
+		res.status(201).json(song);
+	} catch (error) {
+		console.error("Error creating song: ", error);
+		res.status(500).json({ error: "Server error (song post)" });
+	}
 };
 
 export const getSongs = async (req, res) => {
-    const {
-        bandId,
-        status,
-        tags,
-        search,
-        songKey,
-        limit = 20,
-        offset = 0,
-    } = req.query;
+	const {
+		bandId,
+		status,
+		tags,
+		search,
+		songKey,
+		limit = 20,
+		offset = 0,
+	} = req.query;
 
-    // Validate and parse bandId
-    const bandIdInt = parseInt(bandId, 10);
-    if (isNaN(bandIdInt) || bandIdInt <= 0) {
-        return res.status(400).json({
-            error: "A valid bandId is required and must be a positive integer.",
-        });
-    }
+	// Validate and parse bandId
+	const bandIdInt = parseInt(bandId, 10);
+	if (isNaN(bandIdInt) || bandIdInt <= 0) {
+		return res.status(400).json({
+			error: "A valid bandId is required and must be a positive integer.",
+		});
+	}
 
-    // Build up query
-    /*
+	// Build up query
+	/*
         Explanation of the query syntax below:
 
         - COALESCE(expr1, expr2):
@@ -258,7 +258,7 @@ export const getSongs = async (req, res) => {
         an array of objects [{name, color, tag_id}, ...]. If there are no tags, 
         COALESCE outputs an empty array.
     */
-    let query = `
+	let query = `
         SELECT
             s.*,
             COALESCE(
@@ -280,196 +280,410 @@ export const getSongs = async (req, res) => {
         WHERE s.band_id = $1
     `;
 
-    const params = [bandIdInt];
+	const params = [bandIdInt];
 
-    if (status) {
-        params.push(status);
-        if (Array.isArray(status)) {
-            query += ` AND s.status = ANY($${params.length})`;
-        } else {
-            query += ` AND s.status = $${params.length}`;
-        }
-    }
-    if (search) {
-        params.push(`%${search}%`);
-        query += ` AND s.title ILIKE $${params.length}`;
-    }
-    if (tags && tags.length > 0) {
-        // Ensure tags is an array, as a single tag comes as a string from query params
-        const tagIds = Array.isArray(tags) ? tags : [tags];
-        params.push(tagIds);
-        query += ` AND s.song_id IN (
+	if (status) {
+		params.push(status);
+		if (Array.isArray(status)) {
+			query += ` AND s.status = ANY($${params.length})`;
+		} else {
+			query += ` AND s.status = $${params.length}`;
+		}
+	}
+	if (search) {
+		params.push(`%${search}%`);
+		query += ` AND s.title ILIKE $${params.length}`;
+	}
+	if (tags && tags.length > 0) {
+		// Ensure tags is an array, as a single tag comes as a string from query params
+		const tagIds = Array.isArray(tags) ? tags : [tags];
+		params.push(tagIds);
+		query += ` AND s.song_id IN (
             SELECT song_id FROM song_tags WHERE tag_id = ANY($${params.length})
         )`;
-    }
-    if (songKey && songKey.length > 0) {
-        // Ensure songKey is an array, as a single key comes as a string
-        const keys = Array.isArray(songKey) ? songKey : [songKey];
-        params.push(keys);
-        query += ` AND s.key = ANY($${params.length})`;
-    }
+	}
+	if (songKey && songKey.length > 0) {
+		// Ensure songKey is an array, as a single key comes as a string
+		const keys = Array.isArray(songKey) ? songKey : [songKey];
+		params.push(keys);
+		query += ` AND s.key = ANY($${params.length})`;
+	}
 
-    query += ` ORDER BY s.song_id DESC`;
+	query += ` ORDER BY s.song_id DESC`;
 
-    params.push(limit);
-    params.push(offset);
-    query += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
+	params.push(limit);
+	params.push(offset);
+	query += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
-    try {
-        const result = await pool.query(query, params);
+	try {
+		const result = await pool.query(query, params);
 
-        const songsWithUrls = await Promise.all(
-            result.rows.map(async (song) => {
-                // If there is no cloudurl, or it already looks like a full URL (legacy data), skip
-                if (!song.cloudurl || song.cloudurl.startsWith("http")) {
-                    return song;
-                }
+		const songsWithUrls = await Promise.all(
+			result.rows.map(async (song) => {
+				// If there is no cloudurl, or it already looks like a full URL (legacy data), skip
+				if (!song.cloudurl || song.cloudurl.startsWith("http")) {
+					return song;
+				}
 
-                try {
-                    // Generate a fresh URL valid for 1 hour
-                    const [signedUrl] = await storage
-                        .bucket(process.env.FIREBASE_STORAGE_BUCKET)
-                        .file(song.cloudurl)
-                        .getSignedUrl({
-                            version: "v4",
-                            action: "read",
-                            expires: Date.now() + 60 * 60 * 1000, // 1 hour
-                        });
+				try {
+					// Generate a fresh URL valid for 1 hour
+					const [signedUrl] = await storage
+						.bucket(process.env.FIREBASE_STORAGE_BUCKET)
+						.file(song.cloudurl)
+						.getSignedUrl({
+							version: "v4",
+							action: "read",
+							expires: Date.now() + 60 * 60 * 1000, // 1 hour
+						});
 
-                    return { ...song, cloudurl: signedUrl };
-                } catch (e) {
-                    console.error(
-                        `Failed to sign url for song ${song.song_id}`,
-                        e
-                    );
-                    return song;
-                }
-            })
-        );
+					return { ...song, cloudurl: signedUrl };
+				} catch (e) {
+					console.error(
+						`Failed to sign url for song ${song.song_id}`,
+						e,
+					);
+					return song;
+				}
+			}),
+		);
 
-        res.status(200).json(songsWithUrls);
-    } catch (error) {
-        console.error("Error fetching songs: ", error);
-        res.status(500).json({ error: "Server error (get songs)" });
-    }
+		res.status(200).json(songsWithUrls);
+	} catch (error) {
+		console.error("Error fetching songs: ", error);
+		res.status(500).json({ error: "Server error (get songs)" });
+	}
 };
 
 export const getTags = async (req, res) => {
-    const { bandId } = req.params;
+	const { bandId } = req.params;
 
-    if (!bandId) {
-        return res.status(400).json({ error: "Band ID is required" });
-    }
-    try {
-        const result = await pool.query(
-            "SELECT t.name, t.tag_id, t.color FROM tags t WHERE t.band_id = $1 OR t.band_id IS NULL",
-            [bandId]
-        );
-        if (result.rows.length === 0) {
-            return res
-                .status(404)
-                .json({ error: "No tags found for this band" });
-        }
+	if (!bandId) {
+		return res.status(400).json({ error: "Band ID is required" });
+	}
+	try {
+		const result = await pool.query(
+			"SELECT t.name, t.tag_id, t.color FROM tags t WHERE t.band_id = $1 OR t.band_id IS NULL",
+			[bandId],
+		);
+		if (result.rows.length === 0) {
+			return res
+				.status(404)
+				.json({ error: "No tags found for this band" });
+		}
 
-        res.status(200).json(result.rows);
-    } catch (error) {
-        console.error("Error fetching tags: ", error);
-        res.status(500).json({ error: "Server error (get tags)" });
-    }
+		res.status(200).json(result.rows);
+	} catch (error) {
+		console.error("Error fetching tags: ", error);
+		res.status(500).json({ error: "Server error (get tags)" });
+	}
 };
 
 export const addTag = async (req, res) => {
-    const { bandId, color, name } = req.body;
+	const { bandId, color, name } = req.body;
 
-    if (!bandId || !color || !name)
-        return res
-            .status(400)
-            .json({ error: "Band ID, color, and name are required" });
-    try {
-        try {
-            await pool.query("SELECT check_band_tag_limit($1)", [bandId]);
-        } catch (err) {
-            if (
-                err &&
-                err.message &&
-                err.message.includes("Maximum tags per band reached")
-            ) {
-                return res
-                    .status(400)
-                    .json({ error: "Maximum tags per band reached" });
-            } else {
-                throw err; // Re-throw other errors to be caught by the outer catch
-            }
-        }
-        const exists = await pool.query(
-            "SELECT * FROM tags WHERE name = $1 AND band_id = $2",
-            [name, bandId]
-        );
-        if (exists.rows.length > 0) {
-            console.error("This tag already exists.");
-            return res.status(400).json({ error: "This tag already exists." });
-        }
-        const insert = await pool.query(
-            "INSERT INTO tags (name, color, band_id) VALUES ($1, $2, $3) RETURNING *",
-            [name, color, bandId]
-        );
-        const tag = insert.rows[0];
-        res.status(201).json(tag);
-    } catch (error) {
-        console.error("Error adding tag: ", error);
-        res.status(500).json({ error: "Server error (add tag)" });
-    }
+	if (!bandId || !color || !name)
+		return res
+			.status(400)
+			.json({ error: "Band ID, color, and name are required" });
+	try {
+		try {
+			await pool.query("SELECT check_band_tag_limit($1)", [bandId]);
+		} catch (err) {
+			if (
+				err &&
+				err.message &&
+				err.message.includes("Maximum tags per band reached")
+			) {
+				return res
+					.status(400)
+					.json({ error: "Maximum tags per band reached" });
+			} else {
+				throw err; // Re-throw other errors to be caught by the outer catch
+			}
+		}
+		const exists = await pool.query(
+			"SELECT * FROM tags WHERE name = $1 AND band_id = $2",
+			[name, bandId],
+		);
+		if (exists.rows.length > 0) {
+			console.error("This tag already exists.");
+			return res.status(400).json({ error: "This tag already exists." });
+		}
+		const insert = await pool.query(
+			"INSERT INTO tags (name, color, band_id) VALUES ($1, $2, $3) RETURNING *",
+			[name, color, bandId],
+		);
+		const tag = insert.rows[0];
+		res.status(201).json(tag);
+	} catch (error) {
+		console.error("Error adding tag: ", error);
+		res.status(500).json({ error: "Server error (add tag)" });
+	}
 };
 
 // add song file
 export const addSongFile = async (req, res) => {
-    const { songId } = req.params;
-    const { filename, storagePath } = req.body;
-    if (!songId || !filename || !storagePath)
-        return res
-            .status(400)
-            .json({ error: "Song ID, filename, and storage path are required" });
-    try {
-        const insert = await pool.query(
-            "INSERT INTO song_files (song_id, filename, storage_path) VALUES ($1, $2, $3) RETURNING *",
-            [songId, filename, storagePath]
-        );
-        const songFile = insert.rows[0];
-        res.status(201).json(songFile);
-    } catch (error) {
-        console.error("Error adding song file: ", error);
-        res.status(500).json({ error: "Server error (add song file)" });
-    }
+	const { songId } = req.params;
+	const { filename, storagePath } = req.body;
+	if (!songId || !filename || !storagePath)
+		return res.status(400).json({
+			error: "Song ID, filename, and storage path are required",
+		});
+	try {
+		const insert = await pool.query(
+			"INSERT INTO song_files (song_id, filename, storage_path) VALUES ($1, $2, $3) RETURNING *",
+			[songId, filename, storagePath],
+		);
+		const songFile = insert.rows[0];
+		res.status(201).json(songFile);
+	} catch (error) {
+		console.error("Error adding song file: ", error);
+		res.status(500).json({ error: "Server error (add song file)" });
+	}
 };
 // get song files
 export const getSongFiles = async (req, res) => {
-    const { songId } = req.params;
-    try {
-        const select = await pool.query(
-            "SELECT * FROM song_files WHERE song_id = $1",
-            [songId]
-        );
-        const songFiles = select.rows;
-        res.status(200).json(songFiles);
-    } catch (error) {
-        console.error("Error getting song files: ", error);
-        res.status(500).json({ error: "Server error (get song files)" });
-    }
+	const { songId } = req.params;
+	try {
+		const select = await pool.query(
+			"SELECT * FROM song_files WHERE song_id = $1",
+			[songId],
+		);
+		const songFiles = select.rows;
+		res.status(200).json(songFiles);
+	} catch (error) {
+		console.error("Error getting song files: ", error);
+		res.status(500).json({ error: "Server error (get song files)" });
+	}
 };
+
 // delete song file
 export const deleteSongFile = async (req, res) => {
-    const { songId, file_id } = req.params;
-    try {
-        const deletesql = await pool.query(
-            "DELETE FROM song_files WHERE song_id = $1 AND file_id = $2",
-            [songId, file_id]
-        );
-        res.status(200).json({
-            message: "Song file deleted successfully",
-            deleted: deletesql.rowCount,
-        });
-    } catch (error) {
-        console.error("Error deleting song file: ", error);
-        res.status(500).json({ error: "Server error (delete song file)" });
-    }
+	const { songId, file_id } = req.params;
+	try {
+		// Get file path to delete from cloud storage if needed (optional for now as per plan)
+		const deletesql = await pool.query(
+			"DELETE FROM song_files WHERE song_id = $1 AND file_id = $2",
+			[songId, file_id],
+		);
+		res.status(200).json({
+			message: "Song file deleted successfully",
+			deleted: deletesql.rowCount,
+		});
+	} catch (error) {
+		console.error("Error deleting song file: ", error);
+		res.status(500).json({ error: "Server error (delete song file)" });
+	}
+};
+
+export const updateSong = async (req, res) => {
+	try {
+		const { songId } = req.params;
+		let {
+			title,
+			songKey,
+			length,
+			bpm,
+			status,
+			notes,
+			cloudurl,
+			tags, // Tags update might be complex, for now let's focus on basic fields if tags logic is separate or needs full replace
+		} = req.body;
+
+		// Basic validation similar to createSong
+		if (title && typeof title !== "string") {
+			return res.status(400).json({ error: "Title must be a string" });
+		}
+
+		// Prepare update query dynamically
+		// logic: check which fields are present in body and update them
+
+		// Fetch existing song to ensure it exists
+		const existingSong = await pool.query(
+			"SELECT * FROM songs WHERE song_id = $1",
+			[songId],
+		);
+		if (existingSong.rows.length === 0) {
+			return res.status(404).json({ error: "Song not found" });
+		}
+
+		// Construct SET clause
+		const updates = [];
+		const values = [];
+		let paramIndex = 1;
+
+		if (title !== undefined) {
+			title = title.trim();
+			if (title.length === 0)
+				return res.status(400).json({ error: "Title cannot be empty" });
+			updates.push(`title = $${paramIndex++}`);
+			values.push(title);
+		}
+
+		if (songKey !== undefined) {
+			if (songKey) songKey = songKey.trim();
+			if (songKey && !VALID_SONG_KEYS.includes(songKey))
+				return res.status(400).json({ error: "Invalid song key" });
+			updates.push(`key = $${paramIndex++}`);
+			values.push(songKey || null);
+		}
+
+		if (status !== undefined) {
+			if (status) status = status.trim();
+			if (status && !VALID_STATUSES.includes(status))
+				return res.status(400).json({ error: "Invalid status" });
+			updates.push(`status = $${paramIndex++}`);
+			values.push(status || null);
+		}
+
+		if (bpm !== undefined) {
+			let bpmValue = null;
+			if (bpm !== null && bpm !== "") {
+				const bpmNum = Number(bpm);
+				if (isNaN(bpmNum))
+					return res
+						.status(400)
+						.json({ error: "BPM must be a number" });
+				bpmValue = Math.round(bpmNum);
+				if (bpmValue < 1 || bpmValue > 32767)
+					return res.status(400).json({ error: "BPM out of range" });
+			}
+			updates.push(`bpm = $${paramIndex++}`);
+			values.push(bpmValue);
+		}
+
+		if (length !== undefined) {
+			let lengthValue = null;
+			if (length && typeof length === "string" && length.trim() !== "")
+				lengthValue = length.trim();
+			else if (length) lengthValue = length; // keep as is if object/interval
+			updates.push(`length = $${paramIndex++}`);
+			values.push(lengthValue);
+		}
+
+		if (notes !== undefined) {
+			if (notes && typeof notes === "string") notes = notes.trim();
+			updates.push(`notes = $${paramIndex++}`);
+			values.push(notes || null);
+		}
+
+		if (cloudurl !== undefined) {
+			if (cloudurl && typeof cloudurl === "string")
+				cloudurl = cloudurl.trim();
+			updates.push(`cloudurl = $${paramIndex++}`);
+			values.push(cloudurl || null);
+		}
+
+		// If no fields to update
+		if (updates.length === 0) {
+			// Check tags if only tags are being updated
+			// For now, if no fields, just return existing song
+			// Ideally we should handle tags here too similar to createSong
+		} else {
+			values.push(songId);
+			const query = `UPDATE songs SET ${updates.join(", ")} WHERE song_id = $${paramIndex} RETURNING *`;
+			await pool.query(query, values);
+		}
+
+		// Handle tags update if provided
+		// Strategy: if tags array is provided, replace all song tags with new set
+		if (tags && Array.isArray(tags)) {
+			// 1. Get bandId from song
+			const bandId = existingSong.rows[0].band_id;
+
+			// 2. Clear existing tags
+			await pool.query("DELETE FROM song_tags WHERE song_id = $1", [
+				songId,
+			]);
+
+			// 3. Add new tags (logic from createSong)
+			for (const tagName of tags) {
+				// Check/Create tag
+				let tagResult = await pool.query(
+					"SELECT tag_id FROM tags WHERE name = $1 AND (band_id = $2 OR band_id IS NULL)",
+					[tagName, bandId],
+				);
+				let tagId;
+				if (tagResult.rows.length === 0) {
+					const newTag = await pool.query(
+						"INSERT INTO tags (name, band_id) VALUES ($1, $2) RETURNING tag_id",
+						[tagName, bandId],
+					);
+					tagId = newTag.rows[0].tag_id;
+				} else {
+					tagId = tagResult.rows[0].tag_id;
+				}
+
+				// Link tag
+				await pool.query(
+					"INSERT INTO song_tags (song_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+					[songId, tagId],
+				);
+			}
+		}
+
+		// Return updated song
+		// We might want to return the song with tags expanded, similar to getSongs,
+		// but for simplicity let's just return the basic updated row or refetch.
+		// Let's refetch to be consistent with getSongs format if possible, or just basic details.
+		// For editing, usually basic details + tags are enough.
+
+		const updatedSong = await pool.query(
+			"SELECT * FROM songs WHERE song_id = $1",
+			[songId],
+		);
+
+		// Re-fetch tags
+		const tagsRes = await pool.query(
+			`
+            SELECT t.name, t.color, t.tag_id 
+            FROM song_tags st 
+            JOIN tags t ON st.tag_id = t.tag_id 
+            WHERE st.song_id = $1
+        `,
+			[songId],
+		);
+
+		const result = {
+			...updatedSong.rows[0],
+			tags: tagsRes.rows,
+		};
+
+		res.status(200).json(result);
+	} catch (error) {
+		console.error("Error updating song: ", error);
+		res.status(500).json({ error: "Server error (update song)" });
+	}
+};
+
+export const deleteSong = async (req, res) => {
+	const { songId } = req.params;
+	try {
+		// Check if song exists
+		const songRes = await pool.query(
+			"SELECT * FROM songs WHERE song_id = $1",
+			[songId],
+		);
+		if (songRes.rows.length === 0) {
+			return res.status(404).json({ error: "Song not found" });
+		}
+
+		// Delete dependencies first (cascade should handle this if configured, but to be safe/explicit if not)
+		// song_tags, song_files usually have foreign keys.
+		// If DB has ON DELETE CASCADE, deleting song is enough.
+		// Checking migration... "alter table song_files add foreign key (song_id) references Songs(song_id);"
+		// It does not specify ON DELETE CASCADE explicitly in the added snippet.
+		// Assuming standard behavior (might restrict). Let's delete manually to be safe.
+
+		await pool.query("DELETE FROM song_tags WHERE song_id = $1", [songId]);
+		await pool.query("DELETE FROM song_files WHERE song_id = $1", [songId]);
+
+		// Delete song
+		await pool.query("DELETE FROM songs WHERE song_id = $1", [songId]);
+
+		res.status(200).json({ message: "Song deleted successfully" });
+	} catch (error) {
+		console.error("Error deleting song: ", error);
+		res.status(500).json({ error: "Server error (delete song)" });
+	}
 };
