@@ -47,6 +47,7 @@ import {
     Text,
     useColorScheme,
     View,
+    Platform,
 } from "react-native";
 import "react-native-gesture-handler";
 import {
@@ -111,6 +112,7 @@ const songs = () => {
     const [selectedFilterKeys, setSelectedFilterKeys] = useState<string[]>([]);
 
     const [searchText, setSearchText] = useState("");
+    const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
 
     const isInitialMount = useRef(true);
     const storage = getStorage();
@@ -119,12 +121,68 @@ const songs = () => {
         const url = await getDownloadURL(fileRef);
         return url;
     };
-    const downloadFile = async (url: string, filename: string) => {
-        const fileUri = FileSystem.documentDirectory + filename;
+    const downloadAndSave = async (url: string, filename: string, mimeType?: string) => {
+        try {
+            // clean filename
+            const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, "_");
+            // Extract extension if possible
+            const urlPath = url.split(/[?#]/)[0];
+            const extension = urlPath.split('.').pop();
+            const hasExtension = cleanFilename.includes('.');
+            const finalFilename = hasExtension ? cleanFilename : (extension ? `${cleanFilename}.${extension}` : cleanFilename);
 
-        const result = await FileSystem.downloadAsync(url, fileUri);
+            const fileUri = FileSystem.documentDirectory + finalFilename;
+            const { uri } = await FileSystem.downloadAsync(url, fileUri);
 
-        return result.uri;
+            if (Platform.OS === "android") {
+                const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                console.log("Permissions:", permissions);
+                if (permissions.granted) {
+                    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+                    const safUri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, finalFilename, mimeType || "application/octet-stream");
+                    await FileSystem.writeAsStringAsync(safUri, base64, { encoding: FileSystem.EncodingType.Base64 });
+                    Alert.alert("Success", "File saved successfully");
+                }
+            } else {
+                await Sharing.shareAsync(uri, {
+                    mimeType: mimeType,
+                    dialogTitle: "Save file",
+                    UTI: "public.item"
+                });
+            }
+        } catch (error) {
+            console.error("Error downloading/saving file:", error);
+            Alert.alert("Error", "Failed to download file.");
+        }
+    };
+
+    const handleDownload = async (path: string, filename: string, fileId: string, mimeType?: string) => {
+        if (!path) {
+            Alert.alert("Error", "File path is missing.");
+            return;
+        }
+        setDownloadingFiles(prev => {
+            const next = new Set(prev);
+            next.add(fileId);
+            return next;
+        });
+        try {
+            // Handle case where path is already a full URL (legacy) or a storage path
+            let url = path;
+            if (path && !path.startsWith("http")) { // Added check for path existence
+                url = await getFileUrl(path);
+            }
+            await downloadAndSave(url, filename, mimeType);
+        } catch (e) {
+            console.error("Download handling error:", e);
+            Alert.alert("Error", "Failed to download file.");
+        } finally {
+            setDownloadingFiles(prev => {
+                const next = new Set(prev);
+                next.delete(fileId);
+                return next;
+            });
+        }
     };
 
     // This useEffect debounces the search input.
@@ -472,7 +530,7 @@ const songs = () => {
                     filename: filename,
                     contentType: values.file.mimeType || "audio/mpeg", // fallback
                     bandId: activeBand?.id?.toString() || "",
-                    onProgress: (p) => {}, // we can show progress if we want
+                    onProgress: (p) => { }, // we can show progress if we want
                 });
                 cloudurl = path; // store path, backend generates signed url on get
             }
@@ -734,7 +792,7 @@ const songs = () => {
                             >
                                 <Text
                                     className='text-white text-sm'
-                                    // style={{ fontSize: fontSize.base }} // TODO: FIX ERROR
+                                // style={{ fontSize: fontSize.base }} // TODO: FIX ERROR
                                 >
                                     {t.name}
                                 </Text>
@@ -1409,7 +1467,7 @@ const songs = () => {
                                                 Alert.alert(
                                                     "Error",
                                                     error.message ||
-                                                        "Could not save tag. Please try again.",
+                                                    "Could not save tag. Please try again.",
                                                 );
                                             } finally {
                                                 setSubmitting(false);
@@ -1497,14 +1555,14 @@ const songs = () => {
                                                                             c,
                                                                         borderWidth:
                                                                             values.color ===
-                                                                            c
+                                                                                c
                                                                                 ? 3
                                                                                 : 1,
                                                                         borderColor:
                                                                             values.color ===
-                                                                            c
+                                                                                c
                                                                                 ? colorScheme ===
-                                                                                  "dark"
+                                                                                    "dark"
                                                                                     ? "white"
                                                                                     : "black"
                                                                                 : "#ddd",
@@ -1598,12 +1656,12 @@ const songs = () => {
                                                         borderWidth: 2,
                                                         borderColor:
                                                             colorScheme ===
-                                                            "dark"
+                                                                "dark"
                                                                 ? "#fff"
                                                                 : "#000",
                                                         shadowColor:
                                                             colorScheme ===
-                                                            "dark"
+                                                                "dark"
                                                                 ? "#000"
                                                                 : "#000",
                                                         shadowOffset: {
@@ -1779,11 +1837,10 @@ const songs = () => {
                                                     ]);
                                                 }
                                             }}
-                                            className={`px-3 py-1 rounded-md border ${
-                                                isSelected
-                                                    ? "bg-transparentGreen border-green"
-                                                    : "bg-transparent border-gray-400"
-                                            }`}
+                                            className={`px-3 py-1 rounded-md border ${isSelected
+                                                ? "bg-transparentGreen border-green"
+                                                : "bg-transparent border-gray-400"
+                                                }`}
                                         >
                                             <Text
                                                 className='text-black dark:text-white'
@@ -1811,11 +1868,10 @@ const songs = () => {
                                         !readyStatusSelected,
                                     );
                                 }}
-                                className={`px-2 py-1 rounded-md border ${
-                                    readyStatusSelected
-                                        ? "bg-transparentGreen border-green"
-                                        : "bg-transparent border-gray-400"
-                                }`}
+                                className={`px-2 py-1 rounded-md border ${readyStatusSelected
+                                    ? "bg-transparentGreen border-green"
+                                    : "bg-transparent border-gray-400"
+                                    }`}
                             >
                                 <Text
                                     className='text-black dark:text-white'
@@ -1831,11 +1887,10 @@ const songs = () => {
                                         !finishedStatusSelected,
                                     );
                                 }}
-                                className={`px-2 py-1 rounded-md border ${
-                                    finishedStatusSelected
-                                        ? "bg-transparentGreen border-green"
-                                        : "bg-transparent border-gray-400"
-                                }`}
+                                className={`px-2 py-1 rounded-md border ${finishedStatusSelected
+                                    ? "bg-transparentGreen border-green"
+                                    : "bg-transparent border-gray-400"
+                                    }`}
                             >
                                 <Text
                                     className='text-black dark:text-white'
@@ -1851,11 +1906,10 @@ const songs = () => {
                                         !draftStatusSelected,
                                     );
                                 }}
-                                className={`px-2 py-1 rounded-md border ${
-                                    draftStatusSelected
-                                        ? "bg-transparentGreen border-green"
-                                        : "bg-transparent border-gray-400"
-                                }`}
+                                className={`px-2 py-1 rounded-md border ${draftStatusSelected
+                                    ? "bg-transparentGreen border-green"
+                                    : "bg-transparent border-gray-400"
+                                    }`}
                             >
                                 <Text
                                     className='text-black dark:text-white'
@@ -2141,7 +2195,7 @@ const songs = () => {
                                                     optionText: {
                                                         color:
                                                             colorScheme ===
-                                                            "dark"
+                                                                "dark"
                                                                 ? "#fff"
                                                                 : "#333",
                                                         paddingVertical: 8,
@@ -2161,7 +2215,7 @@ const songs = () => {
                                                     optionText: {
                                                         color:
                                                             colorScheme ===
-                                                            "dark"
+                                                                "dark"
                                                                 ? "#fff"
                                                                 : "#333",
                                                         paddingVertical: 8,
@@ -2179,7 +2233,7 @@ const songs = () => {
                                                     optionText: {
                                                         color:
                                                             colorScheme ===
-                                                            "dark"
+                                                                "dark"
                                                                 ? "#fff"
                                                                 : "#333",
                                                         paddingVertical: 8,
@@ -2196,7 +2250,7 @@ const songs = () => {
                                                     optionText: {
                                                         color:
                                                             colorScheme ===
-                                                            "dark"
+                                                                "dark"
                                                                 ? "#fff"
                                                                 : "#333",
                                                         paddingVertical: 8,
@@ -2327,22 +2381,20 @@ const songs = () => {
                                 Status
                             </Text>
                             <View
-                                className={`self-start mt-1 px-3 py-1 rounded-xl ${
-                                    selectedSong.status === "rehearsed"
-                                        ? "bg-transparentGreen"
-                                        : selectedSong.status === "draft"
-                                          ? "bg-transparentViolet"
-                                          : "bg-transparentBlue"
-                                }`}
+                                className={`self-start mt-1 px-3 py-1 rounded-xl ${selectedSong.status === "rehearsed"
+                                    ? "bg-transparentGreen"
+                                    : selectedSong.status === "draft"
+                                        ? "bg-transparentViolet"
+                                        : "bg-transparentBlue"
+                                    }`}
                             >
                                 <Text
-                                    className={`${
-                                        selectedSong.status === "rehearsed"
-                                            ? "text-green"
-                                            : selectedSong.status === "draft"
-                                              ? "text-violet"
-                                              : "text-blue"
-                                    }`}
+                                    className={`${selectedSong.status === "rehearsed"
+                                        ? "text-green"
+                                        : selectedSong.status === "draft"
+                                            ? "text-violet"
+                                            : "text-blue"
+                                        }`}
                                 >
                                     {selectedSong.status}
                                 </Text>
@@ -2390,7 +2442,7 @@ const songs = () => {
                                     style={{ fontSize: fontSize.lg }}
                                 >
                                     {typeof selectedSong.length === "object" &&
-                                    selectedSong.length
+                                        selectedSong.length
                                         ? `${selectedSong.length.minutes || 0}:${(selectedSong.length.seconds || 0).toString().padStart(2, "0")}`
                                         : selectedSong.length || "N/A"}
                                 </Text>
@@ -2467,20 +2519,14 @@ const songs = () => {
                                         </Text>
                                     </View>
                                     <Pressable
-                                        onPress={async () => {
-                                            const url = await getFileUrl(
-                                                selectedSong.cloudurl,
-                                            );
-                                            const localUri = await downloadFile(
-                                                url,
-                                                selectedSong.title,
-                                            );
-
-                                            console.log("Saved to:", localUri);
-                                            await Sharing.shareAsync(localUri);
-                                        }}
+                                        onPress={() => handleDownload(selectedSong.cloudurl, selectedSong.title, "main_" + selectedSong.song_id, "audio/mpeg")}
+                                        disabled={downloadingFiles.has("main_" + selectedSong.song_id)}
                                     >
-                                        <Download size={20} color='#A1A1A1' />
+                                        {downloadingFiles.has("main_" + selectedSong.song_id) ? (
+                                            <ActivityIndicator size="small" color="#A1A1A1" />
+                                        ) : (
+                                            <Download size={20} color='#A1A1A1' />
+                                        )}
                                     </Pressable>
                                 </View>
                             )}
@@ -2509,17 +2555,29 @@ const songs = () => {
                                                 {file.filename}
                                             </Text>
                                         </View>
-                                        <Pressable
-                                            onPress={() =>
-                                                handleDeleteSongFile(
-                                                    selectedSong.song_id,
-                                                    file.file_id,
-                                                )
-                                            }
-                                            className=''
-                                        >
-                                            <Trash2 size={20} color='#FF453A' />
-                                        </Pressable>
+                                        <View className="flex-row items-center gap-3">
+                                            <Pressable
+                                                onPress={() => handleDownload(file.storage_path || file.storagePath, file.filename, file.file_id)}
+                                                disabled={downloadingFiles.has(file.file_id)}
+                                            >
+                                                {downloadingFiles.has(file.file_id) ? (
+                                                    <ActivityIndicator size="small" color="#A1A1A1" />
+                                                ) : (
+                                                    <Download size={20} color='#A1A1A1' />
+                                                )}
+                                            </Pressable>
+                                            <Pressable
+                                                onPress={() =>
+                                                    handleDeleteSongFile(
+                                                        selectedSong.song_id,
+                                                        file.file_id,
+                                                    )
+                                                }
+                                                className=''
+                                            >
+                                                <Trash2 size={20} color='#FF453A' />
+                                            </Pressable>
+                                        </View>
                                     </View>
                                 ))
                             )}
@@ -2550,7 +2608,7 @@ const songs = () => {
                                                     bandId:
                                                         activeBand?.id?.toString() ||
                                                         "",
-                                                    onProgress: () => {},
+                                                    onProgress: () => { },
                                                 });
 
                                             // 2. Add reference to DB
@@ -2616,7 +2674,7 @@ const songs = () => {
                                         songKey: selectedSong.key,
                                         length:
                                             typeof selectedSong.length ===
-                                            "string"
+                                                "string"
                                                 ? selectedSong.length
                                                 : "", // simplified for now
                                         description: selectedSong.notes,
@@ -2793,7 +2851,7 @@ const songs = () => {
                                 >
                                     <Text className='text-black dark:text-white font-medium'>
                                         {values.file &&
-                                        values.file.uri !==
+                                            values.file.uri !==
                                             selectedSong.cloudurl
                                             ? `Selected: ${values.file.name || "New Audio"}`
                                             : "Replace Audio File"}
