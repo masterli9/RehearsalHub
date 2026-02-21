@@ -14,6 +14,7 @@ import { useAuth } from "@/context/AuthContext";
 import { BandSongTag, useBand } from "@/context/BandContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import { createAudioPlayer } from "expo-audio";
+import { Link, useRouter } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
@@ -65,6 +66,7 @@ const songs = () => {
     const fontSize = useAccessibleFontSize();
     const colorScheme = useColorScheme();
     const progressAnimationRef = useRef<null | number>(null);
+    const router = useRouter();
 
     const [activeTab, setActiveTab] = useState<string>("Songs");
     const [songCollectionSwitch, setSongCollectionSwitch] = useState<
@@ -81,6 +83,11 @@ const songs = () => {
     const [editSongForm, setEditSongForm] = useState<any>({});
 
     const [disableSubmitBtn, setDisableSubmitBtn] = useState<boolean>(false);
+
+    // Setlists State
+    const [setlists, setSetlists] = useState<any[]>([]);
+    const [isLoadingSetlists, setIsLoadingSetlists] = useState(false);
+    const [setlistsLoadError, setSetlistsLoadError] = useState(false);
 
     const [songs, setSongs] = useState<any[]>([]);
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -408,8 +415,60 @@ const songs = () => {
         if (activeBand?.id) {
             runFilterAndSearch(); // This will now be the only initial trigger
             fetchTags();
+            fetchSetlists();
         }
     }, [activeBand?.id]);
+
+    const fetchSetlists = async (forceRetry: boolean = false) => {
+        if (isLoadingSetlists && !forceRetry) return;
+        if (setlistsLoadError && !forceRetry) return;
+
+        if (!activeBand?.id) {
+            setSetlists([]);
+            return;
+        }
+
+        setIsLoadingSetlists(true);
+        setSetlistsLoadError(false);
+
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+            abortController.abort();
+        }, TIMEOUT_MS);
+
+        try {
+            const response = await fetch(
+                `${apiUrl}/api/setlists/band/${activeBand?.id}`,
+                {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    signal: abortController.signal,
+                },
+            );
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(
+                    `Error fetching setlists, status: ${response.status}`,
+                );
+            }
+            const data = await response.json();
+            setSetlists(data);
+        } catch (error: any) {
+            clearTimeout(timeoutId);
+            console.error("Error fetching setlists:", error);
+            if (error.name === "AbortError") {
+                setSetlistsLoadError(true);
+            } else {
+                setSetlistsLoadError(true);
+            }
+        } finally {
+            setIsLoadingSetlists(false);
+        }
+    };
 
     useEffect(() => {
         return () => {
@@ -2358,7 +2417,83 @@ const songs = () => {
                             </ScrollView>
                         </>
                     ) : (
-                        <></>
+                        <View className="flex-1 w-full flex-col px-5 py-3">
+                            <View className='flex-row justify-between items-center w-full pb-4'>
+                                <Text
+                                    className='text-silverText'
+                                    style={{ fontSize: fontSize.base }}
+                                >
+                                    {setlists.length} setlists
+                                </Text>
+                                <StyledButton
+                                    onPress={() => {
+                                        if (activeBand?.id) {
+                                            router.push({ pathname: "/setlist/new", params: { bandId: activeBand.id } } as any)
+                                        }
+                                    }}
+                                    title='+ New Setlist'
+                                />
+                            </View>
+
+                            <ScrollView
+                                className='flex-col w-full'
+                                contentContainerStyle={{
+                                    alignItems: "center",
+                                    justifyContent: "flex-start",
+                                    paddingBottom: 25,
+                                }}
+                            >
+                                {isLoadingSetlists ? (
+                                    <View className='flex-1 w-full justify-center items-center py-8'>
+                                        <ActivityIndicator size='large' color='#2B7FFF' />
+                                    </View>
+                                ) : setlistsLoadError ? (
+                                    <View className='flex-1 w-full justify-center items-center py-8 px-8'>
+                                        <Text className='text-red-500 font-semibold mb-2'>Failed to load setlists</Text>
+                                        <StyledButton title='Try Again' onPress={() => fetchSetlists(true)} />
+                                    </View>
+                                ) : setlists.length === 0 ? (
+                                    <View className='flex-1 w-full justify-center items-center py-8'>
+                                        <Text className='text-silverText' style={{ fontSize: fontSize.base }}>
+                                            No setlists found yet.
+                                        </Text>
+                                    </View>
+                                ) : (
+                                    setlists.map((setlist) => (
+                                        <Pressable
+                                            key={setlist.setlist_id}
+                                            onPress={() => {
+                                                if (activeBand?.id) {
+                                                    router.push({ pathname: `/setlist/[id]`, params: { id: setlist.setlist_id, bandId: activeBand.id } } as any)
+                                                }
+                                            }}
+                                            className='flex-col w-full bg-boxBackground-light dark:bg-boxBackground-dark rounded-xl p-4 mb-3 border border-accent-light dark:border-accent-dark active:opacity-75'
+                                        >
+                                            <View className='flex-row justify-between items-center w-full'>
+                                                <Text
+                                                    className='text-black dark:text-white font-bold'
+                                                    style={{ fontSize: fontSize.lg }}
+                                                >
+                                                    {setlist.title}
+                                                </Text>
+                                                <ListMusic
+                                                    size={22}
+                                                    color={colorScheme === "dark" ? "#A1A1A1" : "#666"}
+                                                />
+                                            </View>
+                                            <View className='flex-row items-center w-full mt-2'>
+                                                <Text
+                                                    className='text-silverText'
+                                                    style={{ fontSize: fontSize.sm }}
+                                                >
+                                                    Created: {new Date(setlist.created_at).toLocaleDateString()}
+                                                </Text>
+                                            </View>
+                                        </Pressable>
+                                    ))
+                                )}
+                            </ScrollView>
+                        </View>
                     )}
                 </>
             )}
