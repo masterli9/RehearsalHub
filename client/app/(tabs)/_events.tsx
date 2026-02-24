@@ -11,7 +11,7 @@ import { useBand } from "@/context/BandContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Formik } from "formik";
-import { Calendar, Clock, MapPin, Music } from "lucide-react-native";
+import { Calendar, Clock, MapPin, Music, ListMusic } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -42,6 +42,8 @@ type Event = {
         key: string | null;
         status: string | null;
     }>;
+    setlist_id?: number | null;
+    setlist_title?: string | null;
 };
 
 type Song = {
@@ -67,6 +69,14 @@ const events = () => {
     );
     const [songs, setSongs] = useState<Song[]>([]);
     const [songsLoading, setSongsLoading] = useState<boolean>(false);
+    const [setlists, setSetlists] = useState<any[]>([]);
+    const [setlistsLoading, setSetlistsLoading] = useState<boolean>(false);
+
+    // Add Setlist Modal states
+    const [addSetlistModalVisible, setAddSetlistModalVisible] = useState(false);
+    const [selectedEventForSetlist, setSelectedEventForSetlist] = useState<number | null>(null);
+    const [openAddSetlist, setOpenAddSetlist] = useState(false);
+    const [valueAddSetlist, setValueAddSetlist] = useState<number | null>(null);
 
     // Date/Time picker states
     const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
@@ -153,14 +163,46 @@ const events = () => {
         }
     };
 
+    const fetchSetlists = async () => {
+        if (!activeBand?.id) {
+            setSetlists([]);
+            return;
+        }
+        setSetlistsLoading(true);
+        try {
+            const response = await fetch(
+                `${apiUrl}/api/setlists/band/${activeBand.id}`,
+                {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`Error fetching setlists, status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            setSetlists(data);
+        } catch (error) {
+            console.error("Error fetching setlists:", error);
+            setSetlists([]);
+        } finally {
+            setSetlistsLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (activeBand?.id) {
             fetchEvents();
-            if (newEventModalVisible) {
+            if (newEventModalVisible || addSetlistModalVisible) {
                 fetchSongs();
+                fetchSetlists();
             }
         }
-    }, [activeBand?.id, newEventModalVisible]);
+    }, [activeBand?.id, newEventModalVisible, addSetlistModalVisible]);
 
     const formatDateTime = (dateTimeString: string) => {
         const date = new Date(dateTimeString);
@@ -368,7 +410,7 @@ const events = () => {
                                         className='px-3 py-1 rounded-xl bg-accent-light dark:bg-accent-dark'>
                                         <Text
                                             className='text-black dark:text-white text-sm'
-                                            // style={{ fontSize: fontSize.sm }}
+                                        // style={{ fontSize: fontSize.sm }}
                                         >
                                             {song.title}
                                         </Text>
@@ -379,11 +421,28 @@ const events = () => {
                     )}
                 {event.type === "concert" && (
                     <View className='mt-2'>
-                        <Text
-                            className='text-silverText italic'
-                            style={{ fontSize: fontSize.sm }}>
-                            Setlist: Coming soon
-                        </Text>
+                        {event.setlist_title ? (
+                            <View className='flex-row items-center gap-2'>
+                                <ListMusic color={"#A1A1A1"} size={Math.min(fontSize["2xl"], 18)} />
+                                <Text className='text-silverText' style={{ fontSize: fontSize.base }}>
+                                    Setlist: <Text className='font-bold'>{event.setlist_title}</Text>
+                                </Text>
+                            </View>
+                        ) : (
+                            <Pressable
+                                onPress={() => {
+                                    setSelectedEventForSetlist(event.event_id);
+                                    setValueAddSetlist(null);
+                                    setAddSetlistModalVisible(true);
+                                }}
+                                className='bg-accent-light dark:bg-accent-dark px-3 py-1 rounded-xl self-start mt-1'>
+                                <Text
+                                    className='text-black dark:text-white'
+                                    style={{ fontSize: fontSize.sm }}>
+                                    + Add Setlist
+                                </Text>
+                            </Pressable>
+                        )}
                     </View>
                 )}
             </View>
@@ -434,6 +493,7 @@ const events = () => {
                     ? originalValue.trim()
                     : null
             ),
+        setlist_id: yup.number().nullable(),
     });
 
     const closeModalAndReset = () => {
@@ -465,6 +525,12 @@ const events = () => {
         return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetSign}${offsetHours}:${offsetMins}`;
     };
 
+    // Format a Date as local time with the device's offset (YYYY-MM-DDTHH:mm:ss±HH:MM)
+
+    const [openSetlist, setOpenSetlist] = useState(false);
+    const [valueSetlist, setValueSetlist] = useState<number | null>(null);
+    const itemsSetlist = setlists.map((s: any) => ({ label: s.title, value: s.setlist_id }));
+
     // Dropdown states for event type
     const [openType, setOpenType] = useState(false);
     const [valueType, setValueType] = useState<"rehearsal" | "concert">(
@@ -483,8 +549,61 @@ const events = () => {
         }
     }, [newEventModalVisible]);
 
+    const handleAddSetlistSubmit = async () => {
+        if (!selectedEventForSetlist || !valueAddSetlist) {
+            Alert.alert("Error", "Please select a setlist");
+            return;
+        }
+
+        try {
+            const response = await fetch(`${apiUrl}/api/events/${selectedEventForSetlist}/setlist`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ setlist_id: valueAddSetlist }),
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || "Failed to update event setlist");
+            }
+
+            setAddSetlistModalVisible(false);
+            fetchEvents();
+        } catch (error: any) {
+            console.error("Error setting setlist:", error);
+            Alert.alert("Error", error.message || "Failed to add setlist to event");
+        }
+    };
+
     return (
         <PageContainer noBandState={!bandsLoading && bands.length === 0}>
+            <StyledModal
+                visible={addSetlistModalVisible}
+                onClose={() => setAddSetlistModalVisible(false)}
+                canClose={true}
+                title='Add Setlist'
+                subtitle='Choose a setlist to attach to this concert'>
+                <View className='flex-col w-full gap-4 my-3' style={{ zIndex: 1000 }}>
+                    <StyledDropdown
+                        open={openAddSetlist}
+                        value={valueAddSetlist}
+                        items={itemsSetlist}
+                        setOpen={setOpenAddSetlist}
+                        setValue={setValueAddSetlist}
+                        setItems={() => { }}
+                        placeholder='Select a setlist'
+                        zIndex={1000}
+                        zIndexInverse={3000}
+                    />
+                </View>
+                <StyledButton
+                    title='Save'
+                    onPress={handleAddSetlistSubmit}
+                />
+            </StyledModal>
+
             <StyledModal
                 visible={newEventModalVisible}
                 onClose={closeModalAndReset}
@@ -506,6 +625,7 @@ const events = () => {
                         description: "",
                         songs: [] as number[],
                         length: "",
+                        setlist_id: null,
                     }}
                     enableReinitialize={false}
                     onSubmit={async (
@@ -552,6 +672,9 @@ const events = () => {
                                     // Convert length to interval format (HH:MM:SS)
                                     // User might enter "2:30" or "2h 30m" - for now, simple format
                                     requestBody.length = values.length.trim();
+                                }
+                                if (values.setlist_id) {
+                                    requestBody.setlist_id = values.setlist_id;
                                 }
                             }
 
@@ -863,13 +986,13 @@ const events = () => {
                                                                 backgroundColor:
                                                                     isSelected
                                                                         ? colorScheme ===
-                                                                          "dark"
+                                                                            "dark"
                                                                             ? "#2B7FFF"
                                                                             : "#2B7FFF"
                                                                         : colorScheme ===
                                                                             "dark"
-                                                                          ? "#262626"
-                                                                          : "#EDEDED",
+                                                                            ? "#262626"
+                                                                            : "#EDEDED",
                                                                 borderWidth:
                                                                     isSelected
                                                                         ? 2
@@ -877,13 +1000,13 @@ const events = () => {
                                                                 borderColor:
                                                                     isSelected
                                                                         ? colorScheme ===
-                                                                          "dark"
+                                                                            "dark"
                                                                             ? "#fff"
                                                                             : "#000"
                                                                         : colorScheme ===
                                                                             "dark"
-                                                                          ? "#262626"
-                                                                          : "#EDEDED",
+                                                                            ? "#262626"
+                                                                            : "#EDEDED",
                                                             }}>
                                                             <Text
                                                                 className={
@@ -946,14 +1069,24 @@ const events = () => {
                                                 </ErrorText>
                                             </View>
                                         )}
-                                        <View className='bg-accent-light dark:bg-accent-dark rounded-xl p-3'>
-                                            <Text
-                                                className='text-silverText italic'
-                                                style={{
-                                                    fontSize: fontSize.sm,
-                                                }}>
-                                                Setlist: Coming soon
-                                            </Text>
+                                        <View style={{ zIndex: 1000, marginTop: 4 }}>
+                                            <StyledDropdown
+                                                open={openSetlist}
+                                                value={valueSetlist}
+                                                items={itemsSetlist}
+                                                setOpen={setOpenSetlist}
+                                                setValue={setValueSetlist}
+                                                onChangeValue={(v) => {
+                                                    if (v !== null && v !== undefined && v !== "") {
+                                                        setFieldValue("setlist_id", v);
+                                                        setFieldTouched("setlist_id", true);
+                                                    }
+                                                }}
+                                                setItems={() => { }}
+                                                placeholder='Select a setlist (optional)'
+                                                zIndex={1000}
+                                                zIndexInverse={3000}
+                                            />
                                         </View>
                                     </>
                                 )}
@@ -1005,8 +1138,8 @@ const events = () => {
                                         ? "s"
                                         : ""
                                     : pastEvents.length !== 1
-                                      ? "s"
-                                      : ""}
+                                        ? "s"
+                                        : ""}
                             </Text>
                             <StyledButton
                                 onPress={() => setNewEventModalVisible(true)}
@@ -1033,8 +1166,8 @@ const events = () => {
                             }}>
                             {(Array.isArray(pastEvents) &&
                                 pastEvents.length > 0) ||
-                            (Array.isArray(upcomingEvents) &&
-                                upcomingEvents.length > 0) ? (
+                                (Array.isArray(upcomingEvents) &&
+                                    upcomingEvents.length > 0) ? (
                                 activeTab === "Upcoming" ? (
                                     upcomingEvents.map((event) => (
                                         <EventCard

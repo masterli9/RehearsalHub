@@ -3,160 +3,184 @@ import pool from "../db/pool.js";
 const VALID_EVENT_TYPES = ["rehearsal", "concert", "recording"];
 
 export const createEvent = async (req, res) => {
-    try {
-        let {
-            title,
-            type,
-            date_time,
-            description,
-            bandId,
-            place,
-            length,
-            songs,
-        } = req.body;
+	try {
+		let {
+			title,
+			type,
+			date_time,
+			description,
+			bandId,
+			place,
+			length,
+			songs,
+		} = req.body;
 
-        // Validate required fields
-        if (!title || typeof title !== "string") {
-            return res
-                .status(400)
-                .json({ error: "Title is required and must be a string" });
-        }
+		// Validate required fields
+		if (!title || typeof title !== "string") {
+			return res
+				.status(400)
+				.json({ error: "Title is required and must be a string" });
+		}
 
-        if (!type || typeof type !== "string") {
-            return res.status(400).json({ error: "Type is required" });
-        }
+		if (!type || typeof type !== "string") {
+			return res.status(400).json({ error: "Type is required" });
+		}
 
-        if (!VALID_EVENT_TYPES.includes(type)) {
-            return res.status(400).json({ error: "Invalid event type" });
-        }
+		if (!VALID_EVENT_TYPES.includes(type)) {
+			return res.status(400).json({ error: "Invalid event type" });
+		}
 
-        if (!date_time) {
-            return res
-                .status(400)
-                .json({ error: "Date and time are required" });
-        }
+		if (!date_time) {
+			return res
+				.status(400)
+				.json({ error: "Date and time are required" });
+		}
 
-        if (!bandId) {
-            return res.status(400).json({ error: "bandId is required" });
-        }
+		if (!bandId) {
+			return res.status(400).json({ error: "bandId is required" });
+		}
 
-        title = title.trim();
-        if (description && typeof description === "string")
-            description = description.trim();
-        if (place && typeof place === "string") place = place.trim();
+		title = title.trim();
+		if (description && typeof description === "string")
+			description = description.trim();
+		if (place && typeof place === "string") place = place.trim();
 
-        if (title.length === 0) {
-            return res.status(400).json({ error: "Title cannot be empty" });
-        }
-        if (title.length > 255) {
-            return res
-                .status(400)
-                .json({ error: "Title must be 255 characters or less" });
-        }
+		if (title.length === 0) {
+			return res.status(400).json({ error: "Title cannot be empty" });
+		}
+		if (title.length > 255) {
+			return res
+				.status(400)
+				.json({ error: "Title must be 255 characters or less" });
+		}
 
-        // Validate type-specific requirements
-        if (type === "concert" && !place) {
-            return res
-                .status(400)
-                .json({ error: "Place is required for concert events" });
-        }
+		// Validate type-specific requirements
+		if (type === "concert" && !place) {
+			return res
+				.status(400)
+				.json({ error: "Place is required for concert events" });
+		}
 
-        const bandIdInt = parseInt(bandId, 10);
-        if (isNaN(bandIdInt) || bandIdInt <= 0) {
-            return res
-                .status(400)
-                .json({ error: "bandId must be a positive integer" });
-        }
+		const bandIdInt = parseInt(bandId, 10);
+		if (isNaN(bandIdInt) || bandIdInt <= 0) {
+			return res
+				.status(400)
+				.json({ error: "bandId must be a positive integer" });
+		}
 
-        // Validate and parse date_time (expect an ISO string with offset)
-        let dateTimeValue;
-        try {
-            dateTimeValue = new Date(date_time);
-            if (isNaN(dateTimeValue.getTime())) {
-                return res
-                    .status(400)
-                    .json({ error: "Invalid date_time format" });
-            }
-        } catch (error) {
-            return res.status(400).json({ error: "Invalid date_time format" });
-        }
+		// Validate and parse date_time (expect an ISO string with offset)
+		let dateTimeValue;
+		try {
+			dateTimeValue = new Date(date_time);
+			if (isNaN(dateTimeValue.getTime())) {
+				return res
+					.status(400)
+					.json({ error: "Invalid date_time format" });
+			}
+		} catch (error) {
+			return res.status(400).json({ error: "Invalid date_time format" });
+		}
 
-        // Validate length (interval type)
-        let lengthValue = null;
-        if (length !== null && length !== undefined && length !== "") {
-            if (typeof length === "string") {
-                lengthValue = length.trim() || null;
-            } else {
-                lengthValue = length;
-            }
-        }
+		// Validate length (interval type)
+		let lengthValue = null;
+		if (length !== null && length !== undefined && length !== "") {
+			if (typeof length === "string") {
+				lengthValue = length.trim() || null;
+			} else {
+				lengthValue = length;
+			}
+		}
 
-        // Insert event
-        const insertEvent = await pool.query(
-            "INSERT INTO events (title, type, date_time, description, band_id, place, length) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING event_id, title, type, date_time, description, band_id, place, length",
-            [
-                title,
-                type,
-                dateTimeValue, // pass Date so pg stores timestamptz correctly
-                description || null,
-                bandIdInt,
-                place || null,
-                lengthValue,
-            ]
-        );
+		// Insert event
+		const insertEvent = await pool.query(
+			"INSERT INTO events (title, type, date_time, description, band_id, place, length, setlist_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING event_id, title, type, date_time, description, band_id, place, length, setlist_id",
+			[
+				title,
+				type,
+				dateTimeValue, // pass Date so pg stores timestamptz correctly
+				description || null,
+				bandIdInt,
+				place || null,
+				lengthValue,
+				type === "concert" && req.body.setlist_id
+					? parseInt(req.body.setlist_id, 10)
+					: null,
+			],
+		);
 
-        const event = insertEvent.rows[0];
+		const event = insertEvent.rows[0];
 
-        // Handle songs for rehearsal events
-        if (
-            type === "rehearsal" &&
-            songs &&
-            Array.isArray(songs) &&
-            songs.length > 0
-        ) {
-            const songIds = songs
-                .map((s) => (typeof s === "number" ? s : parseInt(s, 10)))
-                .filter((id) => !isNaN(id) && id > 0);
+		// Handle songs for rehearsal events
+		if (
+			type === "rehearsal" &&
+			songs &&
+			Array.isArray(songs) &&
+			songs.length > 0
+		) {
+			const songIds = songs
+				.map((s) => (typeof s === "number" ? s : parseInt(s, 10)))
+				.filter((id) => !isNaN(id) && id > 0);
 
-            if (songIds.length > 0) {
-                // Verify songs belong to the band
-                const songsCheck = await pool.query(
-                    "SELECT song_id FROM songs WHERE song_id = ANY($1) AND band_id = $2",
-                    [songIds, bandIdInt]
-                );
+			if (songIds.length > 0) {
+				// Verify songs belong to the band
+				const songsCheck = await pool.query(
+					"SELECT song_id FROM songs WHERE song_id = ANY($1) AND band_id = $2",
+					[songIds, bandIdInt],
+				);
 
-                const validSongIds = songsCheck.rows.map((r) => r.song_id);
+				const validSongIds = songsCheck.rows.map((r) => r.song_id);
 
-                // Insert event_songs relationships
-                for (const songId of validSongIds) {
-                    await pool.query(
-                        "INSERT INTO event_songs (event_id, song_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-                        [event.event_id, songId]
-                    );
-                }
-            }
-        }
+				// Insert event_songs relationships
+				for (const songId of validSongIds) {
+					await pool.query(
+						"INSERT INTO event_songs (event_id, song_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+						[event.event_id, songId],
+					);
+				}
+			}
+		}
 
-        res.status(201).json(event);
-    } catch (error) {
-        console.error("Error creating event: ", error);
-        res.status(500).json({ error: "Server error (create event)" });
-    }
+		res.status(201).json(event);
+	} catch (error) {
+		console.error("Error creating event: ", error);
+		res.status(500).json({ error: "Server error (create event)" });
+	}
+};
+
+export const updateEventSetlist = async (req, res) => {
+	const { id } = req.params;
+	const { setlist_id } = req.body;
+
+	try {
+		const result = await pool.query(
+			"UPDATE events SET setlist_id = $1 WHERE event_id = $2 RETURNING *",
+			[setlist_id || null, id],
+		);
+
+		if (result.rows.length === 0) {
+			return res.status(404).json({ error: "Event not found" });
+		}
+
+		res.status(200).json(result.rows[0]);
+	} catch (error) {
+		console.error("Error updating event setlist: ", error);
+		res.status(500).json({ error: "Server error (update event setlist)" });
+	}
 };
 
 export const getEvents = async (req, res) => {
-    const { bandId, type, limit = 100, offset = 0 } = req.query;
+	const { bandId, type, limit = 100, offset = 0 } = req.query;
 
-    // Validate and parse bandId
-    const bandIdInt = parseInt(bandId, 10);
-    if (isNaN(bandIdInt) || bandIdInt <= 0) {
-        return res.status(400).json({
-            error: "A valid bandId is required and must be a positive integer.",
-        });
-    }
+	// Validate and parse bandId
+	const bandIdInt = parseInt(bandId, 10);
+	if (isNaN(bandIdInt) || bandIdInt <= 0) {
+		return res.status(400).json({
+			error: "A valid bandId is required and must be a positive integer.",
+		});
+	}
 
-    // Build query
-    let query = `
+	// Build query
+	let query = `
         SELECT
             e.event_id,
             e.title,
@@ -165,6 +189,8 @@ export const getEvents = async (req, res) => {
             e.description,
             e.band_id,
             e.place,
+            e.setlist_id,
+            (SELECT s.title FROM setlists s WHERE s.setlist_id = e.setlist_id) as setlist_title,
             CASE 
                 WHEN e.length IS NOT NULL 
                 THEN e.length::text
@@ -190,40 +216,40 @@ export const getEvents = async (req, res) => {
         WHERE e.band_id = $1
     `;
 
-    const params = [bandIdInt];
-    let paramIndex = 2;
+	const params = [bandIdInt];
+	let paramIndex = 2;
 
-    if (type) {
-        if (Array.isArray(type)) {
-            params.push(type);
-            query += ` AND e.type = ANY($${paramIndex})`;
-        } else {
-            params.push(type);
-            query += ` AND e.type = $${paramIndex}`;
-        }
-        paramIndex++;
-    }
+	if (type) {
+		if (Array.isArray(type)) {
+			params.push(type);
+			query += ` AND e.type = ANY($${paramIndex})`;
+		} else {
+			params.push(type);
+			query += ` AND e.type = $${paramIndex}`;
+		}
+		paramIndex++;
+	}
 
-    query += ` ORDER BY e.date_time ASC`;
+	query += ` ORDER BY e.date_time ASC`;
 
-    params.push(parseInt(limit, 10));
-    params.push(parseInt(offset, 10));
-    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+	params.push(parseInt(limit, 10));
+	params.push(parseInt(offset, 10));
+	query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
 
-    try {
-        const result = await pool.query(query, params);
+	try {
+		const result = await pool.query(query, params);
 
-        // Format date_time for frontend
-        // length is already formatted as string by PostgreSQL to_char function
-        const formattedEvents = result.rows.map((event) => ({
-            ...event,
-            date_time: event.date_time.toISOString(),
-            // length is already a string from to_char, or null
-        }));
+		// Format date_time for frontend
+		// length is already formatted as string by PostgreSQL to_char function
+		const formattedEvents = result.rows.map((event) => ({
+			...event,
+			date_time: event.date_time.toISOString(),
+			// length is already a string from to_char, or null
+		}));
 
-        res.status(200).json(formattedEvents);
-    } catch (error) {
-        console.error("Error fetching events: ", error);
-        res.status(500).json({ error: "Server error (get events)" });
-    }
+		res.status(200).json(formattedEvents);
+	} catch (error) {
+		console.error("Error fetching events: ", error);
+		res.status(500).json({ error: "Server error (get events)" });
+	}
 };
