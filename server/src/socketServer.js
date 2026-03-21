@@ -109,24 +109,23 @@ io.on("connection", async (socket) => {
     socket.on("typing:start", ({ bandId }) => {
         const bucket = getTypingBucket(uid);
         if (!bucket.tryRemove(1)) return;
-        io.to(`band:${bandId}`).emit("typing:state", { uid, isTyping: true });
+        io.to(`band:${bandId}`).emit("typing:state", { uid, username: socket.data.user.username, isTyping: true });
+
     });
     socket.on("typing:stop", ({ bandId }) => {
         const bucket = getTypingBucket(uid);
         if (!bucket.tryRemove(1)) return;
-        io.to(`band:${bandId}`).emit("typing:state", { uid, isTyping: false });
+        io.to(`band:${bandId}`).emit("typing:state", { uid, username: socket.data.user.username, isTyping: false });
+
     });
 
-    socket.on("message:send", async ({ text, tempId }, ack) => {
+    socket.on("message:send", async ({ text, type, mediaUrl, tempId }, ack) => {
         const bandId = socket.data.activeBandId;
         if (!Number.isInteger(bandId)) {
             return ack?.({ ok: false, error: "no-active-band", tempId });
         }
         if (
-            typeof text !== "string" ||
-            !text.trim() ||
-            !Number.isInteger(bandId) ||
-            text.trim().length > 1200
+            (typeof text !== "string" || !text.trim()) && !mediaUrl
         ) {
             return ack?.({ ok: false, error: "invalid-payload", tempId });
         }
@@ -153,8 +152,8 @@ io.on("connection", async (socket) => {
             const username = q1.rows[0].username;
 
             const q2 = await pool.query(
-                "INSERT INTO messages (text, band_member_id) VALUES ($1, $2) RETURNING message_id, text, sent_at",
-                [text.trim(), bandMemberId]
+                "INSERT INTO messages (text, band_member_id, message_type, media_url) VALUES ($1, $2, $3, $4) RETURNING message_id, text, sent_at, message_type, media_url",
+                [text?.trim() || "", bandMemberId, type || "text", mediaUrl || null]
             );
             const date = new Date(q2.rows[0].sent_at).toISOString();
 
@@ -163,6 +162,8 @@ io.on("connection", async (socket) => {
                 message_id: q2.rows[0].message_id,
                 text: q2.rows[0].text,
                 sent_at: date,
+                type: q2.rows[0].message_type,
+                mediaUrl: q2.rows[0].media_url,
                 bandId,
                 author: { bandMemberId: bandMemberId, username: username },
             };
@@ -170,13 +171,72 @@ io.on("connection", async (socket) => {
             ack?.({ ok: true, message: msg, tempId });
 
             io.to(`band:${bandId}`).emit("message:new", msg);
-
-            io.emit("message:new", { ...msg, tempId });
         } catch (error) {
             console.error("Error sending message", error);
             ack?.({ ok: false, error: "server-error", tempId });
         }
     });
+
+    socket.on("message:edit", async ({ messageId, text }, ack) => {
+        const bandId = socket.data.activeBandId;
+        const bandMemberId = socket.data.bandMemberId;
+        if (!bandId || !bandMemberId) return ack?.({ ok: false, error: "unauthorized" });
+
+        try {
+            const q = await pool.query(
+                "UPDATE messages SET text = $1, is_edited = TRUE WHERE message_id = $2 AND band_member_id = $3 RETURNING *",
+                [text.trim(), messageId, bandMemberId]
+            );
+
+            if (q.rowCount === 0) {
+                return ack?.({ ok: false, error: "forbidden-or-not-found" });
+            }
+
+            const updatedMsg = {
+                id: messageId,
+                message_id: messageId,
+                text: q.rows[0].text,
+                isEdited: true,
+                bandId
+            };
+
+            io.to(`band:${bandId}`).emit("message:update", updatedMsg);
+            ack?.({ ok: true });
+        } catch (error) {
+            console.error("Error editing message", error);
+            ack?.({ ok: false, error: "server-error" });
+        }
+    });
+
+    socket.on("message:delete", async ({ messageId }, ack) => {
+        const bandId = socket.data.activeBandId;
+        const bandMemberId = socket.data.bandMemberId;
+        if (!bandId || !bandMemberId) return ack?.({ ok: false, error: "unauthorized" });
+
+        try {
+            const q = await pool.query(
+                "UPDATE messages SET is_deleted = TRUE WHERE message_id = $1 AND band_member_id = $2 RETURNING *",
+                [messageId, bandMemberId]
+            );
+
+            if (q.rowCount === 0) {
+                return ack?.({ ok: false, error: "forbidden-or-not-found" });
+            }
+
+            io.to(`band:${bandId}`).emit("message:update", {
+                id: messageId,
+                message_id: messageId,
+                isDeleted: true,
+                text: "This message was deleted",
+                bandId
+            });
+            ack?.({ ok: true });
+        } catch (error) {
+            console.error("Error deleting message", error);
+            ack?.({ ok: false, error: "server-error" });
+        }
+    });
+
 });
 
 const PORT = process.env.PORT ?? 3001;

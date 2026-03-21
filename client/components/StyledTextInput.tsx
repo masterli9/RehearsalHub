@@ -5,6 +5,8 @@ interface StyledTextInputProps extends TextInputProps {
     variant?: "default" | "rounded";
 }
 
+
+
 const StyledTextInput: React.FC<StyledTextInputProps> = ({
     variant = "default",
     className,

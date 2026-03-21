@@ -15,18 +15,25 @@ import {
     ActivityIndicator,
     FlatList,
     Image,
+    Image as RNImage,
+
     Keyboard,
     KeyboardAvoidingView,
+    Modal,
     Platform,
     Pressable,
+    ScrollView,
     Text,
+    TextInput,
     useColorScheme,
     View,
 } from "react-native";
-import {
-    MenuOption,
-} from "react-native-popup-menu";
+
+import { Image as ExpoImage } from "expo-image";
+import { MenuOption } from "react-native-popup-menu";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { io } from "socket.io-client";
 
 interface Message {
@@ -42,7 +49,12 @@ interface Message {
         username: string;
         photourl: string | null;
     };
+    isEdited?: boolean;
+    isDeleted?: boolean;
+    type?: "text" | "gif" | "image";
+    mediaUrl?: string;
 }
+
 
 const chat = () => {
     const socketUrl = apiUrl.replace(":3000", "");
@@ -72,6 +84,14 @@ const chat = () => {
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
     const [loadOlderError, setLoadOlderError] = useState(false);
     const [initialLoadError, setInitialLoadError] = useState(false);
+    const [typingUsers, setTypingUsers] = useState<Map<string, string>>(new Map());
+    const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+    const [actionMessage, setActionMessage] = useState<Message | null>(null);
+    const [showGifPicker, setShowGifPicker] = useState(false);
+
+
+
+
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     const baseBottomInset = Math.max(insets.bottom, 8);
     const bottomSpacing = keyboardHeight > 0 ? 8 : 0;
@@ -314,8 +334,13 @@ const chat = () => {
                     username: msg.author?.username || "Unknown",
                     photourl: msg.author?.photourl || null,
                 },
+                type: msg.type || "text",
+                mediaUrl: msg.mediaUrl,
+                isEdited: msg.isEdited,
+                isDeleted: msg.isDeleted,
                 status: "ok",
             };
+
             setMessages((prev) => {
                 // Check if message already exists to prevent duplicates
                 const exists = prev.some((m) => m.id === transformedMsg.id);
@@ -342,11 +367,49 @@ const chat = () => {
             });
         };
 
+        const onUpdateMessage = (msg: any) => {
+            setMessages((prev) =>
+                prev.map((m) =>
+                    m.id === (msg.message_id || msg.id)
+                        ? { ...m, ...msg, id: msg.id || msg.message_id }
+                        : m
+                )
+            );
+        };
+
+        const onTypingState = ({ uid: typingUid, username, isTyping }: { uid: string, username: string, isTyping: boolean }) => {
+            if (typingUid === user?.uid) return;
+            setTypingUsers((prev) => {
+                const updated = new Map(prev);
+                if (isTyping) {
+                    updated.set(typingUid, username);
+                } else {
+                    updated.delete(typingUid);
+                }
+                return updated;
+            });
+        };
+
+        const onCommitContent = (event: any) => {
+            const { contentUri, mimeType } = event;
+            if (contentUri) {
+                const type = mimeType?.includes("gif") ? "gif" : "image";
+                handleMessageSend({ text: "", type, mediaUrl: contentUri });
+            }
+        };
+
+
+
         // Add listeners
         socket.on("connect", onConnect);
         socket.on("disconnect", onDisconnect);
         socket.on("connect_error", onConnectError);
         socket.on("message:new", onNewMessage);
+        socket.on("message:update", onUpdateMessage);
+        socket.on("typing:state", onTypingState);
+
+
+
         socket.on("rate-limited", () => console.log("Rate limited"));
 
         // Connect if not connected, or reconnect if token changed
@@ -357,13 +420,22 @@ const chat = () => {
             socket.disconnect().connect();
         }
 
+        socket.on("typing:state", onTypingState);
+
         return () => {
             // Only remove listeners, don't disconnect the socket
             socket.off("connect", onConnect);
             socket.off("disconnect", onDisconnect);
             socket.off("connect_error", onConnectError);
             socket.off("message:new", onNewMessage);
+            socket.off("message:update", onUpdateMessage);
+            socket.off("typing:state", onTypingState);
         };
+
+
+
+
+
     }, [idToken, activeBand?.id]);
 
     // Load message history when active band changes
@@ -386,12 +458,43 @@ const chat = () => {
         }
     }, [messages]);
 
-    const handleMessageSend = async ({ text }: { text: string }) => {
-        if (!socketRef.current || !activeBand?.id) return;
 
-        if (!text.trim() || text.length > maxMessageLength) return;
+    // Handle typing emission
+    useEffect(() => {
+        if (!socketRef.current || !activeBand?.id) return;
+        if (messageInput.length > 0) {
+            socketRef.current.emit("typing:start", { bandId: activeBand.id });
+        } else {
+            socketRef.current.emit("typing:stop", { bandId: activeBand.id });
+        }
+
+        const timeout = setTimeout(() => {
+            if (messageInput.length > 0) {
+                socketRef.current?.emit("typing:stop", { bandId: activeBand.id });
+            }
+        }, 3000);
+
+        return () => clearTimeout(timeout);
+    }, [messageInput]);
+
+    const handleMessageSend = async ({ text, type = "text", mediaUrl }: { text: string, type?: "text" | "gif" | "image", mediaUrl?: string }) => {
+        if (!socketRef.current || !activeBand?.id) return;
+        if (!text.trim() && !mediaUrl) return;
+
+        if (editingMessage) {
+            socketRef.current.emit("message:edit", { messageId: editingMessage.id, text }, (res: any) => {
+                if (res.ok) {
+                    setEditingMessage(null);
+                    setMessageInput("");
+                } else {
+                    console.error("Edit failed", res.error);
+                }
+            });
+            return;
+        }
 
         const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
         // For inverted list, add pending message at the beginning
         shouldScrollToBottomRef.current = true;
         setMessages(
@@ -434,8 +537,11 @@ const chat = () => {
             {
                 bandId: activeBand.id,
                 text,
+                type,
+                mediaUrl,
                 tempId,
             },
+
             (res: any) => {
                 // Clear timeout since we got a response
                 clearTimeout(timeoutId);
@@ -523,7 +629,13 @@ const chat = () => {
         clientId,
         messageId,
         photourl,
+        isEdited,
+        isDeleted,
+        type,
+        mediaUrl,
+        onLongPress,
     }: {
+
         text: string;
         authorUsername: string;
         sentAt: string;
@@ -531,9 +643,15 @@ const chat = () => {
         clientId?: string;
         messageId?: number;
         photourl?: string | null;
+        isEdited?: boolean;
+        isDeleted?: boolean;
+        type?: "text" | "gif" | "image";
+        mediaUrl?: string;
+        onLongPress?: () => void;
     }) => {
+
         const position = authorUsername === user?.username ? "right" : "left";
-        const messageIndex = messages.findIndex((m) => m.id === messageId);
+        const messageIndex = messages.findIndex((m) => m.id === messageId || (m.clientId && m.clientId === clientId));
         const currMsg = messages[messageIndex];
         const prevMsg = messages[messageIndex + 1];
         const nextMsg = messages[messageIndex - 1];
@@ -557,9 +675,12 @@ const chat = () => {
             isSameDayAsPrev
         );
 
+        const isMe = authorUsername === user?.username;
+
         return (
             <View
                 className={`${shouldShowUsername ? "mt-2" : "mt-1"} w-full flex-col ${position === "right" ? "items-end" : "items-start"} justify-center`}>
+
                 {shouldShowUsername && (
                     <Text
                         className={`${colorScheme === "dark" ? "text-silverText" : "text-blue"} px-1`}
@@ -567,65 +688,76 @@ const chat = () => {
                         {authorUsername} · {prettyTime(sentAt)}
                     </Text>
                 )}
-                <View className='flex-row items-center gap-1'>
-                    <View style={{
-                                    width: fontSize.lg * 1.8,
-                                    height: fontSize.lg * 1.8,
-                                }}>
-                        {position === "left" && shouldShowUsername && photourl && (
-                            <Image
-                                source={{ uri: photourl }}
-                                className='rounded-full'
-                                style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    borderRadius: 9999,
-                                }}
-                            />
-                        )}
-                    </View>
-                    <View
-                        className={`bg-darkWhite dark:bg-accent-dark ${position === "right" && "bg-violet dark:bg-violet"} p-3 rounded-2xl ${(() => {
-                            const isMe = authorUsername === user?.username;
+                <View 
+                    className='flex-row items-center gap-1'
+                    style={{ alignSelf: position === 'right' ? 'flex-end' : 'flex-start' }}>
+
+                    {position === "left" && shouldShowUsername && (
+                        <View style={{
+                                width: fontSize.lg * 1.8,
+                                height: fontSize.lg * 1.8,
+                            }}>
+                            {photourl && (
+                                <ExpoImage
+                                    source={{ uri: photourl }}
+                                    className='rounded-full'
+                                    style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        borderRadius: 9999,
+                                    }}
+                                />
+                            )}
+                        </View>
+                    )}
+
+                    <Pressable 
+                        disabled={position === "left" || isDeleted || status !== "ok"}
+                        onLongPress={onLongPress}
+                        className={`bg-darkWhite dark:bg-accent-dark ${position === "right" && (isDeleted ? "bg-gray-500" : "bg-violet dark:bg-violet")} p-3 rounded-2xl ${(() => {
                             if (isMe) {
-                                if (prevSameUserAndDay && nextSameUserAndDay) {
-                                    return "rounded-tr-none rounded-br-none";
-                                }
-                                if (prevSameUserAndDay && !nextSameUserAndDay) {
-                                    return "rounded-tr-none";
-                                }
-                                if (!prevSameUserAndDay && nextSameUserAndDay) {
-                                    return "rounded-br-none";
-                                }
+                                if (prevSameUserAndDay && nextSameUserAndDay) return "rounded-tr-none rounded-br-none";
+                                if (prevSameUserAndDay && !nextSameUserAndDay) return "rounded-tr-none";
+                                if (!prevSameUserAndDay && nextSameUserAndDay) return "rounded-br-none";
                                 return "rounded-2xl";
                             } else {
-                                if (prevSameUserAndDay && nextSameUserAndDay) {
-                                    return "rounded-tl-none rounded-bl-none";
-                                }
-                                if (prevSameUserAndDay && !nextSameUserAndDay) {
-                                    return "rounded-tl-none";
-                                }
-                                if (!prevSameUserAndDay && nextSameUserAndDay) {
-                                    return "rounded-bl-none";
-                                }
+                                if (prevSameUserAndDay && nextSameUserAndDay) return "rounded-tl-none rounded-bl-none";
+                                if (prevSameUserAndDay && !nextSameUserAndDay) return "rounded-tl-none";
+                                if (!prevSameUserAndDay && nextSameUserAndDay) return "rounded-bl-none";
                                 return "rounded-2xl";
                             }
                         })()}`}
                         style={{ maxWidth: "80%" }}>
-                        <Text
-                            style={{
-                                color:
-                                    colorScheme === "dark"
-                                        ? "#ffffff"
-                                        : position === "right"
-                                          ? "#ffffff"
-                                          : "#000000",
-                                fontSize: fontSize.sm,
-                            }}>
-                            {text}
-                        </Text>
-                    </View>
+                        
+                        {isDeleted ? (
+                            <Text style={{ fontStyle: "italic", color: "#bbb", fontSize: fontSize.sm }}>This message was deleted</Text>
+                        ) : type === "gif" && mediaUrl ? (
+                            <View>
+                                <ExpoImage 
+                                    source={{ uri: mediaUrl }}
+                                    style={{ width: 200, height: 150, borderRadius: 8 }}
+                                    contentFit="cover"
+                                />
+                                {text ? <Text style={{ color: "#fff", marginTop: 4, fontSize: fontSize.sm }}>{text}</Text> : null}
+                            </View>
+                        ) : (
+                            <View className="flex-col">
+                                <Text
+                                    style={{
+                                        color: colorScheme === "dark" || position === "right" ? "#ffffff" : "#000000",
+                                        fontSize: fontSize.sm,
+                                    }}>
+                                    {text}
+                                </Text>
+                                {isEdited && !isDeleted && (
+                                    <Text style={{ fontSize: 10, alignSelf: "flex-end", opacity: 0.6, color: "#fff" }}>(edited)</Text>
+                                )}
+                            </View>
+                        )}
+                    </Pressable>
                 </View>
+
+
                 {status === "pending" && (
                     <View className='flex-row items-center gap-2'>
                         <ActivityIndicator size='small' color='#2B7FFF' />
@@ -679,7 +811,14 @@ const chat = () => {
                     clientId={item.clientId}
                     messageId={item.id}
                     photourl={item.author.photourl}
+                    isEdited={item.isEdited}
+                    isDeleted={item.isDeleted}
+                    type={item.type}
+                    mediaUrl={item.mediaUrl}
+                    onLongPress={() => setActionMessage(item)}
                 />
+
+
                 {showDate && (
                     <Text
                         className='text-silverText text-center my-2'
@@ -765,8 +904,12 @@ const chat = () => {
                                     </Text>
                                 </Pressable>
                             </View>
+
+
                         ) : (
-                            <FlatList
+                            <>
+                                <FlatList
+
                                 data={messages}
                                 ListFooterComponent={
                                     isLoadingOlder ? (
@@ -823,7 +966,25 @@ const chat = () => {
                                     minIndexForVisible: 0,
                                 }}
                             />
+                                {typingUsers.size > 0 && (
+                                    <View className="px-4 py-1">
+                                        <Text className="text-silverText italic" style={{ fontSize: fontSize.xs }}>
+                                            {Array.from(typingUsers.values()).join(", ")} {typingUsers.size === 1 ? "is" : "are"} typing...
+                                        </Text>
+                                    </View>
+                                )}
+
+                                {editingMessage && (
+                                    <View className="bg-violet/10 px-4 py-2 flex-row justify-between items-center border-t border-violet/20">
+                                        <Text className="text-violet font-semibold" style={{ fontSize: fontSize.sm }}>Editing message...</Text>
+                                        <Pressable onPress={() => { setEditingMessage(null); setMessageInput(""); }}>
+                                            <Text className="text-gray-500" style={{ fontSize: fontSize.sm }}>Cancel</Text>
+                                        </Pressable>
+                                    </View>
+                                )}
+                            </>
                         )}
+
                         <View
                             className='flex-row w-full gap-3 px-2 items-end'
                             style={{
@@ -832,6 +993,7 @@ const chat = () => {
                             }}>
                             <StyledTextInput
                                 variant='rounded'
+
                                 className='flex-1 bg-darkWhite dark:bg-accent-dark max-h-40'
                                 placeholder='Message'
                                 onChangeText={(text) => setMessageInput(text)}
@@ -855,7 +1017,7 @@ const chat = () => {
                                 <Text
                                     className='font-bold text-white dark:text-black'
                                     style={{ fontSize: fontSize.base }}>
-                                    Send
+                                    {editingMessage ? "Save" : "Send"}
                                 </Text>
                             </Pressable>
                         </View>
@@ -870,8 +1032,46 @@ const chat = () => {
                     </KeyboardAvoidingView>
                 </>
             )}
+
+            <Modal
+                visible={!!actionMessage}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setActionMessage(null)}>
+                <Pressable 
+                    className="flex-1 bg-black/50 justify-center items-center px-6"
+                    onPress={() => setActionMessage(null)}>
+                    <View className="bg-white dark:bg-darkGray w-full rounded-2xl overflow-hidden shadow-lg">
+                        <Pressable 
+                            className="p-4 border-b border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800"
+                            onPress={() => {
+                                if (actionMessage) {
+                                    setEditingMessage(actionMessage);
+                                    setMessageInput(actionMessage.text);
+                                }
+                                setActionMessage(null);
+                            }}>
+                            <Text className="text-center text-lg text-black dark:text-white">Edit Message</Text>
+                        </Pressable>
+                        <Pressable 
+                            className="p-4 active:bg-gray-100 dark:active:bg-gray-800"
+                            onPress={() => {
+                                if (actionMessage?.id) {
+                                    socketRef.current?.emit("message:delete", { messageId: actionMessage.id }, (res: any) => {
+                                        if (!res.ok) console.error("Delete failed", res.error);
+                                    });
+                                }
+                                setActionMessage(null);
+                            }}>
+                            <Text className="text-center text-lg text-red-500 font-bold">Delete Message</Text>
+                        </Pressable>
+                    </View>
+                </Pressable>
+            </Modal>
         </PageContainer>
     );
 };
 
 export default chat;
+
+

@@ -33,7 +33,8 @@ export const getMessages = async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT m.message_id, m.text, m.sent_at, bm.band_member_id, u.username, u.photourl
+            `SELECT m.message_id, m.text, m.sent_at, m.is_edited, m.is_deleted, m.message_type, m.media_url, 
+                    bm.band_member_id, u.username, u.photourl
             FROM messages m JOIN band_members bm USING(band_member_id) JOIN users u USING(user_id)
             WHERE bm.band_id = $1 AND (m.sent_at < $2 OR (m.sent_at = $2 AND m.message_id < $3))
             ORDER BY m.sent_at DESC, m.message_id DESC LIMIT $4`,
@@ -42,8 +43,12 @@ export const getMessages = async (req, res) => {
 
         const items = result.rows.map((row) => ({
             id: row.message_id,
-            text: row.text,
+            text: row.is_deleted ? "This message was deleted" : row.text,
             sent_at: row.sent_at,
+            isEdited: row.is_edited,
+            isDeleted: row.is_deleted,
+            type: row.message_type || "text",
+            mediaUrl: row.media_url,
             bandId,
             author: {
                 bandMemberId: row.band_member_id,
@@ -51,6 +56,7 @@ export const getMessages = async (req, res) => {
                 photourl: row.photourl,
             },
         }));
+
 
         let nextCursor = null;
         if (items.length > 0) {
