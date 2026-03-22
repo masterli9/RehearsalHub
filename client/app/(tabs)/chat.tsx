@@ -714,7 +714,7 @@ const chat = () => {
                     <Pressable 
                         disabled={position === "left" || isDeleted || status !== "ok"}
                         onLongPress={onLongPress}
-                        className={`bg-darkWhite dark:bg-accent-dark ${position === "right" && (isDeleted ? "bg-gray-500" : "bg-violet dark:bg-violet")} p-3 rounded-2xl ${(() => {
+                        className={`bg-darkWhite dark:bg-accent-dark active:opacity-90 active:scale-[0.98] ${position === "right" && (isDeleted ? "bg-gray-500" : "bg-violet dark:bg-violet")} p-3 rounded-2xl ${(() => {
                             if (isMe) {
                                 if (prevSameUserAndDay && nextSameUserAndDay) return "rounded-tr-none rounded-br-none";
                                 if (prevSameUserAndDay && !nextSameUserAndDay) return "rounded-tr-none";

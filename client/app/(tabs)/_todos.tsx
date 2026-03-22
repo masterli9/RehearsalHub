@@ -13,7 +13,8 @@ import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Formik } from "formik";
 import { Calendar, CheckSquare, Square, Trash2, Edit2, User } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useState, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 import {
     ActivityIndicator,
     Alert,
@@ -49,6 +50,8 @@ const todos = () => {
     const [activeTab, setActiveTab] = useState<string>("My Todos");
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loadingTasks, setLoadingTasks] = useState(false);
+    const [tasksLoadError, setTasksLoadError] = useState(false);
+    const TIMEOUT_MS = 20 * 1000;
 
     // Add/Edit Modal States
     const [taskModalVisible, setTaskModalVisible] = useState(false);
@@ -74,14 +77,30 @@ const todos = () => {
             return;
         }
         setLoadingTasks(true);
+        setTasksLoadError(false);
+        
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+            abortController.abort();
+        }, TIMEOUT_MS);
+
         try {
-            const res = await fetch(`${apiUrl}/api/tasks?bandId=${activeBand.id}`);
+            const res = await fetch(`${apiUrl}/api/tasks?bandId=${activeBand.id}`, {
+                signal: abortController.signal
+            });
+            clearTimeout(timeoutId);
             if (!res.ok) throw new Error("Failed to fetch tasks");
             const data = await res.json();
             setTasks(data);
-        } catch (error) {
+        } catch (error: any) {
+            clearTimeout(timeoutId);
             console.error("Error fetching tasks:", error);
-            setTasks([]);
+            if (error.name === "AbortError") {
+                setTasksLoadError(true);
+            } else {
+                setTasksLoadError(true);
+                setTasks([]);
+            }
         } finally {
             setLoadingTasks(false);
         }
@@ -112,12 +131,14 @@ const todos = () => {
         }
     };
 
-    useEffect(() => {
-        if (activeBand?.id) {
-            loadBandMembers();
-            fetchTasks();
-        }
-    }, [activeBand?.id]);
+    useFocusEffect(
+        useCallback(() => {
+            if (activeBand?.id) {
+                loadBandMembers();
+                fetchTasks();
+            }
+        }, [activeBand?.id])
+    );
 
     const isLeader = currentUserRoles.includes("Leader");
 
@@ -199,11 +220,12 @@ const todos = () => {
 
     const TodoCard = ({ task }: { task: Task }) => {
         const isCreator = task.assigned_by === myBandMemberId || task.band_member_id === myBandMemberId;
+        const hasDetails = task.description || task.due_date || activeTab === "Band Todos";
 
         return (
             <View className={`bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-4 w-full mb-3 ${task.status === 'completed' ? 'opacity-70' : ''}`}>
-                <View className="flex-row items-start justify-between">
-                    <Pressable onPress={() => toggleTaskStatus(task)} className="mr-3 mt-1">
+                <View className={`flex-row justify-between ${hasDetails ? 'items-start' : 'items-center'}`}>
+                    <Pressable onPress={() => toggleTaskStatus(task)} className={`mr-3 ${hasDetails ? 'mt-1' : ''}`}>
                         {task.status === "completed" ? (
                             <CheckSquare color={colorScheme === "dark" ? "#2B7FFF" : "#2B7FFF"} size={Math.min(fontSize["3xl"], 28)} />
                         ) : (
@@ -221,25 +243,27 @@ const todos = () => {
                             </Text>
                         )}
 
-                        <View className="flex-row items-center mt-3 gap-3 flex-wrap">
-                            {task.due_date && (
-                                <View className="flex-row items-center gap-1">
-                                    <Calendar color="#A1A1A1" size={Math.min(fontSize.lg, 16)} />
-                                    <Text className="text-silverText" style={{ fontSize: fontSize.sm }}>
-                                        {new Date(task.due_date).toLocaleDateString()}
-                                    </Text>
-                                </View>
-                            )}
+                        {(task.due_date || activeTab === "Band Todos") && (
+                            <View className="flex-row items-center mt-3 gap-3 flex-wrap">
+                                {task.due_date && (
+                                    <View className="flex-row items-center gap-1">
+                                        <Calendar color="#A1A1A1" size={Math.min(fontSize.lg, 16)} />
+                                        <Text className="text-silverText" style={{ fontSize: fontSize.sm }}>
+                                            {new Date(task.due_date).toLocaleDateString()}
+                                        </Text>
+                                    </View>
+                                )}
 
-                            {activeTab === "Band Todos" && (
-                                <View className="flex-row items-center gap-1">
-                                    <User color="#A1A1A1" size={Math.min(fontSize.lg, 16)} />
-                                    <Text className="text-silverText" style={{ fontSize: fontSize.sm }}>
-                                        {task.assignee_username}
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
+                                {activeTab === "Band Todos" && (
+                                    <View className="flex-row items-center gap-1">
+                                        <User color="#A1A1A1" size={Math.min(fontSize.lg, 16)} />
+                                        <Text className="text-silverText" style={{ fontSize: fontSize.sm }}>
+                                            {task.assignee_username}
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                        )}
                     </View>
 
                     {isCreator && (
@@ -262,7 +286,7 @@ const todos = () => {
             <View className="w-full h-full flex-col max-w-[800px] self-center">
                 <PageHeader title="Todos" subtitle="Manage your band tasks" />
 
-                <View className="mb-4 px-4 pt-2">
+                <View className="flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark w-full px-4 pt-2">
                     <SwitchTabs
                         tabs={["My Todos", "Band Todos"]}
                         activeTab={activeTab}
@@ -270,12 +294,26 @@ const todos = () => {
                     />
                 </View>
 
-                <View className="flex-row justify-end mb-4 px-4">
-                    <StyledButton title="+ Add Todo" onPress={openCreateModal} />
+                <View className="flex-col justify-center items-center gap-3 w-full border-b border-accent-light dark:border-accent-dark w-full px-5 py-3 mb-4">
+                    <View className="flex-row justify-between items-center w-full">
+                        <Text className="text-silverText" style={{ fontSize: fontSize.base }}>
+                            {activeTab === "My Todos" 
+                                ? `${pendingTasks.length} pending todo${pendingTasks.length !== 1 ? 's' : ''}` 
+                                : `${pendingTasks.length} pending todo${pendingTasks.length !== 1 ? 's' : ''}`}
+                        </Text>
+                        <StyledButton title="+ Add Todo" onPress={openCreateModal} />
+                    </View>
                 </View>
 
                 {loadingTasks ? (
                     <ActivityIndicator size="large" color="#2B7FFF" className="mt-10" />
+                ) : tasksLoadError ? (
+                    <View className="flex-1 justify-center items-center mt-10">
+                        <Text className="text-silverText text-center mb-4" style={{ fontSize: fontSize.base }}>
+                            Failed to load todos. Please try again.
+                        </Text>
+                        <StyledButton title="Retry" onPress={fetchTasks} />
+                    </View>
                 ) : (
                     <ScrollView showsVerticalScrollIndicator={false} className="px-4">
                         {pendingTasks.length === 0 && completedTasks.length === 0 ? (

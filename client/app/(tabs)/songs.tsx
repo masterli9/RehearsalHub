@@ -2504,6 +2504,68 @@ const songs = () => {
                     setSongDetailModalVisible(false);
                     setIsEditingSong(false);
                 }}
+                headerLeft={
+                    !isEditingSong && selectedSong ? (
+                        <Menu>
+                            <MenuTrigger customStyles={{ triggerWrapper: { padding: 4 } }}>
+                                <EllipsisVertical
+                                    size={Math.min(fontSize["3xl"], 24)}
+                                    color={colorScheme === "dark" ? "#fff" : "#000"}
+                                />
+                            </MenuTrigger>
+                            <MenuOptions
+                                customStyles={{
+                                    optionsContainer: {
+                                        borderRadius: 10,
+                                        marginTop: 30,
+                                        backgroundColor: colorScheme === "dark" ? "#333" : "#fff",
+                                    },
+                                }}
+                            >
+                                <MenuOption
+                                    onSelect={() => {
+                                        setEditSongForm({
+                                            title: selectedSong.title,
+                                            bpm: selectedSong.bpm ? String(selectedSong.bpm) : "",
+                                            songKey: selectedSong.key,
+                                            length: typeof selectedSong.length === "string" ? selectedSong.length : "",
+                                            description: selectedSong.notes,
+                                            status: selectedSong.status,
+                                            tags: selectedSong.tags || [],
+                                            file: { uri: selectedSong.cloudurl },
+                                        });
+                                        setIsEditingSong(true);
+                                    }}
+                                    customStyles={{
+                                        optionText: {
+                                            paddingVertical: 8,
+                                            paddingHorizontal: 12,
+                                        },
+                                    }}
+                                >
+                                    <View className="flex-row items-center">
+                                        <Edit2 size={18} color={colorScheme === "dark" ? "#fff" : "#333"} />
+                                        <Text className="ml-2 font-medium" style={{ color: colorScheme === "dark" ? "#fff" : "#333", fontSize: fontSize.base }}>Edit Song</Text>
+                                    </View>
+                                </MenuOption>
+                                <MenuOption
+                                    onSelect={() => handleDeleteSong(selectedSong.song_id)}
+                                    customStyles={{
+                                        optionText: {
+                                            paddingVertical: 8,
+                                            paddingHorizontal: 12,
+                                        },
+                                    }}
+                                >
+                                    <View className="flex-row items-center">
+                                        <Trash2 size={18} color="#FF453A" />
+                                        <Text className="ml-2 font-medium" style={{ color: "#FF453A", fontSize: fontSize.base }}>Delete Song</Text>
+                                    </View>
+                                </MenuOption>
+                            </MenuOptions>
+                        </Menu>
+                    ) : undefined
+                }
                 title={isEditingSong ? "Edit Song" : selectedSong?.title}
             >
                 {selectedSong && !isEditingSong && (
@@ -2796,47 +2858,6 @@ const songs = () => {
                             </Pressable>
                         </View>
 
-                        {/* Action Buttons */}
-                        <View className='flex-row gap-3 mt-6 mb-4'>
-                            <Pressable
-                                className='flex-1 flex-row items-center justify-center p-3 rounded-xl bg-blue'
-                                onPress={() => {
-                                    setEditSongForm({
-                                        title: selectedSong.title,
-                                        bpm: selectedSong.bpm
-                                            ? String(selectedSong.bpm)
-                                            : "",
-                                        songKey: selectedSong.key,
-                                        length:
-                                            typeof selectedSong.length ===
-                                                "string"
-                                                ? selectedSong.length
-                                                : "", // simplified for now
-                                        description: selectedSong.notes,
-                                        status: selectedSong.status,
-                                        tags: selectedSong.tags || [],
-                                        file: { uri: selectedSong.cloudurl }, // mock for form
-                                    });
-                                    setIsEditingSong(true);
-                                }}
-                            >
-                                <Edit2 size={18} color='white' />
-                                <Text className='text-white font-regular ml-2'>
-                                    Edit Song
-                                </Text>
-                            </Pressable>
-                            <Pressable
-                                className='flex-1 flex-row items-center justify-center p-3 rounded-xl bg-darkRed'
-                                onPress={() =>
-                                    handleDeleteSong(selectedSong.song_id)
-                                }
-                            >
-                                <Trash2 size={18} color='white' />
-                                <Text className='text-white font-regular ml-2'>
-                                    Delete Song
-                                </Text>
-                            </Pressable>
-                        </View>
                     </ScrollView>
                 )}
 
