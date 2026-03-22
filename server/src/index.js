@@ -10,6 +10,7 @@ import songsRoutes from "./routes/songs.js";
 import eventsRoutes from "./routes/events.js";
 import ideasRoutes from "./routes/ideas.js";
 import setlistsRoutes from "./routes/setlists.js";
+import tasksRoutes from "./routes/tasks.js";
 import { cleanupUnverifiedUsers } from "./utils/cleanupUnverifiedUsers.js";
 
 dotenv.config();
@@ -26,6 +27,7 @@ app.use("/api/songs", songsRoutes);
 app.use("/api/events", eventsRoutes);
 app.use("/api/ideas", ideasRoutes);
 app.use("/api/setlists", setlistsRoutes);
+app.use("/api/tasks", tasksRoutes);
 
 app.listen(port, () => {
 	console.log(`Server is running on port ${port}`);

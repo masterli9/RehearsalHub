@@ -217,6 +217,7 @@ export const getBandMembers = async (req, res) => {
         const result = await pool.query(
             `
         SELECT 
+          bm.band_member_id,
           u.firebase_uid,
           u.username,
           u.email,
@@ -227,7 +228,7 @@ export const getBandMembers = async (req, res) => {
         LEFT JOIN member_roles mr ON bm.band_member_id = mr.band_member_id
         LEFT JOIN roles r ON mr.role_id = r.role_id
         WHERE bm.band_id = $1
-        GROUP BY u.firebase_uid, u.username, u.email, u.photourl
+        GROUP BY bm.band_member_id, u.firebase_uid, u.username, u.email, u.photourl
         `,
             [band_id]
         );
