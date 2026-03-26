@@ -154,6 +154,12 @@ const todos = () => {
     const completedTasks = displayedTasks.filter(t => t.status === "completed");
 
     const toggleTaskStatus = async (task: Task) => {
+        const canToggle = task.band_member_id === myBandMemberId || task.assigned_by === myBandMemberId || isLeader;
+        if (!canToggle) {
+            Alert.alert("Permission Denied", "Only the assignee, assigner, or a Leader can modify this task.");
+            return;
+        }
+
         const newStatus = task.status === 'pending' ? 'completed' : 'pending';
         // Optimistic UI update
         setTasks(prev => prev.map(t => t.task_id === task.task_id ? { ...t, status: newStatus } : t));
@@ -161,16 +167,17 @@ const todos = () => {
             const res = await fetch(`${apiUrl}/api/tasks/${task.task_id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: newStatus }),
+                body: JSON.stringify({ status: newStatus, requesting_member_id: myBandMemberId }),
             });
             if (!res.ok) {
-                throw new Error("Failed to update task status");
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || "Failed to update task status");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
             // Revert on error
             setTasks(prev => prev.map(t => t.task_id === task.task_id ? { ...t, status: task.status } : t));
-            Alert.alert("Error", "Could not toggle task status");
+            Alert.alert("Error", error.message || "Could not toggle task status");
         }
     };
 
@@ -182,12 +189,15 @@ const todos = () => {
                 style: "destructive",
                 onPress: async () => {
                     try {
-                        const res = await fetch(`${apiUrl}/api/tasks/${taskId}`, { method: "DELETE" });
-                        if (!res.ok) throw new Error("Failed to delete task");
+                        const res = await fetch(`${apiUrl}/api/tasks/${taskId}?requesting_member_id=${myBandMemberId}`, { method: "DELETE" });
+                        if (!res.ok) {
+                            const errData = await res.json().catch(() => ({}));
+                            throw new Error(errData.error || "Failed to delete task");
+                        }
                         fetchTasks();
-                    } catch (error) {
+                    } catch (error: any) {
                         console.error(error);
-                        Alert.alert("Error", "Could not delete task");
+                        Alert.alert("Error", error.message || "Could not delete task");
                     }
                 }
             }
@@ -219,13 +229,19 @@ const todos = () => {
     };
 
     const TodoCard = ({ task }: { task: Task }) => {
-        const isCreator = task.assigned_by === myBandMemberId || task.band_member_id === myBandMemberId;
+        const isCreator = task.assigned_by === myBandMemberId || task.band_member_id === myBandMemberId || isLeader;
+        const canToggle = task.band_member_id === myBandMemberId || task.assigned_by === myBandMemberId || isLeader;
         const hasDetails = task.description || task.due_date || activeTab === "Band Todos";
 
         return (
             <View className={`bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-4 w-full mb-3 ${task.status === 'completed' ? 'opacity-70' : ''}`}>
                 <View className={`flex-row justify-between ${hasDetails ? 'items-start' : 'items-center'}`}>
-                    <Pressable onPress={() => toggleTaskStatus(task)} className={`mr-3 ${hasDetails ? 'mt-1' : ''}`}>
+                    <Pressable 
+                        onPress={() => {
+                            if (canToggle) toggleTaskStatus(task);
+                        }} 
+                        className={`mr-3 ${hasDetails ? 'mt-1' : ''} ${!canToggle ? 'opacity-50' : ''}`}
+                    >
                         {task.status === "completed" ? (
                             <CheckSquare color={colorScheme === "dark" ? "#2B7FFF" : "#2B7FFF"} size={Math.min(fontSize["3xl"], 28)} />
                         ) : (
@@ -367,7 +383,8 @@ const todos = () => {
                                 due_date: selectedDate ? selectedDate.toISOString() : null,
                                 band_member_id: isLeader ? (valueAssignee ? parseInt(valueAssignee, 10) : myBandMemberId) : myBandMemberId,
                                 assigned_by: editingTask ? editingTask.assigned_by : myBandMemberId,
-                                status: editingTask ? editingTask.status : 'pending' // Just to make sure we don't accidentally wipe status if we did
+                                status: editingTask ? editingTask.status : 'pending',
+                                requesting_member_id: myBandMemberId
                             };
 
                             const url = editingTask

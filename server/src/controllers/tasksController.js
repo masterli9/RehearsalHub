@@ -79,7 +79,41 @@ export const createTask = async (req, res) => {
 export const updateTask = async (req, res) => {
 	const { id } = req.params;
 	try {
-		let { title, description, due_date, status } = req.body;
+		let { title, description, due_date, status, requesting_member_id } = req.body;
+
+		if (!requesting_member_id) {
+			return res.status(403).json({ error: "requesting_member_id is required for authorization" });
+		}
+
+		const taskQuery = `
+			SELECT t.band_member_id, t.assigned_by
+			FROM tasks t
+			WHERE t.task_id = $1
+		`;
+		const taskResult = await pool.query(taskQuery, [id]);
+		if (taskResult.rows.length === 0) {
+			return res.status(404).json({ error: "Task not found" });
+		}
+
+		const task = taskResult.rows[0];
+		const reqMemberIdInt = parseInt(requesting_member_id, 10);
+		const isAssignee = task.band_member_id === reqMemberIdInt;
+		const isAssigner = task.assigned_by === reqMemberIdInt;
+
+		let isLeader = false;
+		if (!isAssignee && !isAssigner) {
+			const leaderQuery = `
+				SELECT 1 FROM member_roles mr
+				JOIN roles r ON mr.role_id = r.role_id
+				WHERE mr.band_member_id = $1 AND r.title = 'Leader'
+			`;
+			const leaderResult = await pool.query(leaderQuery, [reqMemberIdInt]);
+			isLeader = leaderResult.rows.length > 0;
+		}
+
+		if (!isAssignee && !isAssigner && !isLeader) {
+			return res.status(403).json({ error: "You do not have permission to modify this task" });
+		}
 
 		let dueDateValue = undefined;
 		if (due_date !== undefined) {
@@ -141,7 +175,43 @@ export const updateTask = async (req, res) => {
 
 export const deleteTask = async (req, res) => {
 	const { id } = req.params;
+	const { requesting_member_id } = req.query;
+
 	try {
+		if (!requesting_member_id) {
+			return res.status(403).json({ error: "requesting_member_id is required for authorization" });
+		}
+
+		const taskQuery = `
+			SELECT t.band_member_id, t.assigned_by
+			FROM tasks t
+			WHERE t.task_id = $1
+		`;
+		const taskResult = await pool.query(taskQuery, [id]);
+		if (taskResult.rows.length === 0) {
+			return res.status(404).json({ error: "Task not found" });
+		}
+
+		const task = taskResult.rows[0];
+		const reqMemberIdInt = parseInt(requesting_member_id, 10);
+		const isAssignee = task.band_member_id === reqMemberIdInt;
+		const isAssigner = task.assigned_by === reqMemberIdInt;
+
+		let isLeader = false;
+		if (!isAssignee && !isAssigner) {
+			const leaderQuery = `
+				SELECT 1 FROM member_roles mr
+				JOIN roles r ON mr.role_id = r.role_id
+				WHERE mr.band_member_id = $1 AND r.title = 'Leader'
+			`;
+			const leaderResult = await pool.query(leaderQuery, [reqMemberIdInt]);
+			isLeader = leaderResult.rows.length > 0;
+		}
+
+		if (!isAssignee && !isAssigner && !isLeader) {
+			return res.status(403).json({ error: "You do not have permission to delete this task" });
+		}
+
 		const result = await pool.query(
 			"DELETE FROM tasks WHERE task_id = $1 RETURNING *",
 			[id]
