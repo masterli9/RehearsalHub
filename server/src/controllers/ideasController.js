@@ -20,11 +20,11 @@ export const createIdea = async (req, res) => {
             title,
             description,
             length,
-            // bpm,
+            bpm,
+            idea_type,
             user_uid,
             band_id,
             cloudurl,
-            // tags,
         } = req.body;
 
         if (!title || typeof title !== "string") {
@@ -89,13 +89,15 @@ export const createIdea = async (req, res) => {
         const cloudurlValue = cloudurl || null;
 
         const insertIdea = await pool.query(
-            "INSERT INTO musideas (title, description, length, audiourl, band_member_id) VALUES ($1, $2, $3, $4, $5) RETURNING idea_id",
+            "INSERT INTO musideas (title, description, length, audiourl, band_member_id, bpm, idea_type) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING idea_id",
             [
                 title,
                 description,
                 lengthValue,
                 cloudurlValue,
                 band_member_idInt,
+                bpm || null,
+                idea_type || 'audio'
             ]
         );
         const ideaId = insertIdea.rows[0].idea_id;
@@ -105,6 +107,81 @@ export const createIdea = async (req, res) => {
     } catch (error) {
         console.error("Error creating idea: ", error);
         res.status(500).json({ error: "Server error (idea post)" });
+    }
+};
+
+export const updateIdea = async (req, res) => {
+    try {
+        const { idea_id } = req.params;
+        const { title, description, key, bpm, time_signature, text_tabs, length, cloudurl } = req.body;
+        
+        if (!idea_id) return res.status(400).json({ error: "idea_id is required" });
+        
+        let lengthValue = null;
+        if (length !== null && length !== undefined && length !== "") {
+            if (typeof length === 'number') {
+                const totalSeconds = Math.floor(length / 1000);
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                lengthValue = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            } else {
+                let str = typeof length === "string" ? length.trim() : String(length).trim();
+                // Accept formats like "MM:SS" or "H:MM:SS" only, to prevent "date/time field value out of range"
+                if (/^(\d{1,2}:)?[0-5]?\d:[0-5]\d$/.test(str)) {
+                    if (/^\d{1,2}:[0-5]\d$/.test(str)) {
+                        str = `0:${str}`;
+                    }
+                    lengthValue = str;
+                } else {
+                    lengthValue = null;
+                }
+            }
+        }
+
+        const result = await pool.query(
+            `UPDATE musideas 
+             SET title = COALESCE($1, title), 
+                 description = COALESCE($2, description), 
+                 key = COALESCE($3, key), 
+                 bpm = COALESCE($4, bpm), 
+                 time_signature = COALESCE($5, time_signature), 
+                 text_tabs = COALESCE($6, text_tabs),
+                 length = COALESCE($7, length),
+                 audiourl = COALESCE($8, audiourl)
+             WHERE idea_id = $9 RETURNING *`,
+            [title, description, key, bpm, time_signature, text_tabs, lengthValue, cloudurl, idea_id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Idea not found" });
+        }
+        
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        console.error("Error updating idea: ", error);
+        res.status(500).json({ error: "Server error (idea update)" });
+    }
+};
+
+export const toggleFavoriteIdea = async (req, res) => {
+    try {
+        const { idea_id } = req.params;
+        const { is_favorite } = req.body;
+        
+        if (idea_id === undefined || is_favorite === undefined) return res.status(400).json({ error: "idea_id and is_favorite are required" });
+        
+        const result = await pool.query(
+            "UPDATE musideas SET is_favorite = $1 WHERE idea_id = $2 RETURNING *",
+            [is_favorite, idea_id]
+        );
+        
+        if (result.rows.length === 0) return res.status(404).json({ error: "Idea not found" });
+        
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        console.error("Error toggling favorite: ", error);
+        res.status(500).json({ error: "Server error (idea favorite toggle)" });
     }
 };
 

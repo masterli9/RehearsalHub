@@ -1,0 +1,4 @@
+ALTER TABLE musideas
+ADD COLUMN is_favorite BOOLEAN DEFAULT FALSE,
+ADD COLUMN time_signature VARCHAR(50),
+ADD COLUMN idea_type VARCHAR(50) DEFAULT 'audio';

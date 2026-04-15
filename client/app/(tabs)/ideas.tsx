@@ -25,6 +25,9 @@ import * as FileSystem from "expo-file-system/legacy";
 import { useFocusEffect } from "expo-router";
 import { Formik } from "formik";
 import { Clock, Hash, Mic, Music4, Pause, Play, Square } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { Metronome } from "@/components/Metronome";
+import { Star } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -44,25 +47,30 @@ import {
 import * as yup from "yup";
 
 const ideas = () => {
+    const router = useRouter();
     const { bands, bandsLoading, activeBand } = useBand();
     const { user } = useAuth();
     const fontSize = useAccessibleFontSize();
     const colorScheme = useColorScheme();
 
     const [showSwitchModal, setShowSwitchModal] = useState(false);
-    const [activeTab, setActiveTab] = useState<string>("Recent");
+    const [activeTab, setActiveTab] = useState<string>("Favorites");
     const [ideas, setIdeas] = useState<any[]>([]);
+
+    const [isIdeaTypeText, setIsIdeaTypeText] = useState(false);
+    const [metronomeBpm, setMetronomeBpm] = useState(120);
+    const [metronomePlaying, setMetronomePlaying] = useState(false);
 
     // How many ideas to show per tab (edit these to taste)
     const ideasLimitByTab: Record<string, number> = {
-        Recent: 20,
+        Favorites: 20,
         "My Ideas": 50,
         "All Ideas": 200,
     };
 
     const [allIdeas, setAllIdeas] = useState<any[]>([]);
     const [myIdeas, setMyIdeas] = useState<any[]>([]);
-    const [recentIdeas, setRecentIdeas] = useState<any[]>([]);
+    const [favoriteIdeas, setFavoriteIdeas] = useState<any[]>([]);
     const [visibleIdeas, setVisibleIdeas] = useState<any[]>([]);
     const [activeIdeasCount, setActiveIdeasCount] = useState<number>(0);
     const [ideasLoading, setIdeasLoading] = useState(false);
@@ -84,13 +92,20 @@ const ideas = () => {
     );
 
     useEffect(() => {
+        if (!addIdeaModalVisible) {
+            setMetronomePlaying(false);
+        }
+    }, [addIdeaModalVisible]);
+
+    useEffect(() => {
         if (activeBand?.id) {
             getIdeas();
         } else {
             setIdeas([]);
-            setRecentIdeas([]);
+            setFavoriteIdeas([]);
         }
     }, [activeBand?.id]);
+    
     useFocusEffect(
         useCallback(() => {
             getIdeas();
@@ -103,6 +118,9 @@ const ideas = () => {
 
         const mine = sourceIdeas.filter((idea) => idea.username === user?.username);
         setMyIdeas(mine);
+        
+        const favs = sourceIdeas.filter((idea) => idea.is_favorite);
+        setFavoriteIdeas(favs);
     }, [ideas, user?.username]);
 
     useEffect(() => {
@@ -112,13 +130,30 @@ const ideas = () => {
                 ? allIdeas
                 : activeTab === "My Ideas"
                   ? myIdeas
-                  : activeTab === "Recent"
-                    ? recentIdeas
+                  : activeTab === "Favorites"
+                    ? favoriteIdeas
                     : [];
 
         setActiveIdeasCount(activeList.length);
         setVisibleIdeas(activeList.slice(0, limit));
-    }, [activeTab, allIdeas, myIdeas, recentIdeas]);
+    }, [activeTab, allIdeas, myIdeas, favoriteIdeas]);
+
+    const toggleFavorite = async (idea_id: number, currentStatus: boolean) => {
+        const newStatus = !currentStatus;
+        
+        setIdeas(prev => prev.map(i => i.idea_id === idea_id ? { ...i, is_favorite: newStatus } : i));
+        
+        try {
+            await fetch(`${apiUrl}/api/ideas/${idea_id}/favorite`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ is_favorite: newStatus })
+            });
+        } catch (e) {
+            console.error(e);
+            setIdeas(prev => prev.map(i => i.idea_id === idea_id ? { ...i, is_favorite: currentStatus } : i));
+        }
+    };
 
     const getIdeas = async () => {
         setIdeasLoading(true);
@@ -138,23 +173,6 @@ const ideas = () => {
         } catch (error) {
             console.error("Error getting ideas: ", error);
             setIdeas([]);
-        }
-        try {
-            const recentIdeasResponse = await fetch(`${apiUrl}/api/ideas/get-recent?band_id=${activeBand?.id}`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-            const recentIdeasData = await recentIdeasResponse.json();
-            if (!recentIdeasResponse.ok || !Array.isArray(recentIdeasData)) {
-                setRecentIdeas([]);
-            } else {
-                setRecentIdeas(recentIdeasData);
-            }
-        } catch (error) {
-            console.error("Error getting recent ideas: ", error);
-            setRecentIdeas([]);
         } finally {
             setIdeasLoading(false);
         }
@@ -314,28 +332,49 @@ const ideas = () => {
                             </Text>
                         </View>
                     </View>
-                    <Menu>
-                        <MenuTrigger>
-                            <Text
-                                className='text-black dark:text-white p-4'
-                                style={{
-                                    fontSize: fontSize["2xl"],
+                    <View className="flex-row items-center gap-2">
+                        <Pressable onPress={() => toggleFavorite(idea.idea_id, idea.is_favorite)} className="p-2">
+                            <Star 
+                                size={Math.min(fontSize["2xl"], 24)} 
+                                color={idea.is_favorite ? "#FFD700" : (colorScheme === 'dark' ? '#fff' : '#000')} 
+                                fill={idea.is_favorite ? "#FFD700" : "transparent"} 
+                            />
+                        </Pressable>
+                        <Menu>
+                            <MenuTrigger>
+                                <Text
+                                    className='text-black dark:text-white p-4'
+                                    style={{
+                                        fontSize: fontSize["2xl"],
+                                    }}>
+                                    ⋮
+                                </Text>
+                            </MenuTrigger>
+                            <MenuOptions
+                                customStyles={{
+                                    optionsContainer: {
+                                        borderRadius: 10,
+                                        paddingVertical: 4,
+                                        backgroundColor:
+                                            colorScheme === "dark"
+                                                ? "#333"
+                                                : "#fff",
+                                    },
                                 }}>
-                                ⋮
-                            </Text>
-                        </MenuTrigger>
-                        <MenuOptions
-                            customStyles={{
-                                optionsContainer: {
-                                    borderRadius: 10,
-                                    paddingVertical: 4,
-                                    backgroundColor:
-                                        colorScheme === "dark"
-                                            ? "#333"
-                                            : "#fff",
-                                },
-                            }}></MenuOptions>
-                    </Menu>
+                                <MenuOption
+                                    onSelect={() => router.push(`/idea/${idea.idea_id}`)}
+                                    text="Edit properties / Open"
+                                    customStyles={{
+                                        optionText: {
+                                            color: colorScheme === 'dark' ? '#fff' : '#000',
+                                            fontSize: fontSize.base,
+                                            padding: 10
+                                        }
+                                    }}
+                                />
+                            </MenuOptions>
+                        </Menu>
+                    </View>
                 </View>
                 <Text
                     className='text-silverText my-5'
@@ -349,60 +388,42 @@ const ideas = () => {
                         <Clock
                             color={"#A1A1A1"}
                             size={Math.min(fontSize["2xl"], 20)}
-                            style={{
-                                marginRight: 2,
-                                marginBottom: -2,
-                            }}
+                            style={{ marginRight: 2, marginBottom: -2 }}
                         />
                         <Text
                             className='text-silverText'
-                            style={{
-                                fontSize: fontSize.base,
-                                alignItems: "center",
-                            }}
+                            style={{ fontSize: fontSize.base, alignItems: "center" }}
                             numberOfLines={1}
                             maxFontSizeMultiplier={1.3}>
-                            {formatDuration(idea.length)}
+                            {idea.idea_type === 'text' ? 'TEXT' : formatDuration(idea.length)}
                         </Text>
                     </View>
                     <View className='flex-row items-center gap-1'>
                         <Hash
                             color={"#A1A1A1"}
                             size={Math.min(fontSize["2xl"], 20)}
-                            style={{
-                                marginRight: 2,
-                                marginBottom: -2,
-                            }}
+                            style={{ marginRight: 2, marginBottom: -2 }}
                         />
                         <Text
                             className='text-silverText'
-                            style={{
-                                fontSize: fontSize.base,
-                                alignItems: "center",
-                            }}
+                            style={{ fontSize: fontSize.base, alignItems: "center" }}
                             numberOfLines={1}
                             maxFontSizeMultiplier={1.3}>
-                            -
+                            {idea.bpm ? String(idea.bpm) : '-'}
                         </Text>
                     </View>
                     <View className='flex-row items-center gap-1'>
                         <Music4
                             color={"#A1A1A1"}
                             size={Math.min(fontSize["2xl"], 20)}
-                            style={{
-                                marginRight: 2,
-                                marginBottom: -2,
-                            }}
+                            style={{ marginRight: 2, marginBottom: -2 }}
                         />
                         <Text
                             className='text-silverText'
-                            style={{
-                                fontSize: fontSize.base,
-                                alignItems: "center",
-                            }}
+                            style={{ fontSize: fontSize.base, alignItems: "center" }}
                             numberOfLines={1}
                             maxFontSizeMultiplier={1.3}>
-                            -
+                            {idea.key || '-'}
                         </Text>
                     </View>
                 </View>
@@ -432,8 +453,22 @@ const ideas = () => {
                 wide={true}
                 visible={addIdeaModalVisible}
                 onClose={() => setAddIdeaModalVisible(false)}
-                title='Record a New MusIdea'
-                subtitle='Capture your muscial inspiration'>
+                title='New MusIdea'
+                subtitle='Capture your musical inspiration'>
+                <View className="flex-row justify-center w-full mb-4">
+                    <View className="flex-row bg-[#e8e8e8] dark:bg-[#333] rounded-lg p-1">
+                        <Pressable 
+                            onPress={() => setIsIdeaTypeText(false)}
+                            className={`px-4 py-2 rounded-md ${!isIdeaTypeText ? 'bg-white dark:bg-[#555] shadow-sm' : ''}`}>
+                            <Text className={`font-semibold ${!isIdeaTypeText ? 'text-black dark:text-white' : 'text-gray-500'}`}>Audio</Text>
+                        </Pressable>
+                        <Pressable 
+                            onPress={() => setIsIdeaTypeText(true)}
+                            className={`px-4 py-2 rounded-md ${isIdeaTypeText ? 'bg-white dark:bg-[#555] shadow-sm' : ''}`}>
+                            <Text className={`font-semibold ${isIdeaTypeText ? 'text-black dark:text-white' : 'text-gray-500'}`}>Text</Text>
+                        </Pressable>
+                    </View>
+                </View>
                 <Formik
                     validationSchema={newIdeaSchema}
                     validateOnBlur={false}
@@ -444,18 +479,23 @@ const ideas = () => {
                     }}
                     onSubmit={async (values, { setSubmitting }) => {
                         try {
-                            if (!audioURI || activeBand === null) {
-                                Alert.alert("Error", "No audio file selected");
-                                return;
+                            if (!activeBand) return;
+                            
+                            let path = null;
+                            if (!isIdeaTypeText) {
+                                if (!audioURI) {
+                                    Alert.alert("Error", "No audio file selected");
+                                    return;
+                                }
+                                const uploadRes = await uploadFileToSignedUrl({
+                                    localUri: audioURI,
+                                    filename: `idea_${Date.now()}.m4a`,
+                                    contentType: "audio/m4a",
+                                    bandId: activeBand.id,
+                                    onProgress: () => {},
+                                });
+                                path = uploadRes.path;
                             }
-
-                            const { path } = await uploadFileToSignedUrl({
-                                localUri: audioURI,
-                                filename: `idea_${Date.now()}.m4a`,
-                                contentType: "audio/m4a",
-                                bandId: activeBand.id,
-                                onProgress: () => {},
-                            });
 
                             const response = await fetch(`${apiUrl}/api/ideas/create`, {
                                 method: "POST",
@@ -468,17 +508,23 @@ const ideas = () => {
                                     user_uid: user?.uid,
                                     band_id: activeBand.id,
                                     cloudurl: path,
-                                    length: recordedDuration,
+                                    length: isIdeaTypeText ? null : recordedDuration,
+                                    idea_type: isIdeaTypeText ? 'text' : 'audio',
+                                    bpm: isIdeaTypeText ? null : metronomeBpm,
                                 }),
                             });
 
                             if (!response.ok) {
                                 throw new Error("Failed to create idea");
                             }
+                            
+                            const newIdea = await response.json();
 
                             setAddIdeaModalVisible(false);
                             getIdeas();
-                            Alert.alert("Success", "Idea created successfully");
+                            
+                            // Send user to edit properties directly
+                            router.push(`/idea/${newIdea.idea_id}`);
                         } catch (error) {
                             console.error(error);
                             Alert.alert("Error", "Failed to save idea");
@@ -520,62 +566,78 @@ const ideas = () => {
                                 errors.description && (
                                     <ErrorText>{errors.description}</ErrorText>
                                 )}
-                            <Pressable
-                                className={`${recorderState.isRecording ? "bg-darkRed" : "bg-black dark:bg-white"} rounded-full p-5 my-4 active:bg-gray-200 active:scale-90`}
-                                onPress={() => {
-                                    handleRecordButtonPress();
-                                }}>
-                                {recorderState.isRecording ? (
-                                    <Square color='white' size={30} />
-                                ) : (
-                                    <Mic
-                                        color={
-                                            colorScheme === "dark"
-                                                ? "#0A0A0A"
-                                                : "#fff"
-                                        }
-                                        size={30}
-                                    />
-                                )}
-                            </Pressable>
-                            {recorderState.isRecording ? (
-                                <Text
-                                    className='text-black dark:text-white'
-                                    style={{ fontSize: fontSize.lg }}>
-                                    {(() => {
-                                        const totalSeconds = Math.floor(
-                                            recorderState.durationMillis / 1000
-                                        );
-                                        const minutes = Math.floor(
-                                            totalSeconds / 60
-                                        );
-                                        const seconds = totalSeconds % 60;
-                                        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-                                    })()}
-                                </Text>
-                            ) : (
-                                audioURI &&
-                                recordedDuration && (
-                                    <Text
-                                        className='text-black dark:text-white'
-                                        style={{ fontSize: fontSize.lg }}>
-                                        {(() => {
-                                            const totalSeconds = Math.floor(
-                                                recordedDuration / 1000
-                                            );
-                                            const minutes = Math.floor(
-                                                totalSeconds / 60
-                                            );
-                                            const seconds = totalSeconds % 60;
-                                            return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-                                        })()}
-                                    </Text>
-                                )
+                            
+                            {!isIdeaTypeText && (
+                                <>
+                                    <View className="mb-4 mt-2">
+                                        <Metronome 
+                                            bpm={metronomeBpm} 
+                                            setBpm={setMetronomeBpm} 
+                                            isPlaying={metronomePlaying} 
+                                            setIsPlaying={setMetronomePlaying} 
+                                        />
+                                    </View>
+                                    <View className="flex-col items-center">
+                                        <Pressable
+                                            className={`${recorderState.isRecording ? "bg-darkRed" : "bg-black dark:bg-white"} rounded-full p-5 my-4 active:bg-gray-200 active:scale-90`}
+                                            onPress={() => {
+                                                handleRecordButtonPress();
+                                            }}>
+                                            {recorderState.isRecording ? (
+                                                <Square color='white' size={30} />
+                                            ) : (
+                                                <Mic
+                                                    color={
+                                                        colorScheme === "dark"
+                                                            ? "#0A0A0A"
+                                                            : "#fff"
+                                                    }
+                                                    size={30}
+                                                />
+                                            )}
+                                        </Pressable>
+                                        {recorderState.isRecording ? (
+                                            <Text
+                                                className='text-black dark:text-white mb-4'
+                                                style={{ fontSize: fontSize.lg }}>
+                                                {(() => {
+                                                    const totalSeconds = Math.floor(
+                                                        recorderState.durationMillis / 1000
+                                                    );
+                                                    const minutes = Math.floor(
+                                                        totalSeconds / 60
+                                                    );
+                                                    const seconds = totalSeconds % 60;
+                                                    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+                                                })()}
+                                            </Text>
+                                        ) : (
+                                            audioURI &&
+                                            recordedDuration && (
+                                                <Text
+                                                    className='text-black dark:text-white mb-4'
+                                                    style={{ fontSize: fontSize.lg }}>
+                                                    {(() => {
+                                                        const totalSeconds = Math.floor(
+                                                            recordedDuration / 1000
+                                                        );
+                                                        const minutes = Math.floor(
+                                                            totalSeconds / 60
+                                                        );
+                                                        const seconds = totalSeconds % 60;
+                                                        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+                                                    })()}
+                                                </Text>
+                                            )
+                                        )}
+                                    </View>
+                                </>
                             )}
+                            
                             <StyledButton
-                                title='Submit'
+                                title={isIdeaTypeText ? 'Save Idea & Edit' : 'Submit'}
                                 onPress={handleSubmit}
-                                disabled={!audioURI}
+                                disabled={!isIdeaTypeText && !audioURI}
                                 className='my-4'
                             />
                         </>
@@ -623,7 +685,7 @@ const ideas = () => {
                         <SwitchTabs
                             activeTab={activeTab}
                             setActiveTab={setActiveTab}
-                            tabs={["Recent", "My Ideas", "All Ideas"]}
+                            tabs={["Favorites", "My Ideas", "All Ideas"]}
                         />
                     </View>
                     <View className='flex-col justify-center items-center gap-3 w-full border-b border-accent-light dark:border-accent-dark w-full px-5 py-3'>
@@ -664,8 +726,8 @@ const ideas = () => {
                                 ))
                             ) : (
                                 <Text className="text-silverText" style={{ fontSize: fontSize.base }}>
-                                    {activeTab === "Recent"
-                                        ? "No recent ideas from the past month"
+                                    {activeTab === "Favorites"
+                                        ? "Žádné oblíbené nápady"
                                         : "No ideas yet"}
                                 </Text>
                             )}
