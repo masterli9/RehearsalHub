@@ -11,7 +11,8 @@ import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View, TextInput } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { ActivityIndicator, Alert, Pressable, Text, View, TextInput } from "react-native";
 import { Play, Pause, Save, Music4, Clock, Hash, ArrowLeft } from "lucide-react-native";
 
 export default function IdeaDetail() {
@@ -90,7 +91,7 @@ export default function IdeaDetail() {
             }
             
             Alert.alert("Saved", "Idea updated successfully");
-            fetchIdea();
+            router.back();
         } catch (e) {
             console.error(e);
             Alert.alert("Error", "Failed to save idea properties.");
@@ -114,12 +115,12 @@ export default function IdeaDetail() {
     };
 
     const insertGuitarTab = () => {
-        const guitarTpl = `\ne|---\nB|---\nG|---\nD|---\nA|---\nE|---\n`;
+        const guitarTpl = `\ne|-------------------\nB|-------------------\nG|-------------------\nD|-------------------\nA|-------------------\nE|-------------------\n`;
         setTabText((prev) => prev + guitarTpl);
     };
 
     const insertBassTab = () => {
-        const bassTpl = `\nG|---\nD|---\nA|---\nE|---\n`;
+        const bassTpl = `\nG|-------------------\nD|-------------------\nA|-------------------\nE|-------------------\n`;
         setTabText((prev) => prev + bassTpl);
     };
 
@@ -137,18 +138,23 @@ export default function IdeaDetail() {
 
     return (
         <PageContainer>
-            <View className="flex-row items-center p-4 border-b border-accent-light dark:border-accent-dark">
+            <View className="flex-row items-center p-4 border-b border-accent-light dark:border-accent-dark w-full bg-lightBg dark:bg-darkBg">
                 <Pressable onPress={() => router.back()} className="mr-4">
                     <ArrowLeft color={colorScheme === 'dark' ? '#fff' : '#000'} size={24} />
                 </Pressable>
-                <Text className="text-black dark:text-white font-bold" style={{ fontSize: fontSize['2xl'] }}>
+                <Text className="text-black dark:text-white font-bold flex-1" style={{ fontSize: fontSize['2xl'] }}>
                     Edit Idea
                 </Text>
             </View>
 
-            <ScrollView className="flex-1 w-full px-4" contentContainerStyle={{ paddingVertical: 20 }}>
+            <KeyboardAwareScrollView 
+                className="flex-1 w-full px-4 bg-lightBg dark:bg-black" 
+                contentContainerStyle={{ paddingVertical: 20 }}
+                enableOnAndroid={true}
+                extraScrollHeight={100}
+            >
                 <Card className="w-full mb-6">
-                    <Text className="text-silverText font-semibold mb-2" style={{ fontSize: fontSize.sm }}>TITLE</Text>
+                    <Text className="text-silverText font-semibold mb-2" style={{ fontSize: fontSize.sm }}>Title</Text>
                     <StyledTextInput
                         value={title}
                         onChangeText={setTitle}
@@ -170,7 +176,7 @@ export default function IdeaDetail() {
                 </Card>
 
                 <Card className="w-full mb-6 flex-col">
-                    <Text className="text-silverText font-semibold mb-4" style={{ fontSize: fontSize.sm }}>METADATA</Text>
+                    <Text className="text-silverText font-semibold mb-4" style={{ fontSize: fontSize.sm }}>Metadata</Text>
                     
                     <View className="flex-row gap-4 mb-4">
                         <View className="flex-1">
@@ -209,7 +215,7 @@ export default function IdeaDetail() {
 
                 <Card className="w-full mb-6 border-2 border-darkRed">
                     <View className="flex-row justify-between items-center mb-4">
-                        <Text className="text-silverText font-semibold" style={{ fontSize: fontSize.sm }}>TABS / NOTES</Text>
+                        <Text className="text-silverText font-semibold" style={{ fontSize: fontSize.sm }}>Tabs / Notes</Text>
                         <View className="flex-row gap-2">
                             <Pressable onPress={insertBassTab} className="bg-[#333] px-3 py-1 rounded-md">
                                 <Text className="text-white text-xs">+ Bass</Text>
@@ -244,7 +250,7 @@ export default function IdeaDetail() {
                     disabled={saving}
                     className="mb-10"
                 />
-            </ScrollView>
+            </KeyboardAwareScrollView>
         </PageContainer>
     );
 }

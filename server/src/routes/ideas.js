@@ -1,6 +1,6 @@
 import express from "express";
 import { ideaUploadUrl } from "../utils/ideaUploadUrl.js";
-import { createIdea, getIdeas, getRecentIdeas, updateIdea, toggleFavoriteIdea } from "../controllers/ideasController.js";
+import { createIdea, getIdeas, getRecentIdeas, updateIdea, toggleFavoriteIdea, deleteIdea } from "../controllers/ideasController.js";
 
 const router = express.Router();
 
@@ -10,5 +10,6 @@ router.get("/get", getIdeas);
 router.get("/get-recent", getRecentIdeas);
 router.put("/:idea_id", updateIdea);
 router.patch("/:idea_id/favorite", toggleFavoriteIdea);
+router.delete("/:idea_id", deleteIdea);
 
 export default router;

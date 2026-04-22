@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { useAudioPlayer } from 'expo-audio';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAccessibleFontSize } from '@/hooks/use-accessible-font-size';
 import { Minus, Plus, Play, Square } from 'lucide-react-native';
@@ -16,14 +18,17 @@ export const Metronome = ({ bpm, setBpm, isPlaying, setIsPlaying }: MetronomePro
     const colorScheme = useColorScheme();
     const [tick, setTick] = useState(false);
 
+    const clickPlayer = useAudioPlayer(require('@/assets/click.wav'));
+
     useEffect(() => {
         let interval: NodeJS.Timeout;
         if (isPlaying) {
             const msPerBeat = 60000 / bpm;
             interval = setInterval(() => {
                 setTick(t => !t);
-                // Poznámka: Zde by mohlo být přehraní krátkého "click" zvuku pomocí expo-av.
-                // Jelikož žádný zvuk v assets není, metronom funguje primárně vizuálně a jako pamatovák pro uložení BPM.
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                clickPlayer.seekTo(0);
+                clickPlayer.play();
             }, msPerBeat);
         }
         return () => {
@@ -32,10 +37,22 @@ export const Metronome = ({ bpm, setBpm, isPlaying, setIsPlaying }: MetronomePro
         };
     }, [isPlaying, bpm]);
 
-    const handleIncrement = () => setBpm(Math.min(300, bpm + 1));
-    const handleDecrement = () => setBpm(Math.max(30, bpm - 1));
-    const handleIncrement10 = () => setBpm(Math.min(300, bpm + 10));
-    const handleDecrement10 = () => setBpm(Math.max(30, bpm - 10));
+    const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    const handleIncrement = () => setBpm(prev => Math.min(300, prev + 1));
+    const handleDecrement = () => setBpm(prev => Math.max(30, prev - 1));
+
+    const startIncrementing = () => {
+        handleIncrement();
+        intervalRef.current = setInterval(() => handleIncrement(), 100);
+    };
+    const startDecrementing = () => {
+        handleDecrement();
+        intervalRef.current = setInterval(() => handleDecrement(), 100);
+    };
+    const stopChanging = () => {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+    };
 
     return (
         <View className="flex-row items-center justify-between w-full bg-card dark:bg-card-dark p-3 rounded-lg shadow-sm border border-accent-light dark:border-accent-dark">
@@ -64,16 +81,14 @@ export const Metronome = ({ bpm, setBpm, isPlaying, setIsPlaying }: MetronomePro
                     <View className={`w-3 h-3 rounded-full mr-2 ${tick ? 'bg-darkRed' : 'bg-silverText'}`} />
                 )}
                 <Pressable 
-                    onPress={handleDecrement} 
-                    onLongPress={handleDecrement10}
-                    delayLongPress={300}
+                    onPressIn={startDecrementing}
+                    onPressOut={stopChanging}
                     className="p-2 rounded-full active:bg-gray-200 dark:active:bg-[#333]">
                     <Minus size={20} color={colorScheme === 'dark' ? '#ababab' : '#A1A1A1'} />
                 </Pressable>
                 <Pressable 
-                    onPress={handleIncrement} 
-                    onLongPress={handleIncrement10}
-                    delayLongPress={300}
+                    onPressIn={startIncrementing}
+                    onPressOut={stopChanging}
                     className="p-2 rounded-full active:bg-gray-200 dark:active:bg-[#333]">
                     <Plus size={20} color={colorScheme === 'dark' ? '#ababab' : '#A1A1A1'} />
                 </Pressable>

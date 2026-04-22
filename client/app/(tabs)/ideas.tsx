@@ -7,6 +7,7 @@ import StyledButton from "@/components/StyledButton";
 import StyledModal from "@/components/StyledModal";
 import StyledTextInput from "@/components/StyledTextInput";
 import { SwitchBandModal } from "@/components/SwitchBandModal";
+import StyledDropdown from "@/components/StyledDropdown";
 import SwitchTabs from "@/components/SwitchTabs";
 import apiUrl from "@/config";
 import { usePlayer } from "@/context/AudioPlayerContext";
@@ -22,13 +23,11 @@ import {
     useAudioRecorderState,
 } from "expo-audio";
 import * as FileSystem from "expo-file-system/legacy";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Formik } from "formik";
-import { Clock, Hash, Mic, Music4, Pause, Play, Square } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { Clock, Hash, Mic, Music4, Pause, Play, Square, Star } from "lucide-react-native";
 import { Metronome } from "@/components/Metronome";
-import { Star } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -46,7 +45,168 @@ import {
 } from "react-native-popup-menu";
 import * as yup from "yup";
 
-const ideas = () => {
+const IdeaCard = ({ idea, toggleFavorite, colorScheme, fontSize, apiUrl, getIdeas }: any) => {
+    const router = useRouter();
+    const { play, pause, current, isPlaying } = usePlayer();
+    const isCurrent =
+        current?.song_id === idea.idea_id && current?.type === "idea";
+
+    const handlePlay = () => {
+        if (!idea.audiourl) return;
+        if (isCurrent && isPlaying) {
+            pause();
+        } else {
+            play({
+                song_id: idea.idea_id,
+                title: idea.title,
+                url: idea.audiourl,
+                type: "idea",
+            });
+        }
+    };
+
+    const formatDuration = (interval: any) => {
+        if (!interval) return "0:00";
+        if (typeof interval === "object") {
+            const minutes = interval.minutes || 0;
+            const seconds = interval.seconds || 0;
+            return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+        }
+        if (typeof interval === "string") {
+            const parts = interval.split(":");
+            if (parts.length >= 2) {
+                const seconds = parts.pop();
+                const minutes = parts.pop();
+                return `${parseInt(minutes || "0", 10)}:${seconds}`;
+            }
+            return interval;
+        }
+        return "0:00";
+    };
+
+    const deleteIdea = (idea_id: number) => {
+        Alert.alert("Delete idea", "Are you sure you want to delete this idea?", [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Delete", style: "destructive", onPress: async () => {
+                    try {
+                        await fetch(`${apiUrl}/api/ideas/${idea_id}`, { method: 'DELETE' });
+                        getIdeas();
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+            }
+        ]);
+    };
+
+    return (
+        <Card className='w-full flex-col mb-3 p-4'>
+            <View className="flex-row justify-between items-start w-full">
+                <View className="flex-row items-center flex-1 pr-2">
+                    <Image source={{ uri: idea.photourl }} className='w-10 h-10 rounded-full mr-3' style={{ width: fontSize["2xl"] * 1.8, height: fontSize["2xl"] * 1.8 }} />
+                    <View className="flex-col flex-1">
+                        <Text className="text-black dark:text-white font-bold mb-1" style={{ fontSize: fontSize.xl }} numberOfLines={1}>
+                            {idea.title}
+                        </Text>
+                        <Text className="text-silverText" style={{ fontSize: fontSize.sm }}>
+                            {idea.username} • {new Date(idea.created_at).toLocaleDateString()}
+                        </Text>
+                    </View>
+                </View>
+                <View className="flex-row items-center gap-1">
+                    <Pressable onPress={() => toggleFavorite(idea.idea_id, idea.is_favorite)} className="p-2">
+                        <Star
+                            size={Math.min(fontSize["2xl"], 24)}
+                            color={idea.is_favorite ? "#FFD700" : (colorScheme === 'dark' ? '#555' : '#ccc')}
+                            fill={idea.is_favorite ? "#FFD700" : "transparent"}
+                        />
+                    </Pressable>
+                    <Menu>
+                        <MenuTrigger>
+                            <Text className='text-silverText px-2 py-1' style={{ fontSize: fontSize["2xl"] }}>⋮</Text>
+                        </MenuTrigger>
+                        <MenuOptions
+                            customStyles={{
+                                optionsContainer: {
+                                    borderRadius: 10,
+                                    paddingVertical: 4,
+                                    backgroundColor: colorScheme === "dark" ? "#333" : "#fff",
+                                },
+                            }}>
+                            <MenuOption
+                                onSelect={() => router.push(`/idea/${idea.idea_id}`)}
+                                text="Edit / Open"
+                                customStyles={{
+                                    optionText: {
+                                        color: colorScheme === 'dark' ? '#fff' : '#000',
+                                        fontSize: fontSize.base,
+                                        padding: 10
+                                    }
+                                }}
+                            />
+                            <MenuOption
+                                onSelect={() => deleteIdea(idea.idea_id)}
+                                text="Delete idea"
+                                customStyles={{
+                                    optionText: {
+                                        color: 'red',
+                                        fontSize: fontSize.base,
+                                        padding: 10
+                                    }
+                                }}
+                            />
+                        </MenuOptions>
+                    </Menu>
+                </View>
+            </View>
+
+            {idea.description ? (
+                <Text className="text-silverText mt-3" style={{ fontSize: fontSize.base }} numberOfLines={2}>
+                    {idea.description}
+                </Text>
+            ) : null}
+
+            <View className="flex-row items-center justify-between mt-4 pt-3 border-t border-accent-light dark:border-accent-dark w-full">
+                <View className="flex-row items-center gap-3 flex-1">
+                    <View className="flex-row items-center gap-1">
+                        <Clock color="#A1A1A1" size={14} />
+                        <Text className="text-silverText" style={{ fontSize: fontSize.xs }}>
+                            {idea.idea_type === 'text' ? 'TEXT' : formatDuration(idea.length)}
+                        </Text>
+                    </View>
+                    {idea.bpm && (
+                        <View className="flex-row items-center gap-1">
+                            <Hash color="#A1A1A1" size={14} />
+                            <Text className="text-silverText" style={{ fontSize: fontSize.xs }}>{idea.bpm}</Text>
+                        </View>
+                    )}
+                    {idea.key && (
+                        <View className="flex-row items-center gap-1">
+                            <Music4 color="#A1A1A1" size={14} />
+                            <Text className="text-silverText" style={{ fontSize: fontSize.xs }}>{idea.key}</Text>
+                        </View>
+                    )}
+                </View>
+
+                {idea.idea_type !== 'text' && (
+                    <Pressable
+                        onPress={handlePlay}
+                        disabled={!idea.audiourl}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center ${isCurrent && isPlaying ? 'bg-darkRed' : 'bg-black dark:bg-white'}`}>
+                        {isCurrent && isPlaying ? (
+                            <Pause color="#fff" size={18} />
+                        ) : (
+                            <Play color={colorScheme === 'dark' ? '#000' : '#fff'} size={18} style={{ opacity: idea.audiourl ? 1 : 0.5, marginLeft: 2 }} />
+                        )}
+                    </Pressable>
+                )}
+            </View>
+        </Card>
+    );
+};
+
+const IdeasTab = () => {
     const router = useRouter();
     const { bands, bandsLoading, activeBand } = useBand();
     const { user } = useAuth();
@@ -57,16 +217,17 @@ const ideas = () => {
     const [activeTab, setActiveTab] = useState<string>("Favorites");
     const [ideas, setIdeas] = useState<any[]>([]);
 
-    const [isIdeaTypeText, setIsIdeaTypeText] = useState(false);
+    const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
+    const [typeDropdownValue, setTypeDropdownValue] = useState('audio');
+    const [typeDropdownItems, setTypeDropdownItems] = useState([
+        { label: 'Audio Idea', value: 'audio' },
+        { label: 'Text Idea', value: 'text' }
+    ]);
+    const isIdeaTypeText = typeDropdownValue === 'text';
+
     const [metronomeBpm, setMetronomeBpm] = useState(120);
     const [metronomePlaying, setMetronomePlaying] = useState(false);
 
-    // How many ideas to show per tab (edit these to taste)
-    const ideasLimitByTab: Record<string, number> = {
-        Favorites: 20,
-        "My Ideas": 50,
-        "All Ideas": 200,
-    };
 
     const [allIdeas, setAllIdeas] = useState<any[]>([]);
     const [myIdeas, setMyIdeas] = useState<any[]>([]);
@@ -91,71 +252,7 @@ const ideas = () => {
         null
     );
 
-    useEffect(() => {
-        if (!addIdeaModalVisible) {
-            setMetronomePlaying(false);
-        }
-    }, [addIdeaModalVisible]);
-
-    useEffect(() => {
-        if (activeBand?.id) {
-            getIdeas();
-        } else {
-            setIdeas([]);
-            setFavoriteIdeas([]);
-        }
-    }, [activeBand?.id]);
-    
-    useFocusEffect(
-        useCallback(() => {
-            getIdeas();
-        }, [activeBand?.id])
-    );
-
-    useEffect(() => {
-        const sourceIdeas = Array.isArray(ideas) ? ideas : [];
-        setAllIdeas(sourceIdeas);
-
-        const mine = sourceIdeas.filter((idea) => idea.username === user?.username);
-        setMyIdeas(mine);
-        
-        const favs = sourceIdeas.filter((idea) => idea.is_favorite);
-        setFavoriteIdeas(favs);
-    }, [ideas, user?.username]);
-
-    useEffect(() => {
-        const limit = ideasLimitByTab[activeTab] ?? Infinity;
-        const activeList =
-            activeTab === "All Ideas"
-                ? allIdeas
-                : activeTab === "My Ideas"
-                  ? myIdeas
-                  : activeTab === "Favorites"
-                    ? favoriteIdeas
-                    : [];
-
-        setActiveIdeasCount(activeList.length);
-        setVisibleIdeas(activeList.slice(0, limit));
-    }, [activeTab, allIdeas, myIdeas, favoriteIdeas]);
-
-    const toggleFavorite = async (idea_id: number, currentStatus: boolean) => {
-        const newStatus = !currentStatus;
-        
-        setIdeas(prev => prev.map(i => i.idea_id === idea_id ? { ...i, is_favorite: newStatus } : i));
-        
-        try {
-            await fetch(`${apiUrl}/api/ideas/${idea_id}/favorite`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ is_favorite: newStatus })
-            });
-        } catch (e) {
-            console.error(e);
-            setIdeas(prev => prev.map(i => i.idea_id === idea_id ? { ...i, is_favorite: currentStatus } : i));
-        }
-    };
-
-    const getIdeas = async () => {
+    const getIdeas = useCallback(async () => {
         setIdeasLoading(true);
         try {
             const allIdeasResponse = await fetch(`${apiUrl}/api/ideas/get?band_id=${activeBand?.id}`, {
@@ -176,7 +273,7 @@ const ideas = () => {
         } finally {
             setIdeasLoading(false);
         }
-    }
+    }, [activeBand?.id, apiUrl]);
 
     const record = async () => {
         await audioRecorder.prepareToRecordAsync();
@@ -184,6 +281,7 @@ const ideas = () => {
         setRecordedDuration(null);
         setAudioURI(null);
     };
+
     const stopRecording = async () => {
         await audioRecorder.stop();
         setAudioURI(audioRecorder.uri);
@@ -207,6 +305,7 @@ const ideas = () => {
             await record();
         }
     };
+
     async function uploadFileToSignedUrl({
         localUri,
         filename,
@@ -220,7 +319,6 @@ const ideas = () => {
         bandId: string;
         onProgress: (progress: number) => void;
     }) {
-        // 1. Get the Signed URL (same as before)
         const createResp = await fetch(`${apiUrl}/api/ideas/upload-url`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -231,15 +329,12 @@ const ideas = () => {
 
         const { uploadUrl, path } = await createResp.json();
 
-        // 2. Create Upload Task
-        // We use the direct integer 0 for BINARY_CONTENT to avoid type import issues.
-        // 0 = BINARY_CONTENT, 1 = MULTIPART
         const uploadTask = FileSystem.createUploadTask(
             uploadUrl,
             localUri,
             {
                 httpMethod: "PUT",
-                uploadType: 0 as any, // 0 maps to BINARY_CONTENT. Cast 'as any' silences the strict type check if needed.
+                uploadType: 0 as any,
                 headers: {
                     "Content-Type": contentType,
                 },
@@ -257,12 +352,9 @@ const ideas = () => {
             }
         );
 
-        // 3. Start the upload
         const result = await uploadTask.uploadAsync();
         console.log("upload result", result?.status);
 
-        // 4. Validate Result
-        // Google Cloud Storage returns 200 or 201 on success
         if (result && result.status >= 200 && result.status < 300) {
             onProgress(100);
             console.log("upload successful", path);
@@ -274,177 +366,76 @@ const ideas = () => {
         }
     }
 
-    const IdeaCard = ({ idea }: { idea: any }) => {
-        const { play, pause, current, isPlaying } = usePlayer();
-        const isCurrent =
-            current?.song_id === idea.idea_id && current?.type === "idea";
+    useEffect(() => {
+        if (!addIdeaModalVisible) {
+            setMetronomePlaying(false);
+        }
+    }, [addIdeaModalVisible]);
 
-        const handlePlay = () => {
-            if (!idea.audiourl) return;
-            if (isCurrent && isPlaying) {
-                pause();
-            } else {
-                play({
-                    song_id: idea.idea_id,
-                    title: idea.title,
-                    url: idea.audiourl,
-                    type: "idea",
-                });
-            }
-        };
+    useEffect(() => {
+        if (activeBand?.id) {
+            getIdeas();
+        } else {
+            setIdeas([]);
+            setFavoriteIdeas([]);
+        }
+    }, [activeBand?.id, getIdeas]);
 
-        const formatDuration = (interval: any) => {
-            if (!interval) return "0:00";
-            if (typeof interval === "object") {
-                const minutes = interval.minutes || 0;
-                const seconds = interval.seconds || 0;
-                return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-            }
-            if (typeof interval === "string") {
-                const parts = interval.split(":");
-                if (parts.length >= 2) {
-                    const seconds = parts.pop();
-                    const minutes = parts.pop();
-                    return `${parseInt(minutes || "0", 10)}:${seconds}`;
-                }
-                return interval;
-            }
-            return "0:00";
-        };
+    useFocusEffect(
+        useCallback(() => {
+            getIdeas();
+        }, [getIdeas])
+    );
 
-        return (
-            <Card className='w-full flex-col mb-3'>
-                <View className='flex-row justify-between items-center'>
-                    <View className='flex-row items-center gap-3'>
-                        <View className='flex-row items-center'>
-                            <Image source={{ uri: idea.photourl }} className='w-10 h-10 rounded-full' style={{ width: fontSize["2xl"] * 1.8, height: fontSize["2xl"] * 1.8 }} />
-                        </View>
-                        <View className='flex-col'>
-                            <Text
-                                className='text-black dark:text-white font-bold my-1'
-                                style={{ fontSize: fontSize.xl }}>
-                                {idea.title}
-                            </Text>
-                            <Text
-                                className='text-silverText'
-                                style={{ fontSize: fontSize.base }}>
-                                {idea.username} • {new Date(idea.created_at).toLocaleDateString()}
-                            </Text>
-                        </View>
-                    </View>
-                    <View className="flex-row items-center gap-2">
-                        <Pressable onPress={() => toggleFavorite(idea.idea_id, idea.is_favorite)} className="p-2">
-                            <Star 
-                                size={Math.min(fontSize["2xl"], 24)} 
-                                color={idea.is_favorite ? "#FFD700" : (colorScheme === 'dark' ? '#fff' : '#000')} 
-                                fill={idea.is_favorite ? "#FFD700" : "transparent"} 
-                            />
-                        </Pressable>
-                        <Menu>
-                            <MenuTrigger>
-                                <Text
-                                    className='text-black dark:text-white p-4'
-                                    style={{
-                                        fontSize: fontSize["2xl"],
-                                    }}>
-                                    ⋮
-                                </Text>
-                            </MenuTrigger>
-                            <MenuOptions
-                                customStyles={{
-                                    optionsContainer: {
-                                        borderRadius: 10,
-                                        paddingVertical: 4,
-                                        backgroundColor:
-                                            colorScheme === "dark"
-                                                ? "#333"
-                                                : "#fff",
-                                    },
-                                }}>
-                                <MenuOption
-                                    onSelect={() => router.push(`/idea/${idea.idea_id}`)}
-                                    text="Edit properties / Open"
-                                    customStyles={{
-                                        optionText: {
-                                            color: colorScheme === 'dark' ? '#fff' : '#000',
-                                            fontSize: fontSize.base,
-                                            padding: 10
-                                        }
-                                    }}
-                                />
-                            </MenuOptions>
-                        </Menu>
-                    </View>
-                </View>
-                <Text
-                    className='text-silverText my-5'
-                    style={{ fontSize: fontSize.base }}>
-                    {idea.description}
-                </Text>
-                <View
-                    className='flex-row gap-2 mt-5'
-                    style={{ flexWrap: "wrap" }}>
-                    <View className='flex-row items-center gap-1'>
-                        <Clock
-                            color={"#A1A1A1"}
-                            size={Math.min(fontSize["2xl"], 20)}
-                            style={{ marginRight: 2, marginBottom: -2 }}
-                        />
-                        <Text
-                            className='text-silverText'
-                            style={{ fontSize: fontSize.base, alignItems: "center" }}
-                            numberOfLines={1}
-                            maxFontSizeMultiplier={1.3}>
-                            {idea.idea_type === 'text' ? 'TEXT' : formatDuration(idea.length)}
-                        </Text>
-                    </View>
-                    <View className='flex-row items-center gap-1'>
-                        <Hash
-                            color={"#A1A1A1"}
-                            size={Math.min(fontSize["2xl"], 20)}
-                            style={{ marginRight: 2, marginBottom: -2 }}
-                        />
-                        <Text
-                            className='text-silverText'
-                            style={{ fontSize: fontSize.base, alignItems: "center" }}
-                            numberOfLines={1}
-                            maxFontSizeMultiplier={1.3}>
-                            {idea.bpm ? String(idea.bpm) : '-'}
-                        </Text>
-                    </View>
-                    <View className='flex-row items-center gap-1'>
-                        <Music4
-                            color={"#A1A1A1"}
-                            size={Math.min(fontSize["2xl"], 20)}
-                            style={{ marginRight: 2, marginBottom: -2 }}
-                        />
-                        <Text
-                            className='text-silverText'
-                            style={{ fontSize: fontSize.base, alignItems: "center" }}
-                            numberOfLines={1}
-                            maxFontSizeMultiplier={1.3}>
-                            {idea.key || '-'}
-                        </Text>
-                    </View>
-                </View>
-                <View className='flex-row w-full justify-center items-center mt-4'>
-                    <Pressable onPress={handlePlay} disabled={!idea.audiourl}>
-                        {isCurrent && isPlaying ? (
-                            <Pause
-                                color={colorScheme === "dark" ? "#fff" : "#0A0A0A"}
-                                size={20}
-                            />
-                        ) : (
-                            <Play
-                                color={colorScheme === "dark" ? "#fff" : "#0A0A0A"}
-                                size={20}
-                                style={{ opacity: idea.audiourl ? 1 : 0.5 }}
-                            />
-                        )}
-                    </Pressable>
-                </View>
-            </Card>
-        );
+    useEffect(() => {
+        const sourceIdeas = Array.isArray(ideas) ? ideas : [];
+        setAllIdeas(sourceIdeas);
+
+        const mine = sourceIdeas.filter((idea) => idea.username === user?.username);
+        setMyIdeas(mine);
+
+        const favs = sourceIdeas.filter((idea) => idea.is_favorite);
+        setFavoriteIdeas(favs);
+    }, [ideas, user?.username]);
+
+    const ideasLimitByTab = useMemo<Record<string, number>>(() => ({
+        Favorites: 20,
+        "My Ideas": 50,
+        "All Ideas": 200,
+    }), []);
+
+    useEffect(() => {
+        const limit = ideasLimitByTab[activeTab] ?? Infinity;
+        const activeList =
+            activeTab === "All Ideas"
+                ? allIdeas
+                : activeTab === "My Ideas"
+                    ? myIdeas
+                    : activeTab === "Favorites"
+                        ? favoriteIdeas
+                        : [];
+
+        setActiveIdeasCount(activeList.length);
+        setVisibleIdeas(activeList.slice(0, limit));
+    }, [activeTab, allIdeas, myIdeas, favoriteIdeas]);
+
+    const toggleFavorite = async (idea_id: number, currentStatus: boolean) => {
+        const newStatus = !currentStatus;
+
+        setIdeas(prev => prev.map(i => i.idea_id === idea_id ? { ...i, is_favorite: newStatus } : i));
+        setVisibleIdeas(prev => prev.map(i => i.idea_id === idea_id ? { ...i, is_favorite: newStatus } : i));
+
+        try {
+            await fetch(`${apiUrl}/api/ideas/${idea_id}/favorite`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ is_favorite: newStatus })
+            });
+        } catch (e) {
+            console.error(e);
+            setIdeas(prev => prev.map(i => i.idea_id === idea_id ? { ...i, is_favorite: currentStatus } : i));
+            setVisibleIdeas(prev => prev.map(i => i.idea_id === idea_id ? { ...i, is_favorite: currentStatus } : i));
+        }
     };
 
     return (
@@ -455,19 +446,17 @@ const ideas = () => {
                 onClose={() => setAddIdeaModalVisible(false)}
                 title='New MusIdea'
                 subtitle='Capture your musical inspiration'>
-                <View className="flex-row justify-center w-full mb-4">
-                    <View className="flex-row bg-[#e8e8e8] dark:bg-[#333] rounded-lg p-1">
-                        <Pressable 
-                            onPress={() => setIsIdeaTypeText(false)}
-                            className={`px-4 py-2 rounded-md ${!isIdeaTypeText ? 'bg-white dark:bg-[#555] shadow-sm' : ''}`}>
-                            <Text className={`font-semibold ${!isIdeaTypeText ? 'text-black dark:text-white' : 'text-gray-500'}`}>Audio</Text>
-                        </Pressable>
-                        <Pressable 
-                            onPress={() => setIsIdeaTypeText(true)}
-                            className={`px-4 py-2 rounded-md ${isIdeaTypeText ? 'bg-white dark:bg-[#555] shadow-sm' : ''}`}>
-                            <Text className={`font-semibold ${isIdeaTypeText ? 'text-black dark:text-white' : 'text-gray-500'}`}>Text</Text>
-                        </Pressable>
-                    </View>
+                <View className="mb-4 z-50">
+                    <StyledDropdown
+                        open={typeDropdownOpen}
+                        value={typeDropdownValue}
+                        items={typeDropdownItems}
+                        setOpen={setTypeDropdownOpen}
+                        setValue={setTypeDropdownValue}
+                        setItems={setTypeDropdownItems}
+                        placeholder="Select type"
+                        listMode="SCROLLVIEW"
+                    />
                 </View>
                 <Formik
                     validationSchema={newIdeaSchema}
@@ -480,7 +469,7 @@ const ideas = () => {
                     onSubmit={async (values, { setSubmitting }) => {
                         try {
                             if (!activeBand) return;
-                            
+
                             let path = null;
                             if (!isIdeaTypeText) {
                                 if (!audioURI) {
@@ -492,7 +481,7 @@ const ideas = () => {
                                     filename: `idea_${Date.now()}.m4a`,
                                     contentType: "audio/m4a",
                                     bandId: activeBand.id,
-                                    onProgress: () => {},
+                                    onProgress: () => { },
                                 });
                                 path = uploadRes.path;
                             }
@@ -517,12 +506,12 @@ const ideas = () => {
                             if (!response.ok) {
                                 throw new Error("Failed to create idea");
                             }
-                            
+
                             const newIdea = await response.json();
 
                             setAddIdeaModalVisible(false);
                             getIdeas();
-                            
+
                             // Send user to edit properties directly
                             router.push(`/idea/${newIdea.idea_id}`);
                         } catch (error) {
@@ -566,15 +555,15 @@ const ideas = () => {
                                 errors.description && (
                                     <ErrorText>{errors.description}</ErrorText>
                                 )}
-                            
+
                             {!isIdeaTypeText && (
                                 <>
                                     <View className="mb-4 mt-2">
-                                        <Metronome 
-                                            bpm={metronomeBpm} 
-                                            setBpm={setMetronomeBpm} 
-                                            isPlaying={metronomePlaying} 
-                                            setIsPlaying={setMetronomePlaying} 
+                                        <Metronome
+                                            bpm={metronomeBpm}
+                                            setBpm={setMetronomeBpm}
+                                            isPlaying={metronomePlaying}
+                                            setIsPlaying={setMetronomePlaying}
                                         />
                                     </View>
                                     <View className="flex-col items-center">
@@ -633,9 +622,9 @@ const ideas = () => {
                                     </View>
                                 </>
                             )}
-                            
+
                             <StyledButton
-                                title={isIdeaTypeText ? 'Save Idea & Edit' : 'Submit'}
+                                title={isIdeaTypeText ? 'Start editing' : 'Submit'}
                                 onPress={handleSubmit}
                                 disabled={!isIdeaTypeText && !audioURI}
                                 className='my-4'
@@ -722,12 +711,12 @@ const ideas = () => {
                             }}>
                             {visibleIdeas.length > 0 ? (
                                 visibleIdeas.map((idea) => (
-                                    <IdeaCard key={idea.idea_id} idea={idea} />
+                                    <IdeaCard key={idea.idea_id} idea={idea} toggleFavorite={toggleFavorite} colorScheme={colorScheme} fontSize={fontSize} apiUrl={apiUrl} getIdeas={getIdeas} />
                                 ))
                             ) : (
                                 <Text className="text-silverText" style={{ fontSize: fontSize.base }}>
                                     {activeTab === "Favorites"
-                                        ? "Žádné oblíbené nápady"
+                                        ? "No favorite ideas"
                                         : "No ideas yet"}
                                 </Text>
                             )}
@@ -739,4 +728,4 @@ const ideas = () => {
     );
 };
 
-export default ideas;
+export default IdeasTab;

@@ -185,6 +185,26 @@ export const toggleFavoriteIdea = async (req, res) => {
     }
 };
 
+export const deleteIdea = async (req, res) => {
+    try {
+        const { idea_id } = req.params;
+        
+        if (!idea_id) return res.status(400).json({ error: "idea_id is required" });
+        
+        const result = await pool.query(
+            "DELETE FROM musideas WHERE idea_id = $1 RETURNING *",
+            [idea_id]
+        );
+        
+        if (result.rows.length === 0) return res.status(404).json({ error: "Idea not found" });
+        
+        res.status(200).json({ message: "Idea deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting idea: ", error);
+        res.status(500).json({ error: "Server error (idea delete)" });
+    }
+};
+
 export const getIdeas = async (req, res) => {
     const { band_id } = req.query;
 
