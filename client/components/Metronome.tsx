@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useAudioPlayer } from 'expo-audio';
@@ -8,7 +8,7 @@ import { Minus, Plus, Play, Square } from 'lucide-react-native';
 
 interface MetronomeProps {
     bpm: number;
-    setBpm: (bpm: number) => void;
+    setBpm: React.Dispatch<React.SetStateAction<number>>;
     isPlaying: boolean;
     setIsPlaying: (isPlaying: boolean) => void;
 }
@@ -18,41 +18,88 @@ export const Metronome = ({ bpm, setBpm, isPlaying, setIsPlaying }: MetronomePro
     const colorScheme = useColorScheme();
     const [tick, setTick] = useState(false);
 
+    // To improve the sound, replace the `@/assets/click.wav` file with a better quality
+    // metronome tick sound (such as a rimshot, cowbell, or classic woodblock).
     const clickPlayer = useAudioPlayer(require('@/assets/click.wav'));
+    
+    // We use a ref for BPM so our audio tick interval always reads the latest value
+    // without having to tear down and restart the effect on every BPM change.
+    const bpmRef = useRef(bpm);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (isPlaying) {
-            const msPerBeat = 60000 / bpm;
-            interval = setInterval(() => {
-                setTick(t => !t);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                clickPlayer.seekTo(0);
-                clickPlayer.play();
-            }, msPerBeat);
-        }
-        return () => {
-            clearInterval(interval);
+        bpmRef.current = bpm;
+    }, [bpm]);
+
+    useEffect(() => {
+        if (!isPlaying) {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
             setTick(false);
+            return;
+        }
+
+        let expectedTime = Date.now();
+
+        const playTick = () => {
+            setTick(t => !t);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            clickPlayer.seekTo(0);
+            clickPlayer.play();
+
+            const currentBpm = bpmRef.current;
+            const msPerBeat = 60000 / currentBpm;
+            
+            // Expected time of the *next* beat
+            expectedTime += msPerBeat;
+            const now = Date.now();
+            let nextTime = expectedTime - now;
+
+            // If the app was frozen/backgrounded and we fell behind, reset to avoid machine-gun effect
+            if (nextTime < 0) {
+                expectedTime = now;
+                nextTime = msPerBeat;
+            }
+
+            timeoutRef.current = setTimeout(playTick, nextTime);
         };
-    }, [isPlaying, bpm]);
 
-    const intervalRef = useRef<NodeJS.Timeout | null>(null);
+        // Start first tick immediately
+        playTick();
 
-    const handleIncrement = () => setBpm(prev => Math.min(300, prev + 1));
-    const handleDecrement = () => setBpm(prev => Math.max(30, prev - 1));
+        return () => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        };
+    }, [isPlaying, clickPlayer]);
 
-    const startIncrementing = () => {
-        handleIncrement();
-        intervalRef.current = setInterval(() => handleIncrement(), 100);
-    };
-    const startDecrementing = () => {
-        handleDecrement();
-        intervalRef.current = setInterval(() => handleDecrement(), 100);
-    };
-    const stopChanging = () => {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    const handleIncrement = useCallback(() => setBpm((prev: number) => Math.min(300, prev + 1)), [setBpm]);
+    const handleDecrement = useCallback(() => setBpm((prev: number) => Math.max(30, prev - 1)), [setBpm]);
+
+    const stopChanging = useCallback(() => {
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+    }, []);
+
+    const startIncrementing = useCallback(() => {
+        stopChanging(); // Always clear before starting a new one to prevent orphaned intervals
+        intervalRef.current = setInterval(() => {
+            setBpm((prev: number) => Math.min(300, prev + 1));
+        }, 50); // Faster increment loop when held down
+    }, [setBpm, stopChanging]);
+
+    const startDecrementing = useCallback(() => {
+        stopChanging();
+        intervalRef.current = setInterval(() => {
+            setBpm((prev: number) => Math.max(30, prev - 1));
+        }, 50);
+    }, [setBpm, stopChanging]);
+
+    // Safety clear of intervals on teardown
+    useEffect(() => {
+        return () => stopChanging();
+    }, [stopChanging]);
 
     return (
         <View className="flex-row items-center justify-between w-full bg-card dark:bg-card-dark p-3 rounded-lg shadow-sm border border-accent-light dark:border-accent-dark">
@@ -81,14 +128,18 @@ export const Metronome = ({ bpm, setBpm, isPlaying, setIsPlaying }: MetronomePro
                     <View className={`w-3 h-3 rounded-full mr-2 ${tick ? 'bg-darkRed' : 'bg-silverText'}`} />
                 )}
                 <Pressable 
-                    onPressIn={startDecrementing}
+                    onPress={handleDecrement}
+                    onLongPress={startDecrementing}
                     onPressOut={stopChanging}
+                    delayLongPress={200}
                     className="p-2 rounded-full active:bg-gray-200 dark:active:bg-[#333]">
                     <Minus size={20} color={colorScheme === 'dark' ? '#ababab' : '#A1A1A1'} />
                 </Pressable>
                 <Pressable 
-                    onPressIn={startIncrementing}
+                    onPress={handleIncrement}
+                    onLongPress={startIncrementing}
                     onPressOut={stopChanging}
+                    delayLongPress={200}
                     className="p-2 rounded-full active:bg-gray-200 dark:active:bg-[#333]">
                     <Plus size={20} color={colorScheme === 'dark' ? '#ababab' : '#A1A1A1'} />
                 </Pressable>
