@@ -1,38 +1,35 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  View,
-  Text,
-  ActivityIndicator,
-  Pressable,
-  TextInput,
-  Alert,
-  useColorScheme,
-  Modal,
-} from "react-native";
-import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import PageContainer from "@/components/PageContainer";
-import PageHeader from "@/components/PageHeader";
 import StyledButton from "@/components/StyledButton";
 import StyledTextInput from "@/components/StyledTextInput";
-import { useBand } from "@/context/BandContext";
-import { useAuth } from "@/context/AuthContext";
 import apiUrl from "@/config";
+import { useAuth } from "@/context/AuthContext";
+import { useBand } from "@/context/BandContext";
+import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ArrowLeft,
-  Save,
-  Plus,
   GripVertical,
-  Trash2,
-  X,
-  Search,
+  Plus,
   SlidersHorizontal,
+  Trash2,
+  X
 } from "lucide-react-native";
-import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  Text,
+  useColorScheme,
+  View
+} from "react-native";
 import DraggableFlatList, {
   RenderItemParams,
   ScaleDecorator,
 } from "react-native-draggable-flatlist";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface SetlistSong {
   id?: number;
@@ -391,7 +388,10 @@ export default function SetlistEditor() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <PageContainer>
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        className="flex-1 w-full items-center justify-start p-0"
+      >
         <View className="flex-row items-center justify-between w-full border-b border-accent-light dark:border-accent-dark px-5 py-4">
           <View className="flex-row items-center flex-1">
             <Pressable onPress={() => router.back()} className="mr-3 p-2 -ml-2">
@@ -687,7 +687,7 @@ export default function SetlistEditor() {
             </View>
           </View>
         </Modal>
-      </PageContainer>
+      </SafeAreaView>
     </GestureHandlerRootView>
   );
 }
