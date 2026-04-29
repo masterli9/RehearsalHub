@@ -49,6 +49,7 @@ import {
     useColorScheme,
     View,
     Platform,
+    RefreshControl,
 } from "react-native";
 import "react-native-gesture-handler";
 import {
@@ -117,6 +118,18 @@ const songs = () => {
     const [selectedFilterTags, setSelectedFilterTags] = useState<number[]>([]);
 
     const [selectedFilterKeys, setSelectedFilterKeys] = useState<string[]>([]);
+
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        if (activeTab === "Songs") {
+            await runFilterAndSearch(true);
+        } else {
+            await fetchSetlists(true);
+        }
+        setRefreshing(false);
+    };
 
     const [searchText, setSearchText] = useState("");
     const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
@@ -210,14 +223,14 @@ const songs = () => {
         };
     }, [searchText]); // The effect runs only when searchText changes.
 
-    const runFilterAndSearch = (forceRetry: boolean = false) => {
+    const runFilterAndSearch = async (forceRetry: boolean = false) => {
         const statuses = [
             readyStatusSelected ? "rehearsed" : null,
             finishedStatusSelected ? "finished" : null,
             draftStatusSelected ? "draft" : null,
         ].filter(Boolean) as string[];
 
-        fetchSongs(
+        await fetchSongs(
             {
                 status: statuses,
                 search: searchText,
@@ -2347,8 +2360,17 @@ const songs = () => {
                                     justifyContent: "flex-start",
                                     paddingBottom: 25,
                                 }}
+                                refreshControl={
+                                    <RefreshControl
+                                        refreshing={refreshing}
+                                        onRefresh={onRefresh}
+                                        tintColor={colorScheme === "dark" ? "#ffffff" : "#000000"}
+                                        colors={["#2B7FFF"]}
+                                        progressViewOffset={Platform.OS === 'android' ? 50 : 0}
+                                    />
+                                }
                             >
-                                {isLoadingSongs ? (
+                                {isLoadingSongs && !refreshing ? (
                                     <View className='flex-1 w-full justify-center items-center py-8'>
                                         <ActivityIndicator
                                             size='large'
@@ -2443,8 +2465,17 @@ const songs = () => {
                                     justifyContent: "flex-start",
                                     paddingBottom: 25,
                                 }}
+                                refreshControl={
+                                    <RefreshControl
+                                        refreshing={refreshing}
+                                        onRefresh={onRefresh}
+                                        tintColor={colorScheme === "dark" ? "#ffffff" : "#000000"}
+                                        colors={["#2B7FFF"]}
+                                        progressViewOffset={Platform.OS === 'android' ? 50 : 0}
+                                    />
+                                }
                             >
-                                {isLoadingSetlists ? (
+                                {isLoadingSetlists && !refreshing ? (
                                     <View className='flex-1 w-full justify-center items-center py-8'>
                                         <ActivityIndicator size='large' color='#2B7FFF' />
                                     </View>

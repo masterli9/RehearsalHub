@@ -12,7 +12,7 @@ import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Formik } from "formik";
 import { Calendar, Clock, MapPin, Music, ListMusic } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -22,6 +22,7 @@ import {
     Text,
     useColorScheme,
     View,
+    RefreshControl,
 } from "react-native";
 import * as yup from "yup";
 import SwitchTabs from "@/components/SwitchTabs";
@@ -85,6 +86,13 @@ const events = () => {
     const [selectedTime, setSelectedTime] = useState<Date>(new Date());
 
     const [activeTab, setActiveTab] = useState<string>("Upcoming");
+
+    const [refreshing, setRefreshing] = useState(false);
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await fetchEvents();
+        setRefreshing(false);
+    }, [activeBand?.id]);
 
     const fetchEvents = async () => {
         if (!activeBand?.id) {
@@ -1148,7 +1156,7 @@ const events = () => {
                             />
                         </View>
                     </View>
-                    {eventsLoading ? (
+                    {eventsLoading && !refreshing ? (
                         <View className='flex-1 w-full justify-center items-center py-10'>
                             <ActivityIndicator size='large' color='#2B7FFF' />
                             <Text
@@ -1164,7 +1172,16 @@ const events = () => {
                                 alignItems: "center",
                                 justifyContent: "flex-start",
                                 paddingBottom: 25,
-                            }}>
+                            }}
+                            refreshControl={
+                                <RefreshControl
+                                    refreshing={refreshing}
+                                    onRefresh={onRefresh}
+                                    tintColor={colorScheme === "dark" ? "#ffffff" : "#000000"}
+                                    colors={["#2B7FFF"]}
+                                    progressViewOffset={Platform.OS === 'android' ? 50 : 0}
+                                />
+                            }>
                             {(Array.isArray(pastEvents) &&
                                 pastEvents.length > 0) ||
                                 (Array.isArray(upcomingEvents) &&

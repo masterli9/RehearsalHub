@@ -9,7 +9,7 @@ import apiUrl from "@/config";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import * as Clipboard from "expo-clipboard";
 import { Formik } from "formik";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
     Alert,
     Pressable,
@@ -19,6 +19,8 @@ import {
     View,
     Image,
     ActivityIndicator,
+    RefreshControl,
+    Platform
 } from "react-native";
 import {
     Menu,
@@ -52,6 +54,13 @@ export default function Band() {
     const [membersLoadError, setMembersLoadError] = useState(false);
     const [isLoadingRoles, setIsLoadingRoles] = useState(false);
     const [rolesLoadError, setRolesLoadError] = useState(false);
+
+    const [refreshing, setRefreshing] = useState(false);
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await loadBandMembers(true);
+        setRefreshing(false);
+    }, []);
 
     const TIMEOUT_MS = 20 * 1000; // 20 seconds
 
@@ -315,7 +324,7 @@ export default function Band() {
                             Alert.alert(
                                 "Error",
                                 error.message ||
-                                    "Failed to create band. Please try again."
+                                "Failed to create band. Please try again."
                             );
                         }
                     }}
@@ -374,17 +383,15 @@ export default function Band() {
                                                     ]);
                                                 }
                                             }}
-                                            className={`px-2 py-1 rounded-m border ${
-                                                isSelected
+                                            className={`px-2 py-1 rounded-m border ${isSelected
                                                     ? "bg-transparentGreen border-green"
                                                     : "bg-transparent border-gray-400"
-                                            }`}>
+                                                }`}>
                                             <Text
-                                                className={`${
-                                                    isSelected
+                                                className={`${isSelected
                                                         ? "text-black dark:text-white font-semibold"
                                                         : "text-gray-700 dark:text-gray-200"
-                                                }`}>
+                                                    }`}>
                                                 {role.title}
                                             </Text>
                                         </Pressable>
@@ -428,7 +435,7 @@ export default function Band() {
                             Alert.alert(
                                 "Error",
                                 error.message ||
-                                    "Failed to join band. Please try again."
+                                "Failed to join band. Please try again."
                             );
                         }
                     }}
@@ -487,17 +494,15 @@ export default function Band() {
                                                     ]);
                                                 }
                                             }}
-                                            className={`px-2 py-1 rounded-m border ${
-                                                isSelected
+                                            className={`px-2 py-1 rounded-m border ${isSelected
                                                     ? "bg-transparentGreen border-green"
                                                     : "bg-transparent border-gray-400"
-                                            }`}>
+                                                }`}>
                                             <Text
-                                                className={`${
-                                                    isSelected
+                                                className={`${isSelected
                                                         ? "text-black dark:text-white font-semibold"
                                                         : "text-gray-700 dark:text-gray-200"
-                                                }`}>
+                                                    }`}>
                                                 {role.title}
                                             </Text>
                                         </Pressable>
@@ -561,7 +566,7 @@ export default function Band() {
                             Alert.alert(
                                 "Error",
                                 error.message ||
-                                    "Failed to update band name. Please try again."
+                                "Failed to update band name. Please try again."
                             );
                         }
                     }}
@@ -627,9 +632,9 @@ export default function Band() {
                                 "Leader"
                             )
                                 ? [
-                                      ...values.roles,
-                                      { role_id: 0, title: "Leader" },
-                                  ]
+                                    ...values.roles,
+                                    { role_id: 0, title: "Leader" },
+                                ]
                                 : values.roles;
                             await updateMemberRoles(activeBand.id, finalRoles);
                             await loadBandMembers();
@@ -642,7 +647,7 @@ export default function Band() {
                             Alert.alert(
                                 "Error",
                                 error.message ||
-                                    "Failed to update roles. Please try again."
+                                "Failed to update roles. Please try again."
                             );
                         }
                     }}
@@ -695,17 +700,15 @@ export default function Band() {
                                                     ]);
                                                 }
                                             }}
-                                            className={`px-2 py-1 rounded-m border ${
-                                                isSelected
+                                            className={`px-2 py-1 rounded-m border ${isSelected
                                                     ? "bg-transparentGreen border-green"
                                                     : "bg-transparent border-gray-400"
-                                            }`}>
+                                                }`}>
                                             <Text
-                                                className={`${
-                                                    isSelected
+                                                className={`${isSelected
                                                         ? "text-black dark:text-white font-semibold"
                                                         : "text-gray-700 dark:text-gray-200"
-                                                }`}>
+                                                    }`}>
                                                 {role.title}
                                             </Text>
                                         </Pressable>
@@ -718,8 +721,8 @@ export default function Band() {
                                         {typeof errors.roles === "string"
                                             ? errors.roles
                                             : Array.isArray(errors.roles)
-                                              ? errors.roles.join(", ")
-                                              : "Please select at least one role"}
+                                                ? errors.roles.join(", ")
+                                                : "Please select at least one role"}
                                     </ErrorText>
                                 )}
                             <View className='flex-row gap-4 w-full justify-center items-center my-3'>
@@ -750,8 +753,8 @@ export default function Band() {
                 }>
                 <View className='flex-row flex-wrap gap-2 w-full justify-center items-center my-4'>
                     {selectedMemberRoles?.roles &&
-                    Array.isArray(selectedMemberRoles.roles) &&
-                    selectedMemberRoles.roles.length > 0 ? (
+                        Array.isArray(selectedMemberRoles.roles) &&
+                        selectedMemberRoles.roles.length > 0 ? (
                         selectedMemberRoles.roles
                             .filter((r: any) => r != null)
                             .map((r: any, i: number) => (
@@ -909,7 +912,16 @@ export default function Band() {
                         contentContainerStyle={{
                             alignItems: "center",
                             justifyContent: "center",
-                        }}>
+                        }}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={onRefresh}
+                                tintColor={systemScheme === "dark" ? "#ffffff" : "#000000"}
+                                colors={["#2B7FFF"]}
+                                progressViewOffset={Platform.OS === 'android' ? 50 : 0}
+                            />
+                        }>
                         <Card className='bg-darkWhite dark:bg-darkGray w-full flex-row items-center justify-between mb-5'>
                             <View className='flex-col items-start justify-center w-2/3'>
                                 <Text
@@ -943,14 +955,14 @@ export default function Band() {
                                         hideOnPress: true,
                                     });
                                 }}
-                                // TODO: Fix toast
+                            // TODO: Fix toast
                             >
                                 <Text className='text-black dark:text-white'>
                                     {activeBand?.inviteCode}
                                 </Text>
                             </Pressable>
                         </Card>
-                        {isLoadingMembers ? (
+                        {isLoadingMembers && !refreshing ? (
                             <View className='flex-1 w-full justify-center items-center py-8'>
                                 <ActivityIndicator
                                     size='large'
@@ -1032,9 +1044,9 @@ export default function Band() {
                                                             member.roles
                                                         )
                                                             ? member.roles.slice(
-                                                                  0,
-                                                                  1
-                                                              )
+                                                                0,
+                                                                1
+                                                            )
                                                             : []
                                                         )
                                                             .filter(
@@ -1049,11 +1061,11 @@ export default function Band() {
                                                                     <Text
                                                                         key={
                                                                             typeof r ===
-                                                                            "string"
+                                                                                "string"
                                                                                 ? r
                                                                                 : r.role_id ||
-                                                                                  r.title ||
-                                                                                  i
+                                                                                r.title ||
+                                                                                i
                                                                         }
                                                                         className='text-white my-1 bg-darkGray dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'
                                                                         style={{
@@ -1061,26 +1073,26 @@ export default function Band() {
                                                                                 fontSize.base,
                                                                         }}>
                                                                         {typeof r ===
-                                                                        "string"
+                                                                            "string"
                                                                             ? r
                                                                             : r?.title ||
-                                                                              ""}
+                                                                            ""}
                                                                     </Text>
                                                                 )
                                                             )}
                                                         {member.roles.length >
                                                             1 && (
-                                                            <Text
-                                                                className='text-white my-1 bg-darkGray dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'
-                                                                style={{
-                                                                    fontSize:
-                                                                        fontSize.base,
-                                                                }}>
-                                                                +
-                                                                {member.roles
-                                                                    .length - 1}
-                                                            </Text>
-                                                        )}
+                                                                <Text
+                                                                    className='text-white my-1 bg-darkGray dark:bg-accent-dark px-3 py-1 rounded-xl mr-2'
+                                                                    style={{
+                                                                        fontSize:
+                                                                            fontSize.base,
+                                                                    }}>
+                                                                    +
+                                                                    {member.roles
+                                                                        .length - 1}
+                                                                </Text>
+                                                            )}
                                                     </Pressable>
                                                 ) : null}
                                             </View>
@@ -1094,7 +1106,7 @@ export default function Band() {
                                         </View>
                                         {currentUserRoles.includes("Leader") &&
                                             member.firebase_uid !==
-                                                user?.uid && (
+                                            user?.uid && (
                                                 <Menu>
                                                     <MenuTrigger>
                                                         <Text
@@ -1102,7 +1114,7 @@ export default function Band() {
                                                             style={{
                                                                 fontSize:
                                                                     fontSize[
-                                                                        "2xl"
+                                                                    "2xl"
                                                                     ],
                                                             }}>
                                                             ⋮
@@ -1115,7 +1127,7 @@ export default function Band() {
                                                                 paddingVertical: 4,
                                                                 backgroundColor:
                                                                     systemScheme ===
-                                                                    "dark"
+                                                                        "dark"
                                                                         ? "#333"
                                                                         : "#fff",
                                                             },
@@ -1124,7 +1136,7 @@ export default function Band() {
                                                             onSelect={() =>
                                                                 handleRemoveMember(
                                                                     activeBand?.id ||
-                                                                        "",
+                                                                    "",
                                                                     member.firebase_uid
                                                                 )
                                                             }
@@ -1133,7 +1145,7 @@ export default function Band() {
                                                                 optionText: {
                                                                     color:
                                                                         systemScheme ===
-                                                                        "dark"
+                                                                            "dark"
                                                                             ? "#fff"
                                                                             : "#333",
                                                                     paddingVertical: 8,
@@ -1153,7 +1165,7 @@ export default function Band() {
                                                                 optionText: {
                                                                     color:
                                                                         systemScheme ===
-                                                                        "dark"
+                                                                            "dark"
                                                                             ? "#fff"
                                                                             : "#333",
                                                                     paddingVertical: 8,

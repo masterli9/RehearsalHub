@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBand } from "@/context/BandContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { icons } from "lucide-react-native";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import apiUrl from "@/config";
@@ -30,13 +30,17 @@ export default function HomeScreen() {
     const [recentActivities, setRecentActivities] = useState<any[]>([]);
     const [loadingActivities, setLoadingActivities] = useState(false);
 
-    useEffect(() => {
+    const initialFetchDoneRef = useRef<string | null>(null);
+
+    useFocusEffect(
+        useCallback(() => {
+        const isFirstFetchForBand = initialFetchDoneRef.current !== activeBand?.id;
         const fetchEvents = async () => {
             if (!activeBand?.id) {
                 setUpcomingEvents([]);
                 return;
             }
-            setLoadingEvents(true);
+            if (isFirstFetchForBand) setLoadingEvents(true);
             try {
                 const response = await fetch(`${apiUrl}/api/events?bandId=${activeBand.id}`);
                 if (response.ok) {
@@ -58,7 +62,7 @@ export default function HomeScreen() {
                 setRecentActivities([]);
                 return;
             }
-            setLoadingActivities(true);
+            if (isFirstFetchForBand) setLoadingActivities(true);
             try {
                 const response = await fetch(`${apiUrl}/api/activities?bandId=${activeBand.id}`);
                 if (response.ok) {
@@ -73,8 +77,11 @@ export default function HomeScreen() {
         };
 
         fetchEvents();
-        fetchActivities();
-    }, [activeBand?.id]);
+        fetchActivities().finally(() => {
+            initialFetchDoneRef.current = activeBand?.id || null;
+        });
+    }, [activeBand?.id])
+    );
 
     const formatDateTimeToDisplay = (dateTimeString: string) => {
         const date = new Date(dateTimeString);

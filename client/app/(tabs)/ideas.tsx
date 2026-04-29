@@ -35,7 +35,9 @@ import {
     ScrollView,
     Text,
     View,
-    Image
+    Image,
+    RefreshControl,
+    Platform
 } from "react-native";
 import {
     Menu,
@@ -237,6 +239,8 @@ const IdeasTab = () => {
     const [ideasLoading, setIdeasLoading] = useState(false);
     const [addIdeaModalVisible, setAddIdeaModalVisible] = useState(false);
 
+    const [refreshing, setRefreshing] = useState(false);
+
     const newIdeaSchema = yup.object().shape({
         title: yup
             .string()
@@ -274,6 +278,12 @@ const IdeasTab = () => {
             setIdeasLoading(false);
         }
     }, [activeBand?.id, apiUrl]);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await getIdeas();
+        setRefreshing(false);
+    }, [getIdeas]);
 
     const record = async () => {
         await audioRecorder.prepareToRecordAsync();
@@ -380,12 +390,6 @@ const IdeasTab = () => {
             setFavoriteIdeas([]);
         }
     }, [activeBand?.id, getIdeas]);
-
-    useFocusEffect(
-        useCallback(() => {
-            getIdeas();
-        }, [getIdeas])
-    );
 
     useEffect(() => {
         const sourceIdeas = Array.isArray(ideas) ? ideas : [];
@@ -690,7 +694,7 @@ const IdeasTab = () => {
                             />
                         </View>
                     </View>
-                    {ideasLoading ? (
+                    {ideasLoading && !refreshing ? (
                         <View className='flex-1 w-full justify-center items-center py-8'>
                             <ActivityIndicator
                                 size='large'
@@ -708,7 +712,16 @@ const IdeasTab = () => {
                             contentContainerStyle={{
                                 alignItems: "center",
                                 justifyContent: "center",
-                            }}>
+                            }}
+                            refreshControl={
+                                <RefreshControl
+                                    refreshing={refreshing}
+                                    onRefresh={onRefresh}
+                                    tintColor={colorScheme === "dark" ? "#ffffff" : "#000000"}
+                                    colors={["#2B7FFF"]}
+                                    progressViewOffset={Platform.OS === 'android' ? 50 : 0}
+                                />
+                            }>
                             {visibleIdeas.length > 0 ? (
                                 visibleIdeas.map((idea) => (
                                     <IdeaCard key={idea.idea_id} idea={idea} toggleFavorite={toggleFavorite} colorScheme={colorScheme} fontSize={fontSize} apiUrl={apiUrl} getIdeas={getIdeas} />
