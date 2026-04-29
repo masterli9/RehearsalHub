@@ -1224,6 +1224,7 @@ const songs = () => {
                                     body: JSON.stringify({
                                         title: values.title.trim(),
                                         bandId: String(bandId).trim(),
+                                        firebase_uid: user?.uid,
                                         cloudurl: path,
                                         length:
                                             values.file.duration ||

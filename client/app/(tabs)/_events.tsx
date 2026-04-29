@@ -655,6 +655,7 @@ const events = () => {
                                 type: eventType,
                                 date_time: localDateTimeString,
                                 bandId: String(activeBand.id).trim(),
+                                firebase_uid: user?.uid,
                             };
 
                             if (eventType === "rehearsal") {

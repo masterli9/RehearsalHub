@@ -27,6 +27,9 @@ export default function HomeScreen() {
     const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
     const [loadingEvents, setLoadingEvents] = useState(false);
 
+    const [recentActivities, setRecentActivities] = useState<any[]>([]);
+    const [loadingActivities, setLoadingActivities] = useState(false);
+
     useEffect(() => {
         const fetchEvents = async () => {
             if (!activeBand?.id) {
@@ -50,7 +53,27 @@ export default function HomeScreen() {
             }
         };
 
+        const fetchActivities = async () => {
+            if (!activeBand?.id) {
+                setRecentActivities([]);
+                return;
+            }
+            setLoadingActivities(true);
+            try {
+                const response = await fetch(`${apiUrl}/api/activities?bandId=${activeBand.id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setRecentActivities(data.slice(0, 5)); // Get latest 5
+                }
+            } catch (error) {
+                console.error("Error fetching dashboard activities:", error);
+            } finally {
+                setLoadingActivities(false);
+            }
+        };
+
         fetchEvents();
+        fetchActivities();
     }, [activeBand?.id]);
 
     const formatDateTimeToDisplay = (dateTimeString: string) => {
@@ -90,28 +113,46 @@ export default function HomeScreen() {
         { id: "tasks", label: "Tasks", icon: "ListTodo", color: "#FF6900", route: "/(tabs)/_todos" },
     ];
 
-    const recentActivities = [
-        {
-            id: 1, user: "Sarah Chen", action: "shared a new guitar riff idea", time: "5 minutes ago",
-            icon: "Music", iconBg: "rgba(240, 177, 0, 0.2)", iconColor: "#F0B100",
-        },
-        {
-            id: 2, user: "Mike Rodriguez", action: "scheduled rehearsal for tomorrow", time: "1 hour ago",
-            icon: "Calendar", iconBg: "rgba(173, 70, 255, 0.2)", iconColor: "#AD46FF",
-        },
-        {
-            id: 3, user: "Emma Wilson", action: "updated \"Midnight Blues\" lyrics", time: "3 hours ago",
-            icon: "Music", iconBg: "rgba(0, 201, 80, 0.2)", iconColor: "#00C950",
-        },
-        {
-            id: 4, user: "David Kim", action: "sent a message in band chat", time: "5 hours ago",
-            icon: "MessageCircle", iconBg: "rgba(246, 51, 154, 0.2)", iconColor: "#F6339A",
-        },
-        {
-            id: 5, user: "You", action: "logged 45 minutes of practice", time: "1 day ago",
-            icon: "Activity", iconBg: "rgba(43, 128, 255, 0.2)", iconColor: "#2B7FFF",
-        },
-    ];
+    // Removed hardcoded recentActivities
+
+    const getActivityIconProps = (type: string) => {
+        switch (type) {
+            case "idea_shared":
+                return { icon: "Lightbulb", bg: "rgba(240, 177, 0, 0.2)", color: "#F0B100" };
+            case "event_scheduled":
+                return { icon: "Calendar", bg: "rgba(173, 70, 255, 0.2)", color: "#AD46FF" };
+            case "song_created":
+            case "song_updated":
+                return { icon: "Music", bg: "rgba(0, 201, 80, 0.2)", color: "#00C950" };
+            case "chat_message":
+                return { icon: "MessageCircle", bg: "rgba(246, 51, 154, 0.2)", color: "#F6339A" };
+            case "task_created":
+                return { icon: "ListTodo", bg: "rgba(255, 105, 0, 0.2)", color: "#FF6900" };
+            case "task_completed":
+                return { icon: "SquareCheckBig", bg: "rgba(255, 105, 0, 0.2)", color: "#FF6900" };
+            default:
+                return { icon: "Activity", bg: "rgba(43, 128, 255, 0.2)", color: "#2B7FFF" };
+        }
+    };
+
+    const formatActivityTime = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+
+        if (diffMins < 1) return "Just now";
+        if (diffMins < 60) return `${diffMins} minutes ago`;
+
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+
+        const diffDays = Math.floor(diffHours / 24);
+        if (diffDays === 1) return "1 day ago";
+        if (diffDays < 7) return `${diffDays} days ago`;
+
+        return date.toLocaleDateString();
+    };
 
     // Theme colors identical to Nativewind setup
     const screenBg = isDark ? "#1E1728" : "#F8F8F8";
@@ -122,9 +163,9 @@ export default function HomeScreen() {
 
     return (
         <PageContainer noBandState={!activeBand}>
-            <PageHeader 
-                title={`Welcome back, ${user?.username || user?.email?.split('@')[0] || "Musician"}!`} 
-                subtitle={activeBand ? `Here's what's happening with ${activeBand.name}.` : "Ready to make music? Join or create a band to get started."} 
+            <PageHeader
+                title={`Welcome back, ${user?.username || user?.email?.split('@')[0] || "Musician"}!`}
+                subtitle={activeBand ? `Here's what's happening with ${activeBand.name}.` : "Ready to make music? Join or create a band to get started."}
             />
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100, paddingTop: 16 }} className="w-full">
                 {/* Quick Actions Array */}
@@ -226,38 +267,50 @@ export default function HomeScreen() {
                         <Text className="font-bold" style={{ color: textPrimary, fontSize: fontSize.lg }}>
                             Recent Activity
                         </Text>
-                        <Pressable>
-                            <Text className="font-semibold" style={{ color: textPrimary, fontSize: fontSize.sm }}>
-                                View All
-                            </Text>
-                        </Pressable>
                     </View>
 
-                    <View className="gap-y-3">
-                        {recentActivities.map((activity) => (
-                            <View
-                                key={activity.id}
-                                className="p-4 rounded-2xl flex-row items-center"
-                                style={{ backgroundColor: surfaceBg }}>
-                                <View
-                                    className="p-2 rounded-full mr-4 items-center justify-center"
-                                    style={{ backgroundColor: activity.iconBg }}>
-                                    <Icon name={activity.icon} color={activity.iconColor} size={20} />
-                                </View>
-                                <View className="flex-1">
-                                    <Text
-                                        style={{ color: textPrimary, fontSize: fontSize.sm, lineHeight: 20 }}
-                                        numberOfLines={2}>
-                                        <Text style={{ fontWeight: "700" }}>{activity.user} </Text>
-                                        {activity.action}
-                                    </Text>
-                                    <Text style={{ color: textSecondary, fontSize: fontSize.xs, marginTop: 4 }}>
-                                        {activity.time}
-                                    </Text>
-                                </View>
-                            </View>
-                        ))}
-                    </View>
+                    {loadingActivities ? (
+                        <ActivityIndicator size="small" color={textPrimary} style={{ marginVertical: 20 }} />
+                    ) : recentActivities.length === 0 ? (
+                        <View className="p-4 rounded-2xl flex-col items-center justify-center"
+                            style={{ backgroundColor: cardBg, borderWidth: isDark ? 1 : 0, borderColor: "rgba(255,255,255,0.05)" }}>
+                            <Text style={{ color: textSecondary, fontSize: fontSize.base }}>
+                                No recent activity yet.
+                            </Text>
+                        </View>
+                    ) : (
+                        <View className="gap-y-3">
+                            {recentActivities.map((activity) => {
+                                const { icon, bg, color } = getActivityIconProps(activity.action_type);
+                                const isCurrentUser = activity.firebase_uid === user?.uid;
+                                const displayName = isCurrentUser ? "You" : activity.username;
+
+                                return (
+                                    <View
+                                        key={activity.activity_id}
+                                        className="p-4 rounded-2xl flex-row items-center"
+                                        style={{ backgroundColor: surfaceBg }}>
+                                        <View
+                                            className="p-2 rounded-full mr-4 items-center justify-center"
+                                            style={{ backgroundColor: bg }}>
+                                            <Icon name={icon} color={color} size={20} />
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text
+                                                style={{ color: textPrimary, fontSize: fontSize.sm, lineHeight: 20 }}
+                                                numberOfLines={2}>
+                                                <Text style={{ fontWeight: "700" }}>{displayName} </Text>
+                                                {activity.action_text}
+                                            </Text>
+                                            <Text style={{ color: textSecondary, fontSize: fontSize.xs, marginTop: 4 }}>
+                                                {formatActivityTime(activity.created_at)}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    )}
                 </View>
             </ScrollView>
         </PageContainer>

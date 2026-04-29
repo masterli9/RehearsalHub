@@ -1,5 +1,7 @@
 import pool from "../db/pool.js";
 import { storage } from "../utils/firebaseAdmin.js";
+import { logActivity } from "../utils/activityLogger.js";
+import { getUserIdByFirebaseUid } from "../utils/getUserId.js";
 
 // Valid song keys from database CHECK constraint
 const VALID_SONG_KEYS = [
@@ -44,6 +46,7 @@ export const createSong = async (req, res) => {
 			notes,
 			cloudurl,
 			tags,
+            firebase_uid,
 		} = req.body;
 
 		if (!title || typeof title !== "string") {
@@ -209,6 +212,16 @@ export const createSong = async (req, res) => {
 		}
 
 		const song = insertSong.rows[0];
+
+        if (firebase_uid) {
+            try {
+                const userId = await getUserIdByFirebaseUid(firebase_uid);
+                await logActivity(bandIdInt, userId, `added a new song: "${title}"`, "song_created");
+            } catch (e) {
+                console.error("Failed to log song creation", e);
+            }
+        }
+
 		res.status(201).json(song);
 	} catch (error) {
 		console.error("Error creating song: ", error);

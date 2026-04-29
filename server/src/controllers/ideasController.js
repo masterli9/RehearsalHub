@@ -1,6 +1,7 @@
 import pool from "../db/pool.js";
 import { getUserIdByFirebaseUid } from "../utils/getUserId.js"
 import { storage } from "../utils/firebaseAdmin.js";
+import { logActivity } from "../utils/activityLogger.js";
 
 const getBandMemberIdByUserId = async (user_uid, band_id) =>{
     const userId = await getUserIdByFirebaseUid(user_uid);
@@ -37,6 +38,7 @@ export const createIdea = async (req, res) => {
             return res.status(400).json({ error: "user_uid and band_id are required" });
         }
 
+        const userId = await getUserIdByFirebaseUid(user_uid);
         const band_member_id = await getBandMemberIdByUserId(user_uid, band_id);
 
         title = title.trim();
@@ -103,6 +105,10 @@ export const createIdea = async (req, res) => {
         const ideaId = insertIdea.rows[0].idea_id;
 
         const idea = insertIdea.rows[0];
+        
+        // Log activity
+        await logActivity(band_id, userId, `shared a new idea: "${title}"`, "idea_shared");
+        
         res.status(201).json(idea);
     } catch (error) {
         console.error("Error creating idea: ", error);

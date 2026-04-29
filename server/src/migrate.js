@@ -3,7 +3,7 @@ import fs from "fs";
 
 async function runMigration() {
     try {
-        const sql = fs.readFileSync("../migrations/add_ideas_metadata_and_tabs.sql", "utf-8");
+        const sql = fs.readFileSync("../migrations/add_activities_table.sql", "utf-8");
         await pool.query(sql);
         console.log("Migration successful");
     } catch (e) {

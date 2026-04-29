@@ -1,4 +1,5 @@
 import pool from "../db/pool.js";
+import { logActivity } from "../utils/activityLogger.js";
 
 export const getTasks = async (req, res) => {
 	const { bandId } = req.query;
@@ -69,7 +70,21 @@ export const createTask = async (req, res) => {
 			assigned_by ? parseInt(assigned_by, 10) : null
 		]);
 
-		res.status(201).json(result.rows[0]);
+		const task = result.rows[0];
+
+		if (assigned_by) {
+			try {
+				const userRes = await pool.query("SELECT user_id, band_id FROM band_members WHERE band_member_id = $1", [assigned_by]);
+				if (userRes.rows.length > 0) {
+					const { user_id, band_id } = userRes.rows[0];
+					await logActivity(band_id, user_id, `created a new task: "${title}"`, "task_created");
+				}
+			} catch (e) {
+				console.error("Failed to log task creation", e);
+			}
+		}
+
+		res.status(201).json(task);
 	} catch (error) {
 		console.error("Error creating task: ", error);
 		res.status(500).json({ error: "Server error (create task)" });
@@ -166,7 +181,22 @@ export const updateTask = async (req, res) => {
 			return res.status(404).json({ error: "Task not found" });
 		}
 
-		res.status(200).json(result.rows[0]);
+		const updatedTask = result.rows[0];
+
+		// Log if task was completed
+		if (status === 'completed' && task.status !== 'completed') {
+			try {
+				const userRes = await pool.query("SELECT user_id, band_id FROM band_members WHERE band_member_id = $1", [reqMemberIdInt]);
+				if (userRes.rows.length > 0) {
+					const { user_id, band_id } = userRes.rows[0];
+					await logActivity(band_id, user_id, `completed a task: "${updatedTask.title}"`, "task_completed");
+				}
+			} catch (e) {
+				console.error("Failed to log task completion", e);
+			}
+		}
+
+		res.status(200).json(updatedTask);
 	} catch (error) {
 		console.error("Error updating task: ", error);
 		res.status(500).json({ error: "Server error (update task)" });

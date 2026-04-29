@@ -1,4 +1,6 @@
 import pool from "../db/pool.js";
+import { logActivity } from "../utils/activityLogger.js";
+import { getUserIdByFirebaseUid } from "../utils/getUserId.js";
 
 const VALID_EVENT_TYPES = ["rehearsal", "concert", "recording"];
 
@@ -13,6 +15,7 @@ export const createEvent = async (req, res) => {
 			place,
 			length,
 			songs,
+            firebase_uid,
 		} = req.body;
 
 		// Validate required fields
@@ -139,6 +142,15 @@ export const createEvent = async (req, res) => {
 				}
 			}
 		}
+
+        if (firebase_uid) {
+            try {
+                const userId = await getUserIdByFirebaseUid(firebase_uid);
+                await logActivity(bandIdInt, userId, `scheduled a ${type}: "${title}"`, "event_scheduled");
+            } catch (e) {
+                console.error("Failed to log event creation", e);
+            }
+        }
 
 		res.status(201).json(event);
 	} catch (error) {
