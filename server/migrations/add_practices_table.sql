@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS practices (
+    practice_id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    band_id INTEGER REFERENCES bands(band_id) ON DELETE CASCADE,
+    duration_minutes INTEGER NOT NULL,
+    practice_date DATE DEFAULT CURRENT_DATE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -20,7 +20,7 @@ export default function SwitchTabs({
             {tabs.map((tab, index) => (
                 <Pressable
                     key={index}
-                    className={`p-3 rounded-m ${activeTab === tab ? "bg-boxBackground-light dark:bg-boxBackground-dark" : "bg-accent-light dark:bg-accent-dark"}`}
+                    className={`p-3 rounded-m items-center justify-center ${activeTab === tab ? "bg-boxBackground-light dark:bg-boxBackground-dark" : "bg-accent-light dark:bg-accent-dark"}`}
                     style={{
                         flex: 1,
                         boxShadow:
