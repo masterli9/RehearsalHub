@@ -13,6 +13,7 @@ import { auth } from "@/lib/firebase";
 import apiUrl from "@/config";
 import { Alert } from "react-native";
 import { router } from "expo-router";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export type AppUser = {
     uid: string;
@@ -50,6 +51,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<AppUser | null>(null);
     const [idToken, setIdToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const { expoPushToken } = usePushNotifications();
+
+    useEffect(() => {
+        if (user && expoPushToken) {
+            fetch(`${apiUrl}/api/users/push-token`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    uid: user.uid,
+                    pushToken: expoPushToken,
+                }),
+            }).catch(console.error);
+        }
+    }, [user, expoPushToken]);
 
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, async (firebaseUser) => {

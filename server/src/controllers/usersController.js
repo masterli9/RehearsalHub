@@ -191,3 +191,22 @@ export const finalizeAvatarUpload = async (req, res) => {
         return res.status(500).json({ error: "Failed to make file public" });
     }
 };
+
+export const updatePushToken = async (req, res) => {
+    const { uid, pushToken } = req.body;
+
+    if (!uid) {
+        return res.status(400).json({ error: "Missing UID" });
+    }
+
+    try {
+        await pool.query(
+            "UPDATE users SET push_token = $1 WHERE firebase_uid = $2",
+            [pushToken, uid]
+        );
+        res.status(200).json({ message: "Push token updated successfully." });
+    } catch (error) {
+        console.error("Error updating push token:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+};

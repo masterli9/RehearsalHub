@@ -3,6 +3,7 @@
         "@google-cloud/storage": "^7.18.0",
         "crypto": "^1.0.1",
         "dotenv": "^17.2.3",
+        "expo-server-sdk": "^6.1.0",
         "express": "^5.1.0",
         "firebase-admin": "^13.6.0",
         "multer": "^2.0.2",
