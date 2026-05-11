@@ -147,8 +147,18 @@ export const createEvent = async (req, res) => {
             try {
                 const userId = await getUserIdByFirebaseUid(firebase_uid);
                 await logActivity(bandIdInt, userId, `scheduled a ${type}: "${title}"`, "event_scheduled");
+                
+                // Odeslání push notifikace kapele
+                const { sendPushNotificationToBand } = await import("../utils/notifications.js");
+                await sendPushNotificationToBand(
+                    bandIdInt, 
+                    userId, 
+                    "Nová událost", 
+                    `Byla naplánována nová událost: ${title} (${type})`,
+                    { type: 'event', eventId: event.event_id }
+                );
             } catch (e) {
-                console.error("Failed to log event creation", e);
+                console.error("Failed to log event creation or send notification", e);
             }
         }
 

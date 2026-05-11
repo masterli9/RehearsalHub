@@ -4,6 +4,8 @@ import { Server } from "socket.io";
 import { adminAuth } from "./utils/firebaseAdmin.js";
 import pool from "./db/pool.js";
 import TokenBucket from "./utils/rateLimiter.js";
+import { getUserIdByFirebaseUid } from "./utils/getUserId.js";
+import { sendPushNotificationToBand } from "./utils/notifications.js";
 
 const messageBuckets = new Map();
 const typingBuckets = new Map();
@@ -171,6 +173,20 @@ io.on("connection", async (socket) => {
             ack?.({ ok: true, message: msg, tempId });
 
             io.to(`band:${bandId}`).emit("message:new", msg);
+            
+            try {
+                const senderUserId = await getUserIdByFirebaseUid(socket.data.user.uid);
+                let pushBody = type === 'audio' ? "Odeslal(a) hlasovou zprávu 🎤" : text;
+                await sendPushNotificationToBand(
+                    bandId,
+                    senderUserId,
+                    `${username} (Chat)`,
+                    pushBody,
+                    { type: 'message', bandId }
+                );
+            } catch (e) {
+                console.error("Failed to send push notification for message", e);
+            }
         } catch (error) {
             console.error("Error sending message", error);
             ack?.({ ok: false, error: "server-error", tempId });

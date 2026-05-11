@@ -78,3 +78,22 @@ export const sendPushNotificationToMultiple = async (userIds, title, body, data 
          console.error("Chyba při hromadném odesílání notifikací:", error);
     }
 }
+
+/**
+ * Helper function to send notification to all band members except the sender
+ */
+export const sendPushNotificationToBand = async (bandId, excludeUserId, title, body, data = {}) => {
+    try {
+        const result = await pool.query(
+            "SELECT user_id FROM band_members WHERE band_id = $1 AND user_id != $2",
+            [bandId, excludeUserId]
+        );
+        
+        const userIds = result.rows.map(row => row.user_id);
+        if (userIds.length > 0) {
+            await sendPushNotificationToMultiple(userIds, title, body, data);
+        }
+    } catch (error) {
+        console.error("Chyba při zjišťování členů kapely pro notifikaci:", error);
+    }
+}

@@ -109,6 +109,20 @@ export const createIdea = async (req, res) => {
         // Log activity
         await logActivity(band_id, userId, `shared a new idea: "${title}"`, "idea_shared");
         
+        // Odeslání push notifikace kapele
+        try {
+            const { sendPushNotificationToBand } = await import("../utils/notifications.js");
+            await sendPushNotificationToBand(
+                band_id, 
+                userId, 
+                "Nový nápad v kapele", 
+                `Byl přidán nový nápad: ${title}`,
+                { type: 'idea', ideaId: ideaId }
+            );
+        } catch (e) {
+            console.error("Chyba při odesílání notifikace k nápadu:", e);
+        }
+        
         res.status(201).json(idea);
     } catch (error) {
         console.error("Error creating idea: ", error);
