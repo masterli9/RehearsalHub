@@ -11,7 +11,7 @@ import { useBand } from "@/context/BandContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Formik } from "formik";
-import { Calendar, Clock, MapPin, Music, ListMusic } from "lucide-react-native";
+import { Calendar, Clock, MapPin, Music, ListMusic, Edit3 } from "lucide-react-native";
 import { useEffect, useState, useCallback } from "react";
 import {
     ActivityIndicator,
@@ -65,6 +65,7 @@ const events = () => {
     const [eventsLoading, setEventsLoading] = useState<boolean>(false);
     const [newEventModalVisible, setNewEventModalVisible] =
         useState<boolean>(false);
+    const [editingEvent, setEditingEvent] = useState<Event | null>(null);
     const [eventType, setEventType] = useState<"rehearsal" | "concert">(
         "rehearsal"
     );
@@ -279,6 +280,16 @@ const events = () => {
         }
     };
 
+    const handleEditEvent = (event: Event) => {
+        setEditingEvent(event);
+        setEventType(event.type);
+        setValueType(event.type);
+        const eventDate = new Date(event.date_time);
+        setSelectedDate(eventDate);
+        setSelectedTime(eventDate);
+        setNewEventModalVisible(true);
+    };
+
     const EventCard = ({ event }: { event: Event }) => {
         const typeColors = {
             rehearsal: {
@@ -386,6 +397,13 @@ const events = () => {
                             )}
                         </View>
                     </View>
+                    <Pressable 
+                        onPress={() => handleEditEvent(event)}
+                        className='p-2'
+                        hitSlop={10}
+                    >
+                        <Edit3 color={colorScheme === "dark" ? "#fff" : "#000"} size={20} />
+                    </Pressable>
                 </View>
                 {event.type === "rehearsal" && event.description && (
                     <Text
@@ -506,6 +524,7 @@ const events = () => {
 
     const closeModalAndReset = () => {
         setNewEventModalVisible(false);
+        setEditingEvent(null);
         setEventType("rehearsal");
         setSelectedDate(new Date());
         setSelectedTime(new Date());
@@ -617,8 +636,8 @@ const events = () => {
                 onClose={closeModalAndReset}
                 canClose={true}
                 wide={true}
-                title='Create an event'
-                subtitle="Add a new rehearsal or concert to your band's schedule">
+                title={editingEvent ? 'Edit an event' : 'Create an event'}
+                subtitle={editingEvent ? 'Update details for your rehearsal or concert' : "Add a new rehearsal or concert to your band's schedule"}>
                 <Formik
                     validationSchema={
                         eventType === "rehearsal"
@@ -626,16 +645,16 @@ const events = () => {
                             : concertSchema
                     }
                     initialValues={{
-                        title: "",
-                        place: "",
-                        date: new Date(),
-                        time: new Date(),
-                        description: "",
-                        songs: [] as number[],
-                        length: "",
-                        setlist_id: null,
+                        title: editingEvent ? editingEvent.title : "",
+                        place: editingEvent?.place || "",
+                        date: editingEvent ? new Date(editingEvent.date_time) : new Date(),
+                        time: editingEvent ? new Date(editingEvent.date_time) : new Date(),
+                        description: editingEvent?.description || "",
+                        songs: editingEvent?.songs ? editingEvent.songs.map((s: any) => s.song_id) : ([] as number[]),
+                        length: editingEvent?.length || "",
+                        setlist_id: editingEvent?.setlist_id || null,
                     }}
-                    enableReinitialize={false}
+                    enableReinitialize={true}
                     onSubmit={async (
                         values,
                         { setFieldError, setSubmitting }
@@ -687,23 +706,25 @@ const events = () => {
                                 }
                             }
 
-                            const response = await fetch(
-                                `${apiUrl}/api/events/create`,
-                                {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify(requestBody),
-                                }
-                            );
+                            const url = editingEvent 
+                                ? `${apiUrl}/api/events/${editingEvent.event_id}` 
+                                : `${apiUrl}/api/events/create`;
+                            const method = editingEvent ? "PUT" : "POST";
+
+                            const response = await fetch(url, {
+                                method: method,
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify(requestBody),
+                            });
 
                             if (!response.ok) {
                                 const err = await response
                                     .json()
                                     .catch(() => ({}));
                                 throw new Error(
-                                    err.error || "Failed to create event"
+                                    err.error || (editingEvent ? "Failed to update event" : "Failed to create event")
                                 );
                             }
 
@@ -1101,7 +1122,7 @@ const events = () => {
                                 )}
                             </View>
                             <StyledButton
-                                title='Create Event'
+                                title={editingEvent ? 'Save Changes' : 'Create Event'}
                                 onPress={() => handleSubmit()}
                             />
                         </>

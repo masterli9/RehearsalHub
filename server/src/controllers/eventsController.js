@@ -169,6 +169,126 @@ export const createEvent = async (req, res) => {
 	}
 };
 
+export const updateEvent = async (req, res) => {
+	const { id } = req.params;
+	try {
+		let {
+			title,
+			type,
+			date_time,
+			description,
+			place,
+			length,
+			songs,
+            setlist_id,
+			firebase_uid,
+		} = req.body;
+
+		if (!title || typeof title !== "string") {
+			return res.status(400).json({ error: "Title is required and must be a string" });
+		}
+		if (!type || typeof type !== "string") {
+			return res.status(400).json({ error: "Type is required" });
+		}
+		if (!VALID_EVENT_TYPES.includes(type)) {
+			return res.status(400).json({ error: "Invalid event type" });
+		}
+		if (!date_time) {
+			return res.status(400).json({ error: "Date and time are required" });
+		}
+
+		title = title.trim();
+		if (description && typeof description === "string") description = description.trim();
+		if (place && typeof place === "string") place = place.trim();
+		if (title.length === 0) return res.status(400).json({ error: "Title cannot be empty" });
+		if (title.length > 255) return res.status(400).json({ error: "Title must be 255 characters or less" });
+
+		if (type === "concert" && !place) {
+			return res.status(400).json({ error: "Place is required for concert events" });
+		}
+
+		let dateTimeValue;
+		try {
+			dateTimeValue = new Date(date_time);
+			if (isNaN(dateTimeValue.getTime())) {
+				return res.status(400).json({ error: "Invalid date_time format" });
+			}
+		} catch (error) {
+			return res.status(400).json({ error: "Invalid date_time format" });
+		}
+
+		let lengthValue = null;
+		if (length !== null && length !== undefined && length !== "") {
+			if (typeof length === "string") {
+				lengthValue = length.trim() || null;
+			} else {
+				lengthValue = length;
+			}
+		}
+
+		// Update event
+		const updateEventResult = await pool.query(
+			"UPDATE events SET title = $1, type = $2, date_time = $3, description = $4, place = $5, length = $6, setlist_id = $7 WHERE event_id = $8 RETURNING *",
+			[
+				title,
+				type,
+				dateTimeValue,
+				description || null,
+				place || null,
+				lengthValue,
+				type === "concert" && setlist_id ? parseInt(setlist_id, 10) : null,
+				id
+			]
+		);
+
+		if (updateEventResult.rows.length === 0) {
+			return res.status(404).json({ error: "Event not found" });
+		}
+		const event = updateEventResult.rows[0];
+
+		// Handle songs for rehearsal events
+		if (type === "rehearsal") {
+            // delete existing songs for this event
+            await pool.query("DELETE FROM event_songs WHERE event_id = $1", [event.event_id]);
+
+			if (songs && Array.isArray(songs) && songs.length > 0) {
+				const songIds = songs
+					.map((s) => (typeof s === "number" ? s : parseInt(s, 10)))
+					.filter((id) => !isNaN(id) && id > 0);
+
+				if (songIds.length > 0) {
+					const songsCheck = await pool.query(
+						"SELECT song_id FROM songs WHERE song_id = ANY($1) AND band_id = $2",
+						[songIds, event.band_id],
+					);
+					const validSongIds = songsCheck.rows.map((r) => r.song_id);
+
+					for (const songId of validSongIds) {
+						await pool.query(
+							"INSERT INTO event_songs (event_id, song_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+							[event.event_id, songId],
+						);
+					}
+				}
+			}
+		}
+
+        if (firebase_uid) {
+            try {
+                const userId = await getUserIdByFirebaseUid(firebase_uid);
+                await logActivity(event.band_id, userId, `updated a ${type}: "${title}"`, "event_scheduled");
+            } catch (e) {
+                console.error("Failed to log event update", e);
+            }
+        }
+
+		res.status(200).json(event);
+	} catch (error) {
+		console.error("Error updating event: ", error);
+		res.status(500).json({ error: "Server error (update event)" });
+	}
+};
+
 export const updateEventSetlist = async (req, res) => {
 	const { id } = req.params;
 	const { setlist_id } = req.body;
