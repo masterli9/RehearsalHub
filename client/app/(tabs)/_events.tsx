@@ -27,6 +27,7 @@ import {
 import * as yup from "yup";
 import SwitchTabs from "@/components/SwitchTabs";
 import PageHeader from "@/components/PageHeader";
+import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
 
 type Event = {
     event_id: number;
@@ -312,7 +313,7 @@ const events = () => {
         const colors = typeColors[event.type] || typeColors.rehearsal;
 
         return (
-            <View
+            <Animated.View
                 className={`${colors.cardBg} border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3`}>
                 <View className='flex-row justify-between items-start mb-2'>
                     <View className='flex-1' style={{ minWidth: 0 }}>
@@ -471,7 +472,7 @@ const events = () => {
                         )}
                     </View>
                 )}
-            </View>
+            </Animated.View>
         );
     };
 

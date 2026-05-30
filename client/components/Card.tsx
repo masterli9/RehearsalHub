@@ -1,14 +1,17 @@
-import { View, ViewProps } from "react-native";
+import { ViewProps } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 
 interface CardProps extends ViewProps {
     children: React.ReactNode;
     variant?: "default" | "boxBackground";
+    animated?: boolean;
 }
 
 const Card: React.FC<CardProps> = ({
     children,
     variant = "default",
     className,
+    animated = true,
     ...props
 }) => {
     const baseClassName =
@@ -19,12 +22,21 @@ const Card: React.FC<CardProps> = ({
         "border border-accent-light dark:border-accent-dark rounded-2xl p-5";
     const finalClassName = `${baseClassName} ${borderClassName} ${className || ""}`;
 
+    if (animated) {
+        return (
+            <Animated.View 
+                className={finalClassName} 
+                {...props}>
+                {children}
+            </Animated.View>
+        );
+    }
+
     return (
-        <View className={finalClassName} {...props}>
+        <Animated.View className={finalClassName} {...props}>
             {children}
-        </View>
+        </Animated.View>
     );
 };
 
 export default Card;
-

@@ -28,15 +28,19 @@ export default function PageHeader({
 
     return (
         <View className='flex-row justify-between items-start w-full border-b border-accent-light dark:border-accent-dark mt-4 w-full px-5 py-2'>
-            <View className='flex-col items-start justify-center'>
+            <View className='flex-col items-start justify-center flex-1 pr-4'>
                 <Text
                     className='text-black dark:text-white font-bold my-1'
-                    style={{ fontSize: fontSize["2xl"] }}>
+                    style={{ fontSize: fontSize["2xl"] }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail">
                     {title}
                 </Text>
                 <Text
                     className='text-silverText'
-                    style={{ fontSize: fontSize.base }}>
+                    style={{ fontSize: fontSize.base }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail">
                     {subtitle}
                 </Text>
             </View>
