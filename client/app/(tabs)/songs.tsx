@@ -832,7 +832,7 @@ const songs = () => {
                         className='flex-row gap-4 items-center'
                         style={{ flexShrink: 0 }}
                     >
-                        <Pressable onPress={showPause ? pause : handlePlay}>
+                        <Pressable onPress={showPause ? pause : handlePlay} className={`p-2 ${showPause ? "active:scale-110 transition-transform duration-200" : "active:scale-95 transition-transform duration-200"}`}>
                             {showPause ? (
                                 <Pause
                                     color={
@@ -840,7 +840,7 @@ const songs = () => {
                                             ? "white"
                                             : "black"
                                     }
-                                    size={20}
+                                    size={23}
                                 />
                             ) : (
                                 <Play
@@ -849,17 +849,9 @@ const songs = () => {
                                             ? "white"
                                             : "black"
                                     }
-                                    size={20}
+                                    size={23}
                                 />
                             )}
-                        </Pressable>
-                        <Pressable>
-                            <EllipsisVertical
-                                color={
-                                    colorScheme === "dark" ? "white" : "black"
-                                }
-                                size={20}
-                            />
                         </Pressable>
                     </View>
                 </View>
@@ -2203,7 +2195,7 @@ const songs = () => {
                                             }
                                         />
                                     </View>
-                                    {songCollectionSwitch === "Songs" ? (
+                                    {/* {songCollectionSwitch === "Songs" ? (
                                         <Pressable
                                             onPress={() =>
                                                 setSongCollectionSwitch(
@@ -2249,7 +2241,7 @@ const songs = () => {
                                                 }
                                             />
                                         </Pressable>
-                                    )}
+                                    )} */}
                                     <Menu>
                                         <MenuTrigger>
                                             <ArrowUpDown

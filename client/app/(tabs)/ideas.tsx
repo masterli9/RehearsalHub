@@ -46,6 +46,9 @@ import {
     MenuTrigger,
 } from "react-native-popup-menu";
 import * as yup from "yup";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const IdeaCard = ({ idea, toggleFavorite, colorScheme, fontSize, apiUrl, getIdeas }: any) => {
     const router = useRouter();
@@ -86,24 +89,27 @@ const IdeaCard = ({ idea, toggleFavorite, colorScheme, fontSize, apiUrl, getIdea
         return "0:00";
     };
 
-    const deleteIdea = (idea_id: number) => {
-        Alert.alert("Delete idea", "Are you sure you want to delete this idea?", [
-            { text: "Cancel", style: "cancel" },
-            {
-                text: "Delete", style: "destructive", onPress: async () => {
-                    try {
-                        await fetch(`${apiUrl}/api/ideas/${idea_id}`, { method: 'DELETE' });
-                        getIdeas();
-                    } catch (e) {
-                        console.error(e);
-                    }
-                }
-            }
-        ]);
+    const scale = useSharedValue(1);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    const handlePressIn = () => {
+        scale.value = withTiming(0.985, { duration: 100 });
+    };
+
+    const handlePressOut = () => {
+        scale.value = withTiming(1, { duration: 150 });
     };
 
     return (
-        <Card className='w-full flex-col mb-3 p-4'>
+        <AnimatedPressable 
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            style={animatedStyle}
+            onPress={() => router.push(`/idea/${idea.idea_id}`)}
+            className='w-full flex-col mb-3 p-4 bg-darkWhite dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl'>
             <View className="flex-row justify-between items-start w-full">
                 <View className="flex-row items-center flex-1 pr-2">
                     <Image source={{ uri: idea.photourl }} className='w-10 h-10 rounded-full mr-3' style={{ width: fontSize["2xl"] * 1.8, height: fontSize["2xl"] * 1.8 }} />
@@ -124,42 +130,6 @@ const IdeaCard = ({ idea, toggleFavorite, colorScheme, fontSize, apiUrl, getIdea
                             fill={idea.is_favorite ? "#FFD700" : "transparent"}
                         />
                     </Pressable>
-                    <Menu>
-                        <MenuTrigger>
-                            <Text className='text-silverText px-2 py-1' style={{ fontSize: fontSize["2xl"] }}>⋮</Text>
-                        </MenuTrigger>
-                        <MenuOptions
-                            customStyles={{
-                                optionsContainer: {
-                                    borderRadius: 10,
-                                    paddingVertical: 4,
-                                    backgroundColor: colorScheme === "dark" ? "#333" : "#fff",
-                                },
-                            }}>
-                            <MenuOption
-                                onSelect={() => router.push(`/idea/${idea.idea_id}`)}
-                                text="Edit / Open"
-                                customStyles={{
-                                    optionText: {
-                                        color: colorScheme === 'dark' ? '#fff' : '#000',
-                                        fontSize: fontSize.base,
-                                        padding: 10
-                                    }
-                                }}
-                            />
-                            <MenuOption
-                                onSelect={() => deleteIdea(idea.idea_id)}
-                                text="Delete idea"
-                                customStyles={{
-                                    optionText: {
-                                        color: 'red',
-                                        fontSize: fontSize.base,
-                                        padding: 10
-                                    }
-                                }}
-                            />
-                        </MenuOptions>
-                    </Menu>
                 </View>
             </View>
 
@@ -204,7 +174,7 @@ const IdeaCard = ({ idea, toggleFavorite, colorScheme, fontSize, apiUrl, getIdea
                     </Pressable>
                 )}
             </View>
-        </Card>
+        </AnimatedPressable>
     );
 };
 

@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { ActivityIndicator, Alert, Pressable, Text, View, TextInput } from "react-native";
-import { Play, Pause, Save, Music4, Clock, Hash, ArrowLeft } from "lucide-react-native";
+import { Play, Pause, Save, Music4, Clock, Hash, ArrowLeft, Trash2 } from "lucide-react-native";
 
 export default function IdeaDetail() {
     const { id } = useLocalSearchParams();
@@ -85,11 +85,11 @@ export default function IdeaDetail() {
                     text_tabs: tabText,
                 }),
             });
-            
+
             if (!response.ok) {
                 throw new Error("Failed to save properties");
             }
-            
+
             Alert.alert("Saved", "Idea updated successfully");
             router.back();
         } catch (e) {
@@ -112,6 +112,25 @@ export default function IdeaDetail() {
                 type: "idea",
             });
         }
+    };
+
+    const handleDelete = () => {
+        Alert.alert("Delete Idea", "Are you sure you want to delete this idea?", [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Delete",
+                style: "destructive",
+                onPress: async () => {
+                    try {
+                        await fetch(`${apiUrl}/api/ideas/${id}`, { method: 'DELETE' });
+                        router.back();
+                    } catch (e) {
+                        console.error(e);
+                        Alert.alert("Error", "Failed to delete idea.");
+                    }
+                }
+            }
+        ]);
     };
 
     const insertGuitarTab = () => {
@@ -145,10 +164,13 @@ export default function IdeaDetail() {
                 <Text className="text-black dark:text-white font-bold flex-1" style={{ fontSize: fontSize['2xl'] }}>
                     Edit Idea
                 </Text>
+                <Pressable onPress={handleDelete} className="p-2">
+                    <Trash2 color="red" size={20} />
+                </Pressable>
             </View>
 
-            <KeyboardAwareScrollView 
-                className="flex-1 w-full px-4 bg-lightBg dark:bg-black" 
+            <KeyboardAwareScrollView
+                className="flex-1 w-full px-4 bg-lightBg dark:bg-black"
                 contentContainerStyle={{ paddingVertical: 20 }}
                 enableOnAndroid={true}
                 extraScrollHeight={100}
@@ -177,7 +199,7 @@ export default function IdeaDetail() {
 
                 <Card className="w-full mb-6 flex-col">
                     <Text className="text-silverText font-semibold mb-4" style={{ fontSize: fontSize.sm }}>Metadata</Text>
-                    
+
                     <View className="flex-row gap-4 mb-4">
                         <View className="flex-1">
                             <View className="flex-row items-center gap-2 mb-1">
@@ -201,11 +223,11 @@ export default function IdeaDetail() {
                             <StyledTextInput value={timeSignature} onChangeText={setTimeSignature} placeholder="4/4" />
                         </View>
                     </View>
-                    
+
                     <Text className="text-silverText text-xs mb-1">Description / Lyrics</Text>
-                    <StyledTextInput 
-                        value={description} 
-                        onChangeText={setDescription} 
+                    <StyledTextInput
+                        value={description}
+                        onChangeText={setDescription}
                         placeholder="Additional notes or lyrics..."
                         multiline
                         numberOfLines={4}
@@ -225,7 +247,7 @@ export default function IdeaDetail() {
                             </Pressable>
                         </View>
                     </View>
-                    
+
                     <TextInput
                         className={`w-full bg-[#f6f6f6] dark:bg-[#1a1a1a] rounded-lg p-3 text-black dark:text-white border border-accent-light dark:border-accent-dark`}
                         style={{
@@ -244,9 +266,9 @@ export default function IdeaDetail() {
                     />
                 </Card>
 
-                <StyledButton 
-                    title={saving ? "Saving..." : "Save Changes"} 
-                    onPress={handleSave} 
+                <StyledButton
+                    title={saving ? "Saving..." : "Save Changes"}
+                    onPress={handleSave}
                     disabled={saving}
                     className="mb-10"
                 />

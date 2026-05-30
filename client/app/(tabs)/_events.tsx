@@ -27,7 +27,9 @@ import {
 import * as yup from "yup";
 import SwitchTabs from "@/components/SwitchTabs";
 import PageHeader from "@/components/PageHeader";
-import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
+import Animated, { FadeIn, LinearTransition, useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type Event = {
     event_id: number;
@@ -207,12 +209,10 @@ const events = () => {
     useEffect(() => {
         if (activeBand?.id) {
             fetchEvents();
-            if (newEventModalVisible || addSetlistModalVisible) {
-                fetchSongs();
-                fetchSetlists();
-            }
+            fetchSongs();
+            fetchSetlists();
         }
-    }, [activeBand?.id, newEventModalVisible, addSetlistModalVisible]);
+    }, [activeBand?.id]);
 
     const formatDateTime = (dateTimeString: string) => {
         const date = new Date(dateTimeString);
@@ -312,8 +312,26 @@ const events = () => {
 
         const colors = typeColors[event.type] || typeColors.rehearsal;
 
+        const scale = useSharedValue(1);
+
+        const animatedStyle = useAnimatedStyle(() => ({
+            transform: [{ scale: scale.value }],
+        }));
+
+        const handlePressIn = () => {
+            scale.value = withTiming(0.985, { duration: 100 });
+        };
+
+        const handlePressOut = () => {
+            scale.value = withTiming(1, { duration: 150 });
+        };
+
         return (
-            <Animated.View
+            <AnimatedPressable
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                style={animatedStyle}
+                onPress={() => handleEditEvent(event)}
                 className={`${colors.cardBg} border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3`}>
                 <View className='flex-row justify-between items-start mb-2'>
                     <View className='flex-1' style={{ minWidth: 0 }}>
@@ -398,13 +416,6 @@ const events = () => {
                             )}
                         </View>
                     </View>
-                    <Pressable 
-                        onPress={() => handleEditEvent(event)}
-                        className='p-2'
-                        hitSlop={10}
-                    >
-                        <Edit3 color={colorScheme === "dark" ? "#fff" : "#000"} size={20} />
-                    </Pressable>
                 </View>
                 {event.type === "rehearsal" && event.description && (
                     <Text
@@ -472,7 +483,7 @@ const events = () => {
                         )}
                     </View>
                 )}
-            </Animated.View>
+            </AnimatedPressable>
         );
     };
 
