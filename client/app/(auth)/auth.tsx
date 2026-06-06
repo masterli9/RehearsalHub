@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import { router } from "expo-router";
 import { useState } from "react";
 import SwitchTabs from "@/components/SwitchTabs";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { useAuth } from "@/context/AuthContext";
@@ -80,9 +80,7 @@ export default function Auth() {
                     contentContainerStyle={{ flexGrow: 1 }}
                     contentContainerClassName='items-center justify-center'
                     keyboardShouldPersistTaps='handled'
-                    extraScrollHeight={100}
-                    enableOnAndroid={true}
-                    enableAutomaticScroll={true}
+                    bottomOffset={100}
                     showsVerticalScrollIndicator={false}>
                     <Card
                         key={activeTab}

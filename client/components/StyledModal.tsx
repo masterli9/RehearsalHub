@@ -1,6 +1,6 @@
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import { Modal, Pressable, Text, View } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { MenuProvider } from "react-native-popup-menu";
 
 interface StyledModalProps {

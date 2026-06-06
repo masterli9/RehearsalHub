@@ -11,7 +11,7 @@ import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { ActivityIndicator, Alert, Pressable, Text, View, TextInput } from "react-native";
 import { Play, Pause, Save, Music4, Clock, Hash, ArrowLeft, Trash2 } from "lucide-react-native";
 
@@ -172,8 +172,7 @@ export default function IdeaDetail() {
             <KeyboardAwareScrollView
                 className="flex-1 w-full px-4 bg-lightBg dark:bg-black"
                 contentContainerStyle={{ paddingVertical: 20 }}
-                enableOnAndroid={true}
-                extraScrollHeight={100}
+                bottomOffset={100}
             >
                 <Card className="w-full mb-6">
                     <Text className="text-silverText font-semibold mb-2" style={{ fontSize: fontSize.sm }}>Title</Text>

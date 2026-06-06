@@ -17,6 +17,7 @@ import { MenuProvider } from "react-native-popup-menu";
 import { PlayerProvider } from "@/context/AudioPlayerContext";
 import { ThemeProvider as AppThemeProvider } from "@/context/ThemeContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 
 export const unstable_settings = {
     anchor: "(tabs)",
@@ -64,24 +65,26 @@ export default function RootLayout() {
     const colorScheme = useColorScheme();
 
     return (
-        <MenuProvider>
-            <AuthProvider>
-                <BandProvider>
-                    <AppThemeProvider>
-                        <ThemeProvider
-                            value={
-                                colorScheme === "dark"
-                                    ? DarkTheme
-                                    : DefaultTheme
-                            }>
-                            <PlayerProvider>
-                                <AuthGate />
-                                <StatusBar style='auto' />
-                            </PlayerProvider>
-                        </ThemeProvider>
-                    </AppThemeProvider>
-                </BandProvider>
-            </AuthProvider>
-        </MenuProvider>
+        <KeyboardProvider>
+            <MenuProvider>
+                <AuthProvider>
+                    <BandProvider>
+                        <AppThemeProvider>
+                            <ThemeProvider
+                                value={
+                                    colorScheme === "dark"
+                                        ? DarkTheme
+                                        : DefaultTheme
+                                }>
+                                <PlayerProvider>
+                                    <AuthGate />
+                                    <StatusBar style='auto' />
+                                </PlayerProvider>
+                            </ThemeProvider>
+                        </AppThemeProvider>
+                    </BandProvider>
+                </AuthProvider>
+            </MenuProvider>
+        </KeyboardProvider>
     );
 }

@@ -18,7 +18,6 @@ import {
     Image as RNImage,
 
     Keyboard,
-    KeyboardAvoidingView,
     Modal,
     Platform,
     Pressable,
@@ -28,6 +27,7 @@ import {
     useColorScheme,
     View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
 import { Image as ExpoImage } from "expo-image";
 import { MenuOption } from "react-native-popup-menu";
