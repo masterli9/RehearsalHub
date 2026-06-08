@@ -9,7 +9,7 @@ import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { Formik } from "formik";
-import { LogOut, SquarePen } from "lucide-react-native";
+import { LogOut, SquarePen, ChevronDown, ChevronUp } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -42,6 +42,7 @@ const Profile = () => {
 
     const [editVisible, setEditVisible] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [termsVisible, setTermsVisible] = useState(false);
 
     const options = [
         { label: "Light", value: "light" },
@@ -341,20 +342,18 @@ const Profile = () => {
                                     onPress={() =>
                                         setThemePreference(opt.value)
                                     }
-                                    className={`flex-row py-2 px-3 rounded-xl ${
-                                        themePreference ===
+                                    className={`flex-row py-2 px-3 rounded-xl ${themePreference ===
                                         opt.value.toLowerCase()
-                                            ? "bg-accent-dark"
-                                            : "bg-transparent"
-                                    }`}
+                                        ? "bg-accent-dark"
+                                        : "bg-transparent"
+                                        }`}
                                 >
                                     <Text
-                                        className={`font-medium ${
-                                            themePreference ===
+                                        className={`font-medium ${themePreference ===
                                             opt.value.toLowerCase()
-                                                ? "text-white"
-                                                : "text-black dark:text-silverText"
-                                        }`}
+                                            ? "text-white"
+                                            : "text-black dark:text-silverText"
+                                            }`}
                                         style={{ fontSize: fontSize.base }}
                                     >
                                         {opt.label}
@@ -380,6 +379,39 @@ const Profile = () => {
                         multiple={false}
                         onChangeValue={handleBandSwitch}
                     />
+                </View>
+
+                <View className='w-full mt-6 mb-6 bg-darkWhite dark:bg-darkGray rounded-2xl overflow-hidden'>
+                    <Pressable
+                        onPress={() => setTermsVisible(!termsVisible)}
+                        className='flex-row justify-between items-center px-3 py-4'
+                    >
+                        <Text
+                            className='font-regular text-black dark:text-white'
+                            style={{ fontSize: fontSize.base }}
+                        >
+                            Terms of Use (EULA)
+                        </Text>
+                        {termsVisible ? (
+                            <ChevronUp color={colorScheme === "dark" ? "#fff" : "#000"} />
+                        ) : (
+                            <ChevronDown color={colorScheme === "dark" ? "#fff" : "#000"} />
+                        )}
+                    </Pressable>
+                    {termsVisible && (
+                        <View className='px-4 pb-4'>
+                            <Text
+                                className='text-black dark:text-silverText'
+                                style={{ fontSize: fontSize.sm }}
+                            >
+                                By using RehearsalHub, you agree to our Terms of Service.
+                                This application is provided "as is", without any warranties.
+                                We are not responsible for any data loss, damages, or issues arising from the use of this app.
+                                You agree to use the application for lawful purposes only and respect other users in your bands.
+                                Your data is handled according to our Privacy Policy, and we reserve the right to modify these terms at any time.
+                            </Text>
+                        </View>
+                    )}
                 </View>
             </View>
 

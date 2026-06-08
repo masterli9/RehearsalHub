@@ -11,7 +11,7 @@ import { useBand } from "@/context/BandContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Formik } from "formik";
-import { Calendar, Clock, MapPin, Music, ListMusic } from "lucide-react-native";
+import { Calendar, Clock, MapPin, Music, ListMusic, Edit3 } from "lucide-react-native";
 import { useEffect, useState, useCallback } from "react";
 import {
     ActivityIndicator,
@@ -28,6 +28,9 @@ import { useLocalSearchParams } from "expo-router";
 import * as yup from "yup";
 import SwitchTabs from "@/components/SwitchTabs";
 import PageHeader from "@/components/PageHeader";
+import Animated, { FadeIn, LinearTransition, useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type Event = {
     event_id: number;
@@ -66,6 +69,7 @@ const events = () => {
     const [eventsLoading, setEventsLoading] = useState<boolean>(false);
     const [newEventModalVisible, setNewEventModalVisible] =
         useState<boolean>(false);
+    const [editingEvent, setEditingEvent] = useState<Event | null>(null);
     const [eventType, setEventType] = useState<"rehearsal" | "concert">(
         "rehearsal"
     );
@@ -208,12 +212,10 @@ const events = () => {
     useEffect(() => {
         if (activeBand?.id) {
             fetchEvents();
-            if (newEventModalVisible || addSetlistModalVisible) {
-                fetchSongs();
-                fetchSetlists();
-            }
+            fetchSongs();
+            fetchSetlists();
         }
-    }, [activeBand?.id, newEventModalVisible, addSetlistModalVisible, refresh]);
+    }, [activeBand?.id, refresh]);
 
     const formatDateTime = (dateTimeString: string) => {
         const date = new Date(dateTimeString);
@@ -282,6 +284,16 @@ const events = () => {
         }
     };
 
+    const handleEditEvent = (event: Event) => {
+        setEditingEvent(event);
+        setEventType(event.type);
+        setValueType(event.type);
+        const eventDate = new Date(event.date_time);
+        setSelectedDate(eventDate);
+        setSelectedTime(eventDate);
+        setNewEventModalVisible(true);
+    };
+
     const EventCard = ({ event }: { event: Event }) => {
         const typeColors = {
             rehearsal: {
@@ -303,8 +315,26 @@ const events = () => {
 
         const colors = typeColors[event.type] || typeColors.rehearsal;
 
+        const scale = useSharedValue(1);
+
+        const animatedStyle = useAnimatedStyle(() => ({
+            transform: [{ scale: scale.value }],
+        }));
+
+        const handlePressIn = () => {
+            scale.value = withTiming(0.985, { duration: 100 });
+        };
+
+        const handlePressOut = () => {
+            scale.value = withTiming(1, { duration: 150 });
+        };
+
         return (
-            <View
+            <AnimatedPressable
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                style={animatedStyle}
+                onPress={() => handleEditEvent(event)}
                 className={`${colors.cardBg} border border-accent-light dark:border-accent-dark rounded-2xl p-5 w-full mb-3`}>
                 <View className='flex-row justify-between items-start mb-2'>
                     <View className='flex-1' style={{ minWidth: 0 }}>
@@ -456,7 +486,7 @@ const events = () => {
                         )}
                     </View>
                 )}
-            </View>
+            </AnimatedPressable>
         );
     };
 
@@ -509,6 +539,7 @@ const events = () => {
 
     const closeModalAndReset = () => {
         setNewEventModalVisible(false);
+        setEditingEvent(null);
         setEventType("rehearsal");
         setSelectedDate(new Date());
         setSelectedTime(new Date());
@@ -620,8 +651,8 @@ const events = () => {
                 onClose={closeModalAndReset}
                 canClose={true}
                 wide={true}
-                title='Create an event'
-                subtitle="Add a new rehearsal or concert to your band's schedule">
+                title={editingEvent ? 'Edit an event' : 'Create an event'}
+                subtitle={editingEvent ? 'Update details for your rehearsal or concert' : "Add a new rehearsal or concert to your band's schedule"}>
                 <Formik
                     validationSchema={
                         eventType === "rehearsal"
@@ -629,16 +660,16 @@ const events = () => {
                             : concertSchema
                     }
                     initialValues={{
-                        title: "",
-                        place: "",
-                        date: new Date(),
-                        time: new Date(),
-                        description: "",
-                        songs: [] as number[],
-                        length: "",
-                        setlist_id: null,
+                        title: editingEvent ? editingEvent.title : "",
+                        place: editingEvent?.place || "",
+                        date: editingEvent ? new Date(editingEvent.date_time) : new Date(),
+                        time: editingEvent ? new Date(editingEvent.date_time) : new Date(),
+                        description: editingEvent?.description || "",
+                        songs: editingEvent?.songs ? editingEvent.songs.map((s: any) => s.song_id) : ([] as number[]),
+                        length: editingEvent?.length || "",
+                        setlist_id: editingEvent?.setlist_id || null,
                     }}
-                    enableReinitialize={false}
+                    enableReinitialize={true}
                     onSubmit={async (
                         values,
                         { setFieldError, setSubmitting }
@@ -690,23 +721,25 @@ const events = () => {
                                 }
                             }
 
-                            const response = await fetch(
-                                `${apiUrl}/api/events/create`,
-                                {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify(requestBody),
-                                }
-                            );
+                            const url = editingEvent 
+                                ? `${apiUrl}/api/events/${editingEvent.event_id}` 
+                                : `${apiUrl}/api/events/create`;
+                            const method = editingEvent ? "PUT" : "POST";
+
+                            const response = await fetch(url, {
+                                method: method,
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify(requestBody),
+                            });
 
                             if (!response.ok) {
                                 const err = await response
                                     .json()
                                     .catch(() => ({}));
                                 throw new Error(
-                                    err.error || "Failed to create event"
+                                    err.error || (editingEvent ? "Failed to update event" : "Failed to create event")
                                 );
                             }
 
@@ -1104,7 +1137,7 @@ const events = () => {
                                 )}
                             </View>
                             <StyledButton
-                                title='Create Event'
+                                title={editingEvent ? 'Save Changes' : 'Create Event'}
                                 onPress={() => handleSubmit()}
                             />
                         </>

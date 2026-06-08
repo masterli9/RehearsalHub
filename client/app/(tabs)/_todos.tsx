@@ -26,6 +26,7 @@ import {
     View,
 } from "react-native";
 import * as yup from "yup";
+import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
 
 type Task = {
     task_id: number;
@@ -78,7 +79,7 @@ const todos = () => {
         }
         setLoadingTasks(true);
         setTasksLoadError(false);
-        
+
         const abortController = new AbortController();
         const timeoutId = setTimeout(() => {
             abortController.abort();
@@ -236,12 +237,13 @@ const todos = () => {
         const hasDetails = task.description || task.due_date || activeTab === "Band Todos";
 
         return (
-            <View className={`bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-4 w-full mb-3 ${task.status === 'completed' ? 'opacity-70' : ''}`}>
+            <Animated.View 
+                className={`bg-boxBackground-light dark:bg-boxBackground-dark border border-accent-light dark:border-accent-dark rounded-2xl p-4 w-full mb-3 ${task.status === 'completed' ? 'opacity-70' : ''}`}>
                 <View className={`flex-row justify-between ${hasDetails ? 'items-start' : 'items-center'}`}>
-                    <Pressable 
+                    <Pressable
                         onPress={() => {
                             if (canToggle) toggleTaskStatus(task);
-                        }} 
+                        }}
                         className={`mr-3 ${hasDetails ? 'mt-1' : ''} ${!canToggle ? 'opacity-50' : ''}`}
                     >
                         {task.status === "completed" ? (
@@ -295,7 +297,7 @@ const todos = () => {
                         </View>
                     )}
                 </View>
-            </View>
+            </Animated.View>
         );
     };
 
@@ -315,8 +317,8 @@ const todos = () => {
                 <View className="flex-col justify-center items-center gap-3 w-full border-b border-accent-light dark:border-accent-dark w-full px-5 py-3 mb-4">
                     <View className="flex-row justify-between items-center w-full">
                         <Text className="text-silverText" style={{ fontSize: fontSize.base }}>
-                            {activeTab === "My Todos" 
-                                ? `${pendingTasks.length} pending todo${pendingTasks.length !== 1 ? 's' : ''}` 
+                            {activeTab === "My Todos"
+                                ? `${pendingTasks.length} pending todo${pendingTasks.length !== 1 ? 's' : ''}`
                                 : `${pendingTasks.length} pending todo${pendingTasks.length !== 1 ? 's' : ''}`}
                         </Text>
                         <StyledButton title="+ Add Todo" onPress={openCreateModal} />

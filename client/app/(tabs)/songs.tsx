@@ -59,6 +59,10 @@ import {
     MenuTrigger,
 } from "react-native-popup-menu";
 import * as yup from "yup";
+import Animated, { FadeIn, LinearTransition, useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 
 const songs = () => {
     const { play, pause, stop, resume, current, isPlaying } = usePlayer();
@@ -695,8 +699,25 @@ const songs = () => {
         };
         const isCurrentSong = current?.song_id === songId;
         const showPause = isCurrentSong && isPlaying;
+        const scale = useSharedValue(1);
+
+        const animatedStyle = useAnimatedStyle(() => ({
+            transform: [{ scale: scale.value }],
+        }));
+
+        const handlePressIn = () => {
+            scale.value = withTiming(0.985, { duration: 100 });
+        };
+
+        const handlePressOut = () => {
+            scale.value = withTiming(1, { duration: 150 });
+        };
+
         return (
-            <Pressable
+            <AnimatedPressable
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                style={animatedStyle}
                 onPress={() => {
                     setSelectedSong({
                         song_id: songId,
@@ -811,7 +832,7 @@ const songs = () => {
                         className='flex-row gap-4 items-center'
                         style={{ flexShrink: 0 }}
                     >
-                        <Pressable onPress={showPause ? pause : handlePlay}>
+                        <Pressable onPress={showPause ? pause : handlePlay} className={`p-2 ${showPause ? "active:scale-110 transition-transform duration-200" : "active:scale-95 transition-transform duration-200"}`}>
                             {showPause ? (
                                 <Pause
                                     color={
@@ -819,7 +840,7 @@ const songs = () => {
                                             ? "white"
                                             : "black"
                                     }
-                                    size={20}
+                                    size={23}
                                 />
                             ) : (
                                 <Play
@@ -828,17 +849,9 @@ const songs = () => {
                                             ? "white"
                                             : "black"
                                     }
-                                    size={20}
+                                    size={23}
                                 />
                             )}
-                        </Pressable>
-                        <Pressable>
-                            <EllipsisVertical
-                                color={
-                                    colorScheme === "dark" ? "white" : "black"
-                                }
-                                size={20}
-                            />
                         </Pressable>
                     </View>
                 </View>
@@ -871,7 +884,7 @@ const songs = () => {
                             </View>
                         ))}
                 </View>
-            </Pressable>
+            </AnimatedPressable>
         );
     };
 
@@ -2182,7 +2195,7 @@ const songs = () => {
                                             }
                                         />
                                     </View>
-                                    {songCollectionSwitch === "Songs" ? (
+                                    {/* {songCollectionSwitch === "Songs" ? (
                                         <Pressable
                                             onPress={() =>
                                                 setSongCollectionSwitch(
@@ -2228,7 +2241,7 @@ const songs = () => {
                                                 }
                                             />
                                         </Pressable>
-                                    )}
+                                    )} */}
                                     <Menu>
                                         <MenuTrigger>
                                             <ArrowUpDown
@@ -2492,7 +2505,7 @@ const songs = () => {
                                     </View>
                                 ) : (
                                     setlists.map((setlist) => (
-                                        <Pressable
+                                        <AnimatedPressable
                                             key={setlist.setlist_id}
                                             onPress={() => {
                                                 if (activeBand?.id) {
@@ -2521,7 +2534,7 @@ const songs = () => {
                                                     Created: {new Date(setlist.created_at).toLocaleDateString()}
                                                 </Text>
                                             </View>
-                                        </Pressable>
+                                        </AnimatedPressable>
                                     ))
                                 )}
                             </ScrollView>
