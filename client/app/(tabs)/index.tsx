@@ -10,6 +10,8 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import apiUrl from "@/config";
 import PageContainer from "@/components/PageContainer";
 import PageHeader from "@/components/PageHeader";
+import { MenuOption } from "react-native-popup-menu";
+import { SwitchBandModal } from "@/components/SwitchBandModal";
 
 // Helper for Lucide icons
 const Icon = ({ name, color, size = 24 }: { name: string; color: string; size?: number }) => {
@@ -29,6 +31,8 @@ export default function HomeScreen() {
 
     const [recentActivities, setRecentActivities] = useState<any[]>([]);
     const [loadingActivities, setLoadingActivities] = useState(false);
+
+    const [showSwitchModal, setShowSwitchModal] = useState<boolean>(false);
 
     const initialFetchDoneRef = useRef<string | null>(null);
 
@@ -173,7 +177,21 @@ export default function HomeScreen() {
             <PageHeader
                 title={`Welcome back, ${user?.username || user?.email?.split('@')[0] || "Musician"}!`}
                 subtitle={activeBand ? `Here's what's happening with ${activeBand.name}.` : "Ready to make music? Join or create a band to get started."}
-            />
+            >
+                <MenuOption
+                    onSelect={() => {
+                        setShowSwitchModal(true);
+                    }}
+                    text='Switch band'
+                    customStyles={{
+                        optionText: {
+                            color: isDark ? "#fff" : "#333",
+                            paddingVertical: 8,
+                            fontSize: fontSize.base,
+                        },
+                    }}
+                />
+            </PageHeader>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100, paddingTop: 16 }} className="w-full">
                 {/* Quick Actions Array */}
                 <View className="px-5 mb-8">
@@ -320,6 +338,10 @@ export default function HomeScreen() {
                     )}
                 </View>
             </ScrollView>
+            <SwitchBandModal
+                visible={showSwitchModal}
+                onClose={() => setShowSwitchModal(false)}
+            />
         </PageContainer>
     );
 }
