@@ -24,6 +24,7 @@ import {
     View,
     RefreshControl,
 } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import * as yup from "yup";
 import SwitchTabs from "@/components/SwitchTabs";
 import PageHeader from "@/components/PageHeader";
@@ -202,6 +203,8 @@ const events = () => {
         }
     };
 
+    const { refresh } = useLocalSearchParams();
+
     useEffect(() => {
         if (activeBand?.id) {
             fetchEvents();
@@ -210,7 +213,7 @@ const events = () => {
                 fetchSetlists();
             }
         }
-    }, [activeBand?.id, newEventModalVisible, addSetlistModalVisible]);
+    }, [activeBand?.id, newEventModalVisible, addSetlistModalVisible, refresh]);
 
     const formatDateTime = (dateTimeString: string) => {
         const date = new Date(dateTimeString);

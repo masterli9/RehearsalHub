@@ -24,7 +24,7 @@ import {
     useAudioRecorderState,
 } from "expo-audio";
 import * as FileSystem from "expo-file-system/legacy";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Formik } from "formik";
 import { Clock, Hash, Mic, Music4, Pause, Play, Square, Star } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -382,6 +382,8 @@ const IdeasTab = () => {
         }
     }, [addIdeaModalVisible]);
 
+    const { refresh } = useLocalSearchParams();
+
     useEffect(() => {
         if (activeBand?.id) {
             getIdeas();
@@ -389,7 +391,7 @@ const IdeasTab = () => {
             setIdeas([]);
             setFavoriteIdeas([]);
         }
-    }, [activeBand?.id, getIdeas]);
+    }, [activeBand?.id, getIdeas, refresh]);
 
     useEffect(() => {
         const sourceIdeas = Array.isArray(ideas) ? ideas : [];
