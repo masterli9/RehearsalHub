@@ -33,10 +33,20 @@ export const sendPushNotification = async (userId, title, body, data = {}) => {
 
         // Odešleme zprávu přes Expo servery
         const receipts = await expo.sendPushNotificationsAsync([message]);
-        console.log("Notifikace odeslána:", receipts);
+        
+        for (const receipt of receipts) {
+            if (receipt.status === 'error') {
+                console.error("Chyba při odesílání notifikace (Expo):", receipt.message);
+                if (receipt.details && receipt.details.error) {
+                    console.error("Kód chyby:", receipt.details.error);
+                }
+            } else {
+                console.log("Notifikace úspěšně odeslána:", receipt);
+            }
+        }
         
     } catch (error) {
-        console.error("Chyba při odesílání notifikace:", error);
+        console.error("Chyba při volání Expo API:", error);
     }
 };
 
@@ -69,7 +79,17 @@ export const sendPushNotificationToMultiple = async (userIds, title, body, data 
         const chunks = expo.chunkPushNotifications(messages);
         for (const chunk of chunks) {
             try {
-                await expo.sendPushNotificationsAsync(chunk);
+                const receipts = await expo.sendPushNotificationsAsync(chunk);
+                for (const receipt of receipts) {
+                    if (receipt.status === 'error') {
+                        console.error("Chyba při odesílání notifikace (Expo):", receipt.message);
+                        if (receipt.details && receipt.details.error) {
+                            console.error("Kód chyby:", receipt.details.error);
+                        }
+                    } else {
+                        console.log("Hromadná notifikace úspěšně odeslána.");
+                    }
+                }
             } catch (error) {
                 console.error("Chyba v odesílání chunku notifikací:", error);
             }

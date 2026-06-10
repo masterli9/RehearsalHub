@@ -1,13 +1,14 @@
 import Card from "@/components/Card";
 import ErrorText from "@/components/ErrorText";
+import { Metronome } from "@/components/Metronome";
 import NoBand from "@/components/NoBand";
 import PageContainer from "@/components/PageContainer";
 import PageHeader from "@/components/PageHeader";
 import StyledButton from "@/components/StyledButton";
+import StyledDropdown from "@/components/StyledDropdown";
 import StyledModal from "@/components/StyledModal";
 import StyledTextInput from "@/components/StyledTextInput";
 import { SwitchBandModal } from "@/components/SwitchBandModal";
-import StyledDropdown from "@/components/StyledDropdown";
 import SwitchTabs from "@/components/SwitchTabs";
 import apiUrl from "@/config";
 import { usePlayer } from "@/context/AudioPlayerContext";
@@ -23,21 +24,20 @@ import {
     useAudioRecorderState,
 } from "expo-audio";
 import * as FileSystem from "expo-file-system/legacy";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Formik } from "formik";
 import { Clock, Hash, Mic, Music4, Pause, Play, Square, Star } from "lucide-react-native";
-import { Metronome } from "@/components/Metronome";
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    Image,
+    Platform,
     Pressable,
+    RefreshControl,
     ScrollView,
     Text,
-    View,
-    Image,
-    RefreshControl,
-    Platform
+    View
 } from "react-native";
 import {
     Menu,
@@ -149,13 +149,13 @@ const IdeaCard = ({ idea, toggleFavorite, colorScheme, fontSize, apiUrl, getIdea
                     </View>
                     {idea.bpm && (
                         <View className="flex-row items-center gap-1">
-                            <Hash color="#A1A1A1" size={14} />
+                            <Music4 color="#A1A1A1" size={14} />
                             <Text className="text-silverText" style={{ fontSize: fontSize.xs }}>{idea.bpm}</Text>
                         </View>
                     )}
                     {idea.key && (
                         <View className="flex-row items-center gap-1">
-                            <Music4 color="#A1A1A1" size={14} />
+                            <Hash color="#A1A1A1" size={14} />
                             <Text className="text-silverText" style={{ fontSize: fontSize.xs }}>{idea.key}</Text>
                         </View>
                     )}
@@ -352,6 +352,8 @@ const IdeasTab = () => {
         }
     }, [addIdeaModalVisible]);
 
+    const { refresh } = useLocalSearchParams();
+
     useEffect(() => {
         if (activeBand?.id) {
             getIdeas();
@@ -359,7 +361,7 @@ const IdeasTab = () => {
             setIdeas([]);
             setFavoriteIdeas([]);
         }
-    }, [activeBand?.id, getIdeas]);
+    }, [activeBand?.id, getIdeas, refresh]);
 
     useEffect(() => {
         const sourceIdeas = Array.isArray(ideas) ? ideas : [];

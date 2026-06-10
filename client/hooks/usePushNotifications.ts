@@ -3,14 +3,13 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { router } from 'expo-router';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
+    shouldShowAlert: false, // Nezobrazovat systémový banner, pokud je appka otevřená
+    shouldPlaySound: false,
     shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
   }),
 });
 
@@ -31,6 +30,17 @@ export function usePushNotifications() {
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       console.log("Uživatel kliknul na notifikaci:", response);
+      const data = response.notification.request.content.data;
+      
+      if (data?.type === 'event') {
+          router.push(`/(tabs)/_events?refresh=${Date.now()}`);
+      } else if (data?.type === 'message') {
+          router.push(`/(tabs)/chat`);
+      } else if (data?.type === 'idea') {
+          router.push(`/(tabs)/ideas?refresh=${Date.now()}`);
+      } else if (data?.type === 'todo') {
+          router.push(`/(tabs)/_todos?refresh=${Date.now()}`);
+      }
     });
 
     return () => {

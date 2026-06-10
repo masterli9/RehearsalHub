@@ -84,6 +84,29 @@ export const createTask = async (req, res) => {
 			}
 		}
 
+		// Push notifikace pro přiřazeného uživateile (pokud to nepřiřadil sám sobě)
+		try {
+			if (parseInt(band_member_id, 10) !== parseInt(assigned_by, 10)) {
+				const assigneeRes = await pool.query("SELECT user_id FROM band_members WHERE band_member_id = $1", [band_member_id]);
+				const assignerRes = assigned_by ? await pool.query("SELECT u.username FROM band_members bm JOIN users u ON bm.user_id = u.user_id WHERE bm.band_member_id = $1", [assigned_by]) : { rows: [] };
+				
+				if (assigneeRes.rows.length > 0) {
+					const assigneeUserId = assigneeRes.rows[0].user_id;
+					const assignerName = assignerRes.rows.length > 0 ? assignerRes.rows[0].username : "Někdo";
+					
+					const { sendPushNotification } = await import("../utils/notifications.js");
+					await sendPushNotification(
+						assigneeUserId,
+						"Nový úkol",
+						`${assignerName} vám přiřadil(a) nový úkol: ${title}`,
+						{ type: 'todo', taskId: task.task_id }
+					);
+				}
+			}
+		} catch (e) {
+			console.error("Failed to send push notification for task", e);
+		}
+
 		res.status(201).json(task);
 	} catch (error) {
 		console.error("Error creating task: ", error);

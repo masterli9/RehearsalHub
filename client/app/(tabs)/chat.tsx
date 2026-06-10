@@ -692,12 +692,12 @@ const chat = () => {
                     className='flex-row items-center gap-1'
                     style={{ alignSelf: position === 'right' ? 'flex-end' : 'flex-start' }}>
 
-                    {position === "left" && shouldShowUsername && (
+                    {position === "left" && (
                         <View style={{
                                 width: fontSize.lg * 1.8,
                                 height: fontSize.lg * 1.8,
                             }}>
-                            {photourl && (
+                            {shouldShowUsername && photourl && (
                                 <ExpoImage
                                     source={{ uri: photourl }}
                                     className='rounded-full'

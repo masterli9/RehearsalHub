@@ -24,6 +24,7 @@ import {
     View,
     RefreshControl,
 } from "react-native";
+import { useLocalSearchParams, router } from "expo-router";
 import * as yup from "yup";
 import SwitchTabs from "@/components/SwitchTabs";
 import PageHeader from "@/components/PageHeader";
@@ -206,13 +207,15 @@ const events = () => {
         }
     };
 
+    const { refresh } = useLocalSearchParams();
+
     useEffect(() => {
         if (activeBand?.id) {
             fetchEvents();
             fetchSongs();
             fetchSetlists();
         }
-    }, [activeBand?.id]);
+    }, [activeBand?.id, refresh]);
 
     const formatDateTime = (dateTimeString: string) => {
         const date = new Date(dateTimeString);
@@ -460,12 +463,12 @@ const events = () => {
                 {event.type === "concert" && (
                     <View className='mt-2'>
                         {event.setlist_title ? (
-                            <View className='flex-row items-center gap-2'>
+                            <Pressable onPress={() => router.push(`/setlist/${event.setlist_id}` as any)} className='flex-row items-center gap-2'>
                                 <ListMusic color={"#A1A1A1"} size={Math.min(fontSize["2xl"], 18)} />
                                 <Text className='text-silverText' style={{ fontSize: fontSize.base }}>
                                     Setlist: <Text className='font-bold'>{event.setlist_title}</Text>
                                 </Text>
-                            </View>
+                            </Pressable>
                         ) : (
                             <Pressable
                                 onPress={() => {

@@ -1,6 +1,6 @@
 import { useBand } from "@/context/BandContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Alert } from "react-native";
 import StyledDropdown from "./StyledDropdown";
 import StyledModal from "./StyledModal";
@@ -23,6 +23,16 @@ export const SwitchBandModal = ({
             value: band.id,
         })) || []
     );
+
+    useEffect(() => {
+        setItemsSwitch(
+            bands.map((band) => ({
+                label: band.name,
+                value: band.id,
+            })) || []
+        );
+    }, [bands]);
+
     const handleBandSwitch = (bandId: string | null) => {
         if (!bandId || bandId === activeBand?.id) {
             return;

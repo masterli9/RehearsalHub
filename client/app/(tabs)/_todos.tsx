@@ -14,7 +14,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { Formik } from "formik";
 import { Calendar, CheckSquare, Square, Trash2, Edit2, User } from "lucide-react-native";
 import { useState, useCallback } from "react";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
     ActivityIndicator,
     Alert,
@@ -132,13 +132,15 @@ const todos = () => {
         }
     };
 
+    const { refresh } = useLocalSearchParams();
+
     useFocusEffect(
         useCallback(() => {
             if (activeBand?.id) {
                 loadBandMembers();
                 fetchTasks();
             }
-        }, [activeBand?.id])
+        }, [activeBand?.id, refresh])
     );
 
     const isLeader = currentUserRoles.includes("Leader");
