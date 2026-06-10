@@ -1,4 +1,5 @@
 import express from "express";
+import http from "http";
 import pool from "./db/pool.js";
 import dotenv from "dotenv";
 import cron from "node-cron";
@@ -14,11 +15,15 @@ import tasksRoutes from "./routes/tasks.js";
 import activitiesRoutes from "./routes/activities.js";
 import practicesRoutes from "./routes/practices.js";
 import { cleanupUnverifiedUsers } from "./utils/cleanupUnverifiedUsers.js";
+import { setupSockets } from "./socketServer.js";
 
 dotenv.config();
 
 const app = express();
-const port = 3000;
+const server = http.createServer(app);
+const port = process.env.PORT || 3000;
+
+setupSockets(server);
 
 app.use(express.json());
 
@@ -33,8 +38,8 @@ app.use("/api/tasks", tasksRoutes);
 app.use("/api/activities", activitiesRoutes);
 app.use("/api/practices", practicesRoutes);
 
-app.listen(port, () => {
-	console.log(`Server is running on port ${port}`);
+server.listen(port, () => {
+	console.log(`Server & Sockets are running on port ${port}`);
 	console.log("DB config: ", process.env.DB_HOST, process.env.DB_PORT);
 	pool.query("SELECT NOW()", (err, res) => {
 		if (err) {

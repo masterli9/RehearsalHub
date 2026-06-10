@@ -57,7 +57,7 @@ interface Message {
 
 
 const chat = () => {
-    const socketUrl = apiUrl.replace(":3000", "");
+    const socketUrl = apiUrl;
     const { bands, activeBand } = useBand();
     const { user, idToken, setIdToken } = useAuth();
     const fontSize = useAccessibleFontSize();
@@ -277,11 +277,10 @@ const chat = () => {
     useEffect(() => {
         // Create socket only once
         if (!socketRef.current) {
-            socketRef.current = io(`${socketUrl}:3001`, {
+            socketRef.current = io(socketUrl, {
                 auth: {
                     token: idToken ?? "",
                 },
-                port: 3001,
                 transports: ["websocket", "polling"],
                 autoConnect: false,
             });
