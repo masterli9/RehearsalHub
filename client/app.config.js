@@ -6,7 +6,7 @@ export default {
         scheme: "com.sterli.rehearsalhub",
         version: "1.0.0",
         orientation: "portrait",
-        icon: "./assets/images/RehearsalHubIcon.png",
+        icon: "./assets/images/icon-standard.png",
         userInterfaceStyle: "automatic",
         newArchEnabled: true,
         ios: {
@@ -19,9 +19,7 @@ export default {
         android: {
             adaptiveIcon: {
                 backgroundColor: "#E6F4FE",
-                foregroundImage: "./assets/images/android-icon-foreground.png",
-                backgroundImage: "./assets/images/android-icon-background.png",
-                monochromeImage: "./assets/images/android-icon-monochrome.png",
+                foregroundImage: "./assets/images/android-adaptive-foreground.png",
             },
             package: "com.sterli.rehearsalhub",
             googleServicesFile:
@@ -55,6 +53,10 @@ export default {
         experiments: {
             typedRoutes: true,
             reactCompiler: true,
+        },
+        notification: {
+            icon: "./assets/images/notification-icon.png",
+            color: "#E6F4FE",
         },
         extra: {
             router: {},
