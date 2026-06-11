@@ -23,17 +23,35 @@ export const unstable_settings = {
     anchor: "(tabs)",
 };
 
+import { useRouter, useSegments } from "expo-router";
+import { useEffect } from "react";
+
 function AuthGate() {
     const { user, loading } = useAuth();
     const fontSize = useAccessibleFontSize();
+    const segments = useSegments();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (loading) return;
+
+        const inAuthGroup = segments[0] === '(auth)';
+
+        if (!user && !inAuthGroup) {
+            router.replace('/(auth)/auth');
+        } else if (user && inAuthGroup) {
+            if (!user.emailVerified) {
+                 // optionally redirect to verifyEmail if you have it
+            } else {
+                 router.replace('/(tabs)');
+            }
+        }
+    }, [user, loading, segments]);
 
     if (loading) {
         return (
             <View className='flex-1 items-center justify-center bg-black'>
                 <ActivityIndicator size='large' color='white' />
-                {/* <Text className='text-white' style={{ fontSize: fontSize.lg }}>
-                    Waiting for firebase...
-                </Text> */}
             </View>
         );
     }
@@ -46,18 +64,15 @@ function AuthGate() {
         );
     }
 
-    return user ? (
+    return (
         <View className='flex-1'>
             <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name='(tabs)' />
+                <Stack.Screen name='(auth)/auth' />
             </Stack>
 
-            <MiniPlayer />
+            {user && <MiniPlayer />}
         </View>
-    ) : (
-        <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name='(auth)/auth' />
-        </Stack>
     );
 }
 
