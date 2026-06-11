@@ -1,27 +1,27 @@
+import dotenv from "dotenv";
 import express from "express";
 import http from "http";
-import pool from "./db/pool.js";
-import dotenv from "dotenv";
 import cron from "node-cron";
+import pool from "./db/pool.js";
 
-import usersRoutes from "./routes/users.js";
+import activitiesRoutes from "./routes/activities.js";
 import bandsRoutes from "./routes/bands.js";
-import messagesRoutes from "./routes/messages.js";
-import songsRoutes from "./routes/songs.js";
 import eventsRoutes from "./routes/events.js";
 import ideasRoutes from "./routes/ideas.js";
-import setlistsRoutes from "./routes/setlists.js";
-import tasksRoutes from "./routes/tasks.js";
-import activitiesRoutes from "./routes/activities.js";
+import messagesRoutes from "./routes/messages.js";
 import practicesRoutes from "./routes/practices.js";
-import { cleanupUnverifiedUsers } from "./utils/cleanupUnverifiedUsers.js";
+import setlistsRoutes from "./routes/setlists.js";
+import songsRoutes from "./routes/songs.js";
+import tasksRoutes from "./routes/tasks.js";
+import usersRoutes from "./routes/users.js";
 import { setupSockets } from "./socketServer.js";
+import { cleanupUnverifiedUsers } from "./utils/cleanupUnverifiedUsers.js";
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const port = process.env.PORT || 3000;
+const port = process.env.SERVER_PORT || process.env.PORT || 3000;
 
 setupSockets(server);
 
@@ -39,34 +39,34 @@ app.use("/api/activities", activitiesRoutes);
 app.use("/api/practices", practicesRoutes);
 
 server.listen(port, () => {
-	console.log(`Server & Sockets are running on port ${port}`);
-	console.log("DB config: ", process.env.DB_HOST, process.env.DB_PORT);
-	pool.query("SELECT NOW()", (err, res) => {
-		if (err) {
-			console.error("Error connecting to the database", err);
-		} else {
-			console.log("Database connected successfully at:", res.rows[0].now);
-		}
-	});
+  console.log(`Server & Sockets are running on port ${port}`);
+  console.log("DB config: ", process.env.DB_HOST, process.env.DB_PORT);
+  pool.query("SELECT NOW()", (err, res) => {
+    if (err) {
+      console.error("Error connecting to the database", err);
+    } else {
+      console.log("Database connected successfully at:", res.rows[0].now);
+    }
+  });
 
-	// Schedule cleanup job for unverified users
-	// Runs daily at 2:00 AM
-	// Set CLEANUP_UNVERIFIED_DAYS environment variable to change the threshold (default: 7 days)
-	const cleanupDays = parseInt(process.env.CLEANUP_UNVERIFIED_DAYS) || 7;
+  // Schedule cleanup job for unverified users
+  // Runs daily at 2:00 AM
+  // Set CLEANUP_UNVERIFIED_DAYS environment variable to change the threshold (default: 7 days)
+  const cleanupDays = parseInt(process.env.CLEANUP_UNVERIFIED_DAYS) || 7;
 
-	cron.schedule("0 2 * * *", async () => {
-		console.log("[Cron] Starting scheduled cleanup of unverified users...");
-		try {
-			const result = await cleanupUnverifiedUsers(cleanupDays);
-			console.log(
-				`[Cron] Cleanup completed: ${result.deleted} users deleted, ${result.errors} errors`,
-			);
-		} catch (error) {
-			console.error("[Cron] Cleanup job failed:", error);
-		}
-	});
+  cron.schedule("0 2 * * *", async () => {
+    console.log("[Cron] Starting scheduled cleanup of unverified users...");
+    try {
+      const result = await cleanupUnverifiedUsers(cleanupDays);
+      console.log(
+        `[Cron] Cleanup completed: ${result.deleted} users deleted, ${result.errors} errors`,
+      );
+    } catch (error) {
+      console.error("[Cron] Cleanup job failed:", error);
+    }
+  });
 
-	console.log(
-		`[Cron] Scheduled cleanup job: Daily at 2:00 AM (deleting unverified users older than ${cleanupDays} days)`,
-	);
+  console.log(
+    `[Cron] Scheduled cleanup job: Daily at 2:00 AM (deleting unverified users older than ${cleanupDays} days)`,
+  );
 });
