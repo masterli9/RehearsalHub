@@ -162,15 +162,15 @@ export const updateIdea = async (req, res) => {
         const result = await pool.query(
             `UPDATE musideas 
              SET title = COALESCE($1, title), 
-                 description = COALESCE($2, description), 
-                 key = COALESCE($3, key), 
-                 bpm = COALESCE($4, bpm), 
-                 time_signature = COALESCE($5, time_signature), 
-                 text_tabs = COALESCE($6, text_tabs),
+                 description = CASE WHEN $2::text IS NULL THEN description ELSE $2 END, 
+                 key = CASE WHEN $3::text = '' THEN NULL WHEN $3::text IS NULL THEN key ELSE $3 END, 
+                 bpm = CASE WHEN $10::boolean = true THEN NULL WHEN $4::smallint IS NULL THEN bpm ELSE $4 END, 
+                 time_signature = CASE WHEN $5::text IS NULL THEN time_signature ELSE $5 END, 
+                 text_tabs = CASE WHEN $6::text IS NULL THEN text_tabs ELSE $6 END,
                  length = COALESCE($7, length),
                  audiourl = COALESCE($8, audiourl)
              WHERE idea_id = $9 RETURNING *`,
-            [title, description, key, bpm, time_signature, text_tabs, lengthValue, cloudurl, idea_id]
+            [title, description, key, bpm, time_signature, text_tabs, lengthValue, cloudurl, idea_id, bpm === null]
         );
         
         if (result.rows.length === 0) {

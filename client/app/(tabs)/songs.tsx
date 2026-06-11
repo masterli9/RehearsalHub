@@ -14,7 +14,7 @@ import { useAuth } from "@/context/AuthContext";
 import { BandSongTag, useBand } from "@/context/BandContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import { createAudioPlayer } from "expo-audio";
-import { Link, useRouter } from "expo-router";
+import { Link, useRouter, useFocusEffect } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
@@ -38,7 +38,7 @@ import {
     Trash2,
     X,
 } from "lucide-react-native";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -486,6 +486,14 @@ const songs = () => {
             setIsLoadingSetlists(false);
         }
     };
+
+    useFocusEffect(
+        useCallback(() => {
+            if (activeBand?.id) {
+                fetchSetlists(true);
+            }
+        }, [activeBand?.id])
+    );
 
     useEffect(() => {
         return () => {

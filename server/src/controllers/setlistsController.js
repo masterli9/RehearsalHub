@@ -10,7 +10,14 @@ export const getSetlists = async (req, res) => {
 
 	try {
 		const result = await pool.query(
-			"SELECT setlist_id, title, created_at FROM setlists WHERE band_id = $1 ORDER BY created_at DESC",
+			`SELECT s.setlist_id, s.title, s.created_at, 
+			 EXTRACT(EPOCH FROM COALESCE(SUM(so.length), '00:00:00'::interval)) as total_length 
+			 FROM setlists s 
+			 LEFT JOIN setlists_songs ss ON s.setlist_id = ss.setlist_id 
+			 LEFT JOIN songs so ON ss.song_id = so.song_id 
+			 WHERE s.band_id = $1 
+			 GROUP BY s.setlist_id 
+			 ORDER BY s.created_at DESC`,
 			[bandId],
 		);
 		res.json(result.rows);
@@ -151,20 +158,25 @@ export const deleteSetlist = async (req, res) => {
 	const { id } = req.params;
 
 	try {
+		await pool.query("BEGIN");
+		await pool.query("DELETE FROM setlists_songs WHERE setlist_id = $1", [id]);
 		const result = await pool.query(
 			"DELETE FROM setlists WHERE setlist_id = $1 RETURNING setlist_id",
 			[id],
 		);
 
 		if (result.rows.length === 0) {
+			await pool.query("ROLLBACK");
 			return res.status(404).json({ error: "Setlist not found" });
 		}
 
+		await pool.query("COMMIT");
 		res.json({
 			message: "Setlist deleted successfully",
 			setlist_id: result.rows[0].setlist_id,
 		});
 	} catch (error) {
+		await pool.query("ROLLBACK");
 		console.error("Error deleting setlist:", error);
 		res.status(500).json({ error: "Error deleting setlist" });
 	}

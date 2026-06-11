@@ -11,8 +11,15 @@ import { useBand } from "@/context/BandContext";
 import { useAccessibleFontSize } from "@/hooks/use-accessible-font-size";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Formik } from "formik";
-import { Calendar, Clock, MapPin, Music, ListMusic, Edit3 } from "lucide-react-native";
-import { useEffect, useState, useCallback } from "react";
+import {
+    Calendar,
+    Clock,
+    MapPin,
+    Music,
+    ListMusic,
+    Edit3,
+} from "lucide-react-native";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -28,9 +35,42 @@ import { useLocalSearchParams, router } from "expo-router";
 import * as yup from "yup";
 import SwitchTabs from "@/components/SwitchTabs";
 import PageHeader from "@/components/PageHeader";
-import Animated, { FadeIn, LinearTransition, useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
+import Animated, {
+    FadeIn,
+    LinearTransition,
+    useSharedValue,
+    useAnimatedStyle,
+    withTiming,
+} from "react-native-reanimated";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+const parseDurationToSeconds = (durationStr: string | null | undefined): number => {
+    if (!durationStr) return Infinity;
+    const parts = durationStr.split(':').map(Number);
+    if (parts.some(isNaN)) return Infinity;
+    if (parts.length === 3) {
+        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    } else if (parts.length === 2) {
+        return parts[0] * 3600 + parts[1] * 60;
+    } else if (parts.length === 1) {
+        return parts[0] * 3600;
+    }
+    return Infinity;
+};
+
+const FilteredSetlistDropdown = ({ itemsSetlist, setlists, durationStr, ...props }: any) => {
+    const maxSeconds = useMemo(() => parseDurationToSeconds(durationStr), [durationStr]);
+    const filteredItemsSetlist = useMemo(() => {
+        return itemsSetlist.filter((item: any) => {
+            const s = setlists.find((sl: any) => sl.setlist_id === item.value);
+            if (!s || s.total_length === undefined || s.total_length === null) return true;
+            return Number(s.total_length) <= maxSeconds;
+        });
+    }, [itemsSetlist, setlists, maxSeconds]);
+
+    return <StyledDropdown items={filteredItemsSetlist} {...props} />;
+};
 
 type Event = {
     event_id: number;
@@ -71,7 +111,7 @@ const events = () => {
         useState<boolean>(false);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
     const [eventType, setEventType] = useState<"rehearsal" | "concert">(
-        "rehearsal"
+        "rehearsal",
     );
     const [songs, setSongs] = useState<Song[]>([]);
     const [songsLoading, setSongsLoading] = useState<boolean>(false);
@@ -80,7 +120,9 @@ const events = () => {
 
     // Add Setlist Modal states
     const [addSetlistModalVisible, setAddSetlistModalVisible] = useState(false);
-    const [selectedEventForSetlist, setSelectedEventForSetlist] = useState<number | null>(null);
+    const [selectedEventForSetlist, setSelectedEventForSetlist] = useState<
+        number | null
+    >(null);
     const [openAddSetlist, setOpenAddSetlist] = useState(false);
     const [valueAddSetlist, setValueAddSetlist] = useState<number | null>(null);
 
@@ -114,25 +156,25 @@ const events = () => {
                     headers: {
                         "Content-Type": "application/json",
                     },
-                }
+                },
             );
 
             if (!response.ok) {
                 throw new Error(
-                    `Error fetching events, status: ${response.status}`
+                    `Error fetching events, status: ${response.status}`,
                 );
             }
 
             const data = await response.json();
             setUpcomingEvents(
                 data.filter(
-                    (event: Event) => new Date(event.date_time) >= new Date()
-                )
+                    (event: Event) => new Date(event.date_time) >= new Date(),
+                ),
             );
             setPastEvents(
                 data.filter(
-                    (event: Event) => new Date(event.date_time) < new Date()
-                )
+                    (event: Event) => new Date(event.date_time) < new Date(),
+                ),
             );
         } catch (error) {
             console.error("Error fetching events:", error);
@@ -157,12 +199,12 @@ const events = () => {
                     headers: {
                         "Content-Type": "application/json",
                     },
-                }
+                },
             );
 
             if (!response.ok) {
                 throw new Error(
-                    `Error fetching songs, status: ${response.status}`
+                    `Error fetching songs, status: ${response.status}`,
                 );
             }
 
@@ -190,11 +232,13 @@ const events = () => {
                     headers: {
                         "Content-Type": "application/json",
                     },
-                }
+                },
             );
 
             if (!response.ok) {
-                throw new Error(`Error fetching setlists, status: ${response.status}`);
+                throw new Error(
+                    `Error fetching setlists, status: ${response.status}`,
+                );
             }
 
             const data = await response.json();
@@ -223,12 +267,12 @@ const events = () => {
         const today = new Date(
             now.getFullYear(),
             now.getMonth(),
-            now.getDate()
+            now.getDate(),
         );
         const eventDate = new Date(
             date.getFullYear(),
             date.getMonth(),
-            date.getDate()
+            date.getDate(),
         );
 
         const diffTime = eventDate.getTime() - today.getTime();
@@ -451,7 +495,7 @@ const events = () => {
                                         className='px-3 py-1 rounded-xl bg-accent-light dark:bg-accent-dark'>
                                         <Text
                                             className='text-black dark:text-white text-sm'
-                                        // style={{ fontSize: fontSize.sm }}
+                                            // style={{ fontSize: fontSize.sm }}
                                         >
                                             {song.title}
                                         </Text>
@@ -463,10 +507,24 @@ const events = () => {
                 {event.type === "concert" && (
                     <View className='mt-2'>
                         {event.setlist_title ? (
-                            <Pressable onPress={() => router.push(`/setlist/${event.setlist_id}` as any)} className='flex-row items-center gap-2'>
-                                <ListMusic color={"#A1A1A1"} size={Math.min(fontSize["2xl"], 18)} />
-                                <Text className='text-silverText' style={{ fontSize: fontSize.base }}>
-                                    Setlist: <Text className='font-bold'>{event.setlist_title}</Text>
+                            <Pressable
+                                onPress={() =>
+                                    router.push(
+                                        `/setlist/${event.setlist_id}` as any,
+                                    )
+                                }
+                                className='flex-row items-center gap-2'>
+                                <ListMusic
+                                    color={"#A1A1A1"}
+                                    size={Math.min(fontSize["2xl"], 18)}
+                                />
+                                <Text
+                                    className='text-silverText'
+                                    style={{ fontSize: fontSize.base }}>
+                                    Setlist:{" "}
+                                    <Text className='font-bold'>
+                                        {event.setlist_title}
+                                    </Text>
                                 </Text>
                             </Pressable>
                         ) : (
@@ -505,7 +563,7 @@ const events = () => {
             .transform((value, originalValue) =>
                 typeof originalValue === "string" && originalValue.trim() !== ""
                     ? originalValue.trim()
-                    : null
+                    : null,
             )
             .max(1000, "Description should be less than 1000 characters"),
         songs: yup.array().of(yup.number()).nullable(),
@@ -532,7 +590,7 @@ const events = () => {
             .transform((value, originalValue) =>
                 typeof originalValue === "string" && originalValue.trim() !== ""
                     ? originalValue.trim()
-                    : null
+                    : null,
             ),
         setlist_id: yup.number().nullable(),
     });
@@ -558,11 +616,13 @@ const events = () => {
 
         const offsetMinutes = -date.getTimezoneOffset(); // invert to get POSIX-style offset
         const offsetSign = offsetMinutes >= 0 ? "+" : "-";
-        const offsetHours = String(Math.floor(Math.abs(offsetMinutes) / 60)).padStart(
+        const offsetHours = String(
+            Math.floor(Math.abs(offsetMinutes) / 60),
+        ).padStart(2, "0");
+        const offsetMins = String(Math.abs(offsetMinutes) % 60).padStart(
             2,
-            "0"
+            "0",
         );
-        const offsetMins = String(Math.abs(offsetMinutes) % 60).padStart(2, "0");
 
         return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetSign}${offsetHours}:${offsetMins}`;
     };
@@ -571,12 +631,15 @@ const events = () => {
 
     const [openSetlist, setOpenSetlist] = useState(false);
     const [valueSetlist, setValueSetlist] = useState<number | null>(null);
-    const itemsSetlist = setlists.map((s: any) => ({ label: s.title, value: s.setlist_id }));
+    const itemsSetlist = useMemo(() => setlists.map((s: any) => ({
+        label: s.title,
+        value: s.setlist_id,
+    })), [setlists]);
 
     // Dropdown states for event type
     const [openType, setOpenType] = useState(false);
     const [valueType, setValueType] = useState<"rehearsal" | "concert">(
-        "rehearsal"
+        "rehearsal",
     );
     const [itemsType, setItemsType] = useState([
         { label: "Rehearsal", value: "rehearsal" },
@@ -598,13 +661,16 @@ const events = () => {
         }
 
         try {
-            const response = await fetch(`${apiUrl}/api/events/${selectedEventForSetlist}/setlist`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
+            const response = await fetch(
+                `${apiUrl}/api/events/${selectedEventForSetlist}/setlist`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ setlist_id: valueAddSetlist }),
                 },
-                body: JSON.stringify({ setlist_id: valueAddSetlist }),
-            });
+            );
 
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
@@ -615,9 +681,27 @@ const events = () => {
             fetchEvents();
         } catch (error: any) {
             console.error("Error setting setlist:", error);
-            Alert.alert("Error", error.message || "Failed to add setlist to event");
+            Alert.alert(
+                "Error",
+                error.message || "Failed to add setlist to event",
+            );
         }
     };
+
+    const initialEventValues = useMemo(() => {
+        return {
+            title: editingEvent ? editingEvent.title : "",
+            place: editingEvent?.place || "",
+            date: editingEvent ? new Date(editingEvent.date_time) : new Date(),
+            time: editingEvent ? new Date(editingEvent.date_time) : new Date(),
+            description: editingEvent?.description || "",
+            songs: editingEvent?.songs
+                ? editingEvent.songs.map((s: any) => s.song_id)
+                : ([] as number[]),
+            length: editingEvent?.length || "",
+            setlist_id: editingEvent?.setlist_id || null,
+        };
+    }, [editingEvent, newEventModalVisible]);
 
     return (
         <PageContainer noBandState={!bandsLoading && bands.length === 0}>
@@ -627,23 +711,22 @@ const events = () => {
                 canClose={true}
                 title='Add Setlist'
                 subtitle='Choose a setlist to attach to this concert'>
-                <View className='flex-col w-full gap-4 my-3' style={{ zIndex: 1000 }}>
+                <View
+                    className='flex-col w-full gap-4 my-3'
+                    style={{ zIndex: 1000 }}>
                     <StyledDropdown
                         open={openAddSetlist}
                         value={valueAddSetlist}
                         items={itemsSetlist}
                         setOpen={setOpenAddSetlist}
                         setValue={setValueAddSetlist}
-                        setItems={() => { }}
+                        setItems={() => {}}
                         placeholder='Select a setlist'
                         zIndex={1000}
                         zIndexInverse={3000}
                     />
                 </View>
-                <StyledButton
-                    title='Save'
-                    onPress={handleAddSetlistSubmit}
-                />
+                <StyledButton title='Save' onPress={handleAddSetlistSubmit} />
             </StyledModal>
 
             <StyledModal
@@ -651,28 +734,23 @@ const events = () => {
                 onClose={closeModalAndReset}
                 canClose={true}
                 wide={true}
-                title={editingEvent ? 'Edit an event' : 'Create an event'}
-                subtitle={editingEvent ? 'Update details for your rehearsal or concert' : "Add a new rehearsal or concert to your band's schedule"}>
+                title={editingEvent ? "Edit an event" : "Create an event"}
+                subtitle={
+                    editingEvent
+                        ? "Update details for your rehearsal or concert"
+                        : "Add a new rehearsal or concert to your band's schedule"
+                }>
                 <Formik
                     validationSchema={
                         eventType === "rehearsal"
                             ? rehearsalSchema
                             : concertSchema
                     }
-                    initialValues={{
-                        title: editingEvent ? editingEvent.title : "",
-                        place: editingEvent?.place || "",
-                        date: editingEvent ? new Date(editingEvent.date_time) : new Date(),
-                        time: editingEvent ? new Date(editingEvent.date_time) : new Date(),
-                        description: editingEvent?.description || "",
-                        songs: editingEvent?.songs ? editingEvent.songs.map((s: any) => s.song_id) : ([] as number[]),
-                        length: editingEvent?.length || "",
-                        setlist_id: editingEvent?.setlist_id || null,
-                    }}
+                    initialValues={initialEventValues}
                     enableReinitialize={true}
                     onSubmit={async (
                         values,
-                        { setFieldError, setSubmitting }
+                        { setFieldError, setSubmitting },
                     ) => {
                         try {
                             if (!activeBand?.id) {
@@ -721,8 +799,8 @@ const events = () => {
                                 }
                             }
 
-                            const url = editingEvent 
-                                ? `${apiUrl}/api/events/${editingEvent.event_id}` 
+                            const url = editingEvent
+                                ? `${apiUrl}/api/events/${editingEvent.event_id}`
                                 : `${apiUrl}/api/events/create`;
                             const method = editingEvent ? "PUT" : "POST";
 
@@ -739,7 +817,10 @@ const events = () => {
                                     .json()
                                     .catch(() => ({}));
                                 throw new Error(
-                                    err.error || (editingEvent ? "Failed to update event" : "Failed to create event")
+                                    err.error ||
+                                        (editingEvent
+                                            ? "Failed to update event"
+                                            : "Failed to create event"),
                                 );
                             }
 
@@ -749,7 +830,7 @@ const events = () => {
                             console.error(err);
                             Alert.alert(
                                 "Error",
-                                err.message || "Failed to create event"
+                                err.message || "Failed to create event",
                             );
                         } finally {
                             setSubmitting(false);
@@ -834,7 +915,7 @@ const events = () => {
                                                         year: "numeric",
                                                         month: "long",
                                                         day: "numeric",
-                                                    }
+                                                    },
                                                 )}
                                             </Text>
                                         </View>
@@ -855,10 +936,10 @@ const events = () => {
                                                 if (selectedDate) {
                                                     setFieldValue(
                                                         "date",
-                                                        selectedDate
+                                                        selectedDate,
                                                     );
                                                     setSelectedDate(
-                                                        selectedDate
+                                                        selectedDate,
                                                     );
                                                     if (
                                                         Platform.OS ===
@@ -866,7 +947,7 @@ const events = () => {
                                                     ) {
                                                         setFieldTouched(
                                                             "date",
-                                                            true
+                                                            true,
                                                         );
                                                     }
                                                 }
@@ -909,7 +990,7 @@ const events = () => {
                                                         hour: "numeric",
                                                         minute: "2-digit",
                                                         hour12: true,
-                                                    }
+                                                    },
                                                 )}
                                             </Text>
                                         </View>
@@ -930,10 +1011,10 @@ const events = () => {
                                                 if (selectedTime) {
                                                     setFieldValue(
                                                         "time",
-                                                        selectedTime
+                                                        selectedTime,
                                                     );
                                                     setSelectedTime(
-                                                        selectedTime
+                                                        selectedTime,
                                                     );
                                                     if (
                                                         Platform.OS ===
@@ -941,7 +1022,7 @@ const events = () => {
                                                     ) {
                                                         setFieldTouched(
                                                             "time",
-                                                            true
+                                                            true,
                                                         );
                                                     }
                                                 }
@@ -966,7 +1047,7 @@ const events = () => {
                                             variant='rounded'
                                             value={values.description}
                                             onChangeText={handleChange(
-                                                "description"
+                                                "description",
                                             )}
                                             onBlur={handleBlur("description")}
                                             multiline
@@ -997,7 +1078,7 @@ const events = () => {
                                                 {songs.map((song) => {
                                                     const isSelected =
                                                         values.songs.includes(
-                                                            song.song_id
+                                                            song.song_id,
                                                         );
                                                     return (
                                                         <Pressable
@@ -1011,11 +1092,11 @@ const events = () => {
                                                                         "songs",
                                                                         values.songs.filter(
                                                                             (
-                                                                                id
+                                                                                id,
                                                                             ) =>
                                                                                 id !==
-                                                                                song.song_id
-                                                                        )
+                                                                                song.song_id,
+                                                                        ),
                                                                     );
                                                                 } else {
                                                                     setFieldValue(
@@ -1023,7 +1104,7 @@ const events = () => {
                                                                         [
                                                                             ...values.songs,
                                                                             song.song_id,
-                                                                        ]
+                                                                        ],
                                                                     );
                                                                 }
                                                             }}
@@ -1031,13 +1112,13 @@ const events = () => {
                                                                 backgroundColor:
                                                                     isSelected
                                                                         ? colorScheme ===
-                                                                            "dark"
+                                                                          "dark"
                                                                             ? "#2B7FFF"
                                                                             : "#2B7FFF"
                                                                         : colorScheme ===
                                                                             "dark"
-                                                                            ? "#262626"
-                                                                            : "#EDEDED",
+                                                                          ? "#262626"
+                                                                          : "#EDEDED",
                                                                 borderWidth:
                                                                     isSelected
                                                                         ? 2
@@ -1045,13 +1126,13 @@ const events = () => {
                                                                 borderColor:
                                                                     isSelected
                                                                         ? colorScheme ===
-                                                                            "dark"
+                                                                          "dark"
                                                                             ? "#fff"
                                                                             : "#000"
                                                                         : colorScheme ===
                                                                             "dark"
-                                                                            ? "#262626"
-                                                                            : "#EDEDED",
+                                                                          ? "#262626"
+                                                                          : "#EDEDED",
                                                             }}>
                                                             <Text
                                                                 className={
@@ -1098,7 +1179,7 @@ const events = () => {
                                             variant='rounded'
                                             value={values.length}
                                             onChangeText={handleChange(
-                                                "length"
+                                                "length",
                                             )}
                                             onBlur={handleBlur("length")}
                                         />
@@ -1114,20 +1195,36 @@ const events = () => {
                                                 </ErrorText>
                                             </View>
                                         )}
-                                        <View style={{ zIndex: 1000, marginTop: 4 }}>
-                                            <StyledDropdown
+                                        <View
+                                            style={{
+                                                zIndex: 1000,
+                                                marginTop: 4,
+                                            }}>
+                                            <FilteredSetlistDropdown
+                                                itemsSetlist={itemsSetlist}
+                                                setlists={setlists}
+                                                durationStr={values.length}
                                                 open={openSetlist}
                                                 value={valueSetlist}
-                                                items={itemsSetlist}
                                                 setOpen={setOpenSetlist}
                                                 setValue={setValueSetlist}
-                                                onChangeValue={(v) => {
-                                                    if (v !== null && v !== undefined && v !== "") {
-                                                        setFieldValue("setlist_id", v);
-                                                        setFieldTouched("setlist_id", true);
+                                                onChangeValue={(v: any) => {
+                                                    if (
+                                                        v !== null &&
+                                                        v !== undefined &&
+                                                        v !== ""
+                                                    ) {
+                                                        setFieldValue(
+                                                            "setlist_id",
+                                                            v,
+                                                        );
+                                                        setFieldTouched(
+                                                            "setlist_id",
+                                                            true,
+                                                        );
                                                     }
                                                 }}
-                                                setItems={() => { }}
+                                                setItems={() => {}}
                                                 placeholder='Select a setlist (optional)'
                                                 zIndex={1000}
                                                 zIndexInverse={3000}
@@ -1137,7 +1234,11 @@ const events = () => {
                                 )}
                             </View>
                             <StyledButton
-                                title={editingEvent ? 'Save Changes' : 'Create Event'}
+                                title={
+                                    editingEvent
+                                        ? "Save Changes"
+                                        : "Create Event"
+                                }
                                 onPress={() => handleSubmit()}
                             />
                         </>
@@ -1183,8 +1284,8 @@ const events = () => {
                                         ? "s"
                                         : ""
                                     : pastEvents.length !== 1
-                                        ? "s"
-                                        : ""}
+                                      ? "s"
+                                      : ""}
                             </Text>
                             <StyledButton
                                 onPress={() => setNewEventModalVisible(true)}
@@ -1213,15 +1314,21 @@ const events = () => {
                                 <RefreshControl
                                     refreshing={refreshing}
                                     onRefresh={onRefresh}
-                                    tintColor={colorScheme === "dark" ? "#ffffff" : "#000000"}
+                                    tintColor={
+                                        colorScheme === "dark"
+                                            ? "#ffffff"
+                                            : "#000000"
+                                    }
                                     colors={["#2B7FFF"]}
-                                    progressViewOffset={Platform.OS === 'android' ? 50 : 0}
+                                    progressViewOffset={
+                                        Platform.OS === "android" ? 50 : 0
+                                    }
                                 />
                             }>
                             {(Array.isArray(pastEvents) &&
                                 pastEvents.length > 0) ||
-                                (Array.isArray(upcomingEvents) &&
-                                    upcomingEvents.length > 0) ? (
+                            (Array.isArray(upcomingEvents) &&
+                                upcomingEvents.length > 0) ? (
                                 activeTab === "Upcoming" ? (
                                     upcomingEvents.map((event) => (
                                         <EventCard

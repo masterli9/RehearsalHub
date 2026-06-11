@@ -4,7 +4,7 @@ export default {
         slug: "rehearsalhub",
         owner: "sterli",
         scheme: "com.sterli.rehearsalhub",
-        version: "1.0.0",
+        version: "0.1.1",
         orientation: "portrait",
         icon: "./assets/images/icon-standard.png",
         userInterfaceStyle: "automatic",
