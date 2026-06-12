@@ -116,11 +116,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     // If we successfully got or created the user, set the token.
                     const token = await firebaseUser.getIdToken();
                     setIdToken(token);
-                } catch (error) {
+                } catch (error: any) {
                     console.error(
                         "Error during auth state processing, signing out:",
                         error
                     );
+                    Alert.alert("Login Error", error?.message || "An error occurred during login.");
                     await signOut(auth);
                     setUser(null);
                     setIdToken(null);
